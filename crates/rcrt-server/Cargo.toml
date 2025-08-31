@@ -1,0 +1,42 @@
+[package]
+name = "rcrt-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "macros", "uuid", "json", "chrono"] }
+rcrt-core = { path = "../rcrt-core" }
+sha2 = "0.10"
+hex = "0.4"
+dotenvy = "0.15"
+jsonwebtoken = { version = "9", default-features = false, features = ["use_pem"] }
+nats = { git = "https://github.com/nats-io/nats.rs", optional = true }
+tokio-stream = "0.1"
+futures-core = "0.3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+tokenizers = { version = "0.15", default-features = false, features = ["onig"], optional = true }
+ort = { version = "2.0.0-rc.10", features = ["load-dynamic", "ndarray"], optional = true }
+ndarray = { version = "0.15", optional = true }
+hmac = "0.12"
+prometheus = "0.13"
+tower = "0.4"
+axum = { version = "0.7", features = ["macros", "json", "tracing"] }
+aes-gcm = "0.10"
+chacha20poly1305 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+
+[features]
+default = ["nats", "embed-onnx"]
+nats = ["dep:nats"]
+embed-onnx = ["dep:ort", "dep:tokenizers", "dep:ndarray", "ort/ndarray"]
+
+

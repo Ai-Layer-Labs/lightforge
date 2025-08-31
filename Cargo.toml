@@ -1,0 +1,9 @@
+[workspace]
+members = [
+  "crates/rcrt-core",
+  "crates/rcrt-server"
+]
+resolver = "2"
+
+
+ 

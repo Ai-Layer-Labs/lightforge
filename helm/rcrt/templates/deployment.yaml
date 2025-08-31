@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rcrt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rcrt
+  template:
+    metadata:
+      labels:
+        app: rcrt
+    spec:
+      containers:
+        - name: rcrt
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: {{ .Values.env.DB_URL | quote }}
+            - name: NATS_URL
+              value: {{ .Values.env.NATS_URL | quote }}
+            - name: OWNER_ID
+              value: {{ .Values.env.OWNER_ID | quote }}
+            - name: AUTH_MODE
+              value: {{ .Values.env.AUTH_MODE | quote }}
+            - name: EMBED_MODEL
+              value: {{ .Values.env.EMBED_MODEL | quote }}
+            - name: EMBED_TOKENIZER
+              value: {{ .Values.env.EMBED_TOKENIZER | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: 8080
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+
+

@@ -1,0 +1,35 @@
+image:
+  repository: rcrt
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+env:
+  DB_URL: "postgres://postgres:postgres@db:5432/rcrt"
+  NATS_URL: "nats://nats:4222"
+  OWNER_ID: "00000000-0000-0000-0000-000000000001"
+  AUTH_MODE: "disabled"
+  EMBED_MODEL: "/app/models/model.onnx"
+  EMBED_TOKENIZER: "/app/models/tokenizer.json"
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+livenessProbe:
+  path: /health
+readinessProbe:
+  path: /health
+
+

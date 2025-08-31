@@ -1,0 +1,8 @@
+apiVersion: v2
+name: rcrt
+description: Right Context Right Time (RCRT) breadcrumbs service
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+
