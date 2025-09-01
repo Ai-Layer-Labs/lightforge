@@ -484,6 +484,168 @@ impl Db {
 }
 
 impl Db {
+    pub async fn list_secrets(&self, owner_id: Uuid, scope_type: Option<&str>, scope_id: Option<Uuid>) -> Result<Vec<(Uuid, String, String, Option<Uuid>, chrono::DateTime<chrono::Utc>)>> {
+        let mut query = String::from("select id, name, scope_type, scope_id, created_at from secrets where owner_id = $1");
+        if scope_type.is_some() { query.push_str(" and scope_type = $2"); }
+        if scope_id.is_some() { query.push_str(" and scope_id = $3"); }
+        query.push_str(" order by created_at desc");
+        
+        let rows = if let Some(st) = scope_type {
+            if let Some(sid) = scope_id {
+                sqlx::query_as::<_, (Uuid, String, String, Option<Uuid>, chrono::DateTime<chrono::Utc>)>(&query)
+                    .bind(owner_id)
+                    .bind(st)
+                    .bind(sid)
+                    .fetch_all(&self.pool)
+                    .await?
+            } else {
+                sqlx::query_as::<_, (Uuid, String, String, Option<Uuid>, chrono::DateTime<chrono::Utc>)>(&query)
+                    .bind(owner_id)
+                    .bind(st)
+                    .fetch_all(&self.pool)
+                    .await?
+            }
+        } else {
+            sqlx::query_as::<_, (Uuid, String, String, Option<Uuid>, chrono::DateTime<chrono::Utc>)>(&query)
+                .bind(owner_id)
+                .fetch_all(&self.pool)
+                .await?
+        };
+        Ok(rows)
+    }
+
+    pub async fn update_secret(&self, owner_id: Uuid, secret_id: Uuid, enc_blob: &[u8], dek_encrypted: &[u8]) -> Result<()> {
+        let rows = sqlx::query(
+            "update secrets set enc_blob = $1, dek_encrypted = $2, updated_at = now() where id = $3 and owner_id = $4"
+        )
+        .bind(enc_blob)
+        .bind(dek_encrypted)
+        .bind(secret_id)
+        .bind(owner_id)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        
+        if rows == 0 {
+            anyhow::bail!("secret not found or not owned");
+        }
+        Ok(())
+    }
+
+    pub async fn delete_secret(&self, owner_id: Uuid, secret_id: Uuid) -> Result<u64> {
+        let result = sqlx::query(
+            "delete from secrets where id = $1 and owner_id = $2"
+        )
+        .bind(secret_id)
+        .bind(owner_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    // Agent CRUD operations
+    pub async fn list_agents(&self, owner_id: Uuid) -> Result<Vec<(Uuid, Vec<String>, chrono::DateTime<chrono::Utc>)>> {
+        let rows = sqlx::query_as::<_, (Uuid, Vec<String>, chrono::DateTime<chrono::Utc>)>(
+            "select id, roles, created_at from agents where owner_id = $1 order by created_at desc"
+        )
+        .bind(owner_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+    
+    pub async fn get_agent(&self, owner_id: Uuid, agent_id: Uuid) -> Result<Option<(Uuid, Vec<String>, chrono::DateTime<chrono::Utc>)>> {
+        let row = sqlx::query_as::<_, (Uuid, Vec<String>, chrono::DateTime<chrono::Utc>)>(
+            "select id, roles, created_at from agents where owner_id = $1 and id = $2"
+        )
+        .bind(owner_id)
+        .bind(agent_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+    
+    pub async fn delete_agent(&self, owner_id: Uuid, agent_id: Uuid) -> Result<()> {
+        sqlx::query("delete from agents where owner_id = $1 and id = $2")
+            .bind(owner_id)
+            .bind(agent_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    
+    // Tenant CRUD operations
+    pub async fn list_tenants(&self) -> Result<Vec<(Uuid, String, chrono::DateTime<chrono::Utc>)>> {
+        let rows = sqlx::query_as::<_, (Uuid, String, chrono::DateTime<chrono::Utc>)>(
+            "select id, name, created_at from tenants order by created_at desc"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+    
+    pub async fn get_tenant(&self, tenant_id: Uuid) -> Result<Option<(Uuid, String, chrono::DateTime<chrono::Utc>)>> {
+        let row = sqlx::query_as::<_, (Uuid, String, chrono::DateTime<chrono::Utc>)>(
+            "select id, name, created_at from tenants where id = $1"
+        )
+        .bind(tenant_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+    
+    pub async fn update_tenant(&self, tenant_id: Uuid, name: &str) -> Result<()> {
+        sqlx::query("update tenants set name = $2 where id = $1")
+            .bind(tenant_id)
+            .bind(name)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    
+    pub async fn delete_tenant(&self, tenant_id: Uuid) -> Result<()> {
+        sqlx::query("delete from tenants where id = $1")
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    
+    // Selector CRUD operations
+    pub async fn update_selector(&self, owner_id: Uuid, agent_id: Uuid, selector_id: Uuid, selector: Selector) -> Result<()> {
+        sqlx::query(
+            "update selectors set selector = $4 where id = $1 and owner_id = $2 and agent_id = $3"
+        )
+        .bind(selector_id)
+        .bind(owner_id)
+        .bind(agent_id)
+        .bind(JsonValue::from(serde_json::to_value(selector)?))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+    
+    pub async fn delete_selector(&self, owner_id: Uuid, agent_id: Uuid, selector_id: Uuid) -> Result<()> {
+        sqlx::query("delete from selectors where id = $1 and owner_id = $2 and agent_id = $3")
+            .bind(selector_id)
+            .bind(owner_id)
+            .bind(agent_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    
+    // ACL operations
+    pub async fn list_acls(&self, owner_id: Uuid) -> Result<Vec<(Uuid, Uuid, Option<Uuid>, Vec<String>, chrono::DateTime<chrono::Utc>)>> {
+        let rows = sqlx::query_as::<_, (Uuid, Uuid, Option<Uuid>, Vec<String>, chrono::DateTime<chrono::Utc>)>(
+            "select id, breadcrumb_id, grantee_agent_id, actions, created_at from acl_entries where owner_id = $1 order by created_at desc"
+        )
+        .bind(owner_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     pub async fn has_acl_action(&self, owner_id: Uuid, agent_id: Uuid, breadcrumb_id: Uuid, action: &str) -> Result<bool> {
         let mut conn = self.pool.acquire().await?;
         set_rls(&mut conn, owner_id, Some(agent_id)).await?;

@@ -1,0 +1,38 @@
+{
+  "name": "@rcrt-builder/sdk",
+  "version": "1.0.0",
+  "description": "Enhanced RCRT SDK for Visual Agent Builder",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "bash test/run-tests.sh",
+    "test:sdk": "ts-node test/test-enhanced-sdk.ts",
+    "test:agent": "ts-node test/test-agent-system.ts",
+    "test:secrets": "ts-node test/test-secrets.ts",
+    "test:quick": "ts-node test/test-enhanced-sdk.ts --quick"
+  },
+  "dependencies": {
+    "eventsource": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/eventsource": "^1.1.15",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "index.ts",
+    "index-enhanced.ts"
+  ],
+  "keywords": [
+    "rcrt",
+    "breadcrumbs",
+    "agent",
+    "visual-builder",
+    "no-code"
+  ],
+  "author": "",
+  "license": "Apache-2.0"
+}

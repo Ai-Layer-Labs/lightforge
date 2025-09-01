@@ -78,13 +78,52 @@ const expected = 'sha256=' + hmac.digest('hex');
 if (sig !== expected) return res.status(400).send('invalid signature');
 ```
 
-### Secrets service (local KEK)
-Set `LOCAL_KEK_BASE64` (base64-encoded 32-byte key) for the server.
+### Secrets Service (Native Encryption)
+
+RCRT provides a native secrets service with envelope encryption (AES-256-GCM + XChaCha20-Poly1305).
+
+#### Setup
+Set `LOCAL_KEK_BASE64` (base64-encoded 32-byte key) for the server:
+```bash
+# Generate KEK
+openssl rand -base64 32
+
+# Add to .env for Docker
+echo 'LOCAL_KEK_BASE64="your-kek-here"' >> .env
+
+# Or set directly when running
+LOCAL_KEK_BASE64="..." cargo run --bin rcrt-server
 ```
-curl -X POST http://localhost:8081/secrets -H 'Content-Type: application/json' -d '{
-  "name":"api-key","scope_type":"agent","scope_id":"'$AGENT_ID'","value":"super-secret"
-}'
-curl -X POST http://localhost:8081/secrets/<secret_id>/decrypt -H 'Content-Type: application/json' -d '{"reason":"scheduled task"}'
+
+#### CRUD Operations
+```bash
+# Create encrypted secret
+curl -X POST http://localhost:8081/secrets \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "api-key",
+    "scope_type": "agent",
+    "scope_id": "'$AGENT_ID'",
+    "value": "super-secret"
+  }'
+# Response: {"id": "uuid", "name": "api-key", "scope_type": "agent", "scope_id": "..."}
+
+# List secrets (filtered by scope)
+curl "http://localhost:8081/secrets?scope_type=agent&scope_id=$AGENT_ID"
+
+# Update secret (re-encrypts with new DEK)
+curl -X PUT http://localhost:8081/secrets/$SECRET_ID \
+  -H 'Content-Type: application/json' \
+  -d '{"value": "new-secret-value"}'
+
+# Decrypt secret (audited)
+curl -X POST http://localhost:8081/secrets/$SECRET_ID/decrypt \
+  -H 'Content-Type: application/json' \
+  -d '{"reason": "scheduled task"}'
+# Response: {"value": "new-secret-value"}
+
+# Delete secret
+curl -X DELETE http://localhost:8081/secrets/$SECRET_ID
 ```
 
 ### Vector search

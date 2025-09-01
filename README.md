@@ -34,12 +34,16 @@ RCRT is a production‑grade system for delivering the right context to agents a
 Prereqs: Docker and Docker Compose.
 
 ```bash
+# Optional: Enable secrets service
+echo 'LOCAL_KEK_BASE64="'$(openssl rand -base64 32)'"' >> .env
+
 docker compose up --build -d
 ```
 
 - API base: `http://localhost:8081`
 - Health: `GET /health`
 - Docs: Redoc `/docs`, Swagger `/swagger`, raw spec `/openapi.json`
+- Secrets: Requires `LOCAL_KEK_BASE64` in `.env` for encryption
 
 Register a tenant/agent and a webhook (see more in `docs/Integration_Guide.md`):
 
@@ -90,7 +94,7 @@ Endpoints include breadcrumbs CRUD, history, vector search, selector subscriptio
 - **Isolation**: PostgreSQL RLS enforces tenant isolation via `app.current_owner_id`/`app.current_agent_id`.
 - **ACLs**: Per‑breadcrumb actions: `read_context`, `read_full`, `update`, `delete`, `subscribe`. Enables cross‑tenant sharing.
 - **Webhooks**: HMAC signatures via per‑agent secret; retries with backoff; DLQ for failures.
-- **Secrets**: Envelope encryption (DEK encrypted by KEK). Audited decrypts, rotation via rewrap.
+- **Secrets**: Native encryption service using envelope encryption (AES-256-GCM data + XChaCha20-Poly1305 key wrapping). Full CRUD operations, audited decrypts, rotation support. Set `LOCAL_KEK_BASE64` env var.
 
 ### Embeddings and vector search
 - Default: local ONNX MiniLM L6 v2 (384d). Configurable provider/dimension.

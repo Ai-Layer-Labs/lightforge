@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use axum::{routing::{get, post}, Router, extract::{State, Query, FromRequestParts}, http::{request::Parts, header, StatusCode}, Json};
+use axum::{routing::{get, post, put, delete}, Router, extract::{State, Query, FromRequestParts}, http::{request::Parts, header, StatusCode}, Json};
 use tracing_subscriber::{EnvFilter, fmt};
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
@@ -84,17 +84,23 @@ async fn main() -> Result<()> {
         .route("/breadcrumbs/:id/history", get(get_breadcrumb_history))
         .route("/breadcrumbs/search", get(vector_search))
         .route("/subscriptions/selectors", post(create_selector).get(list_selectors))
+        .route("/subscriptions/selectors/:id", put(update_selector).delete(delete_selector))
         .route("/events/stream", get(sse_stream))
+        .route("/acl", get(list_acls))
         .route("/acl/grant", post(grant_acl))
         .route("/acl/revoke", post(revoke_acl))
+        .route("/agents", get(list_agents))
         .route("/agents/:id/webhooks", post(register_webhook).get(list_webhooks))
         .route("/agents/:id/webhooks/:wid", axum::routing::delete(deactivate_webhook))
-        .route("/agents/:id", post(register_agent))
+        .route("/agents/:id", post(register_agent).get(get_agent).delete(delete_agent))
         .route("/agents/:id/secret", post(set_agent_secret))
-        .route("/tenants/:id", post(ensure_tenant))
-        .route("/secrets", post(create_secret))
+        .route("/tenants", get(list_tenants))
+        .route("/tenants/:id", post(ensure_tenant).get(get_tenant).put(update_tenant).delete(delete_tenant))
+        .route("/secrets", post(create_secret).get(list_secrets))
+        .route("/secrets/:id", put(update_secret).delete(delete_secret))
         .route("/secrets/:id/decrypt", post(decrypt_secret))
         .route("/dlq", get(list_dlq))
+        .route("/dlq/:id", delete(delete_dlq))
         .route("/dlq/:id/retry", post(retry_dlq))
         .with_state(state)
         .layer(axum::middleware::from_fn(http_metrics_middleware));
@@ -421,6 +427,20 @@ async fn revoke_acl(State(state): State<AppState>, auth: AuthContext, Json(req):
     Ok(Json(json!({"rows": rows})))
 }
 
+async fn list_acls(State(state): State<AppState>, auth: AuthContext) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+    let acls = state.db.list_acls(auth.owner_id).await.map_err(internal_error)?;
+    let out = acls.into_iter().map(|(id, breadcrumb_id, grantee_agent_id, actions, created_at)| {
+        json!({
+            "id": id,
+            "breadcrumb_id": breadcrumb_id,
+            "grantee_agent_id": grantee_agent_id,
+            "actions": actions,
+            "created_at": created_at
+        })
+    }).collect();
+    Ok(Json(out))
+}
+
 async fn fanout_events_and_webhooks(state: &AppState, owner_id: Uuid, bc: &rcrt_core::models::Breadcrumb, payload: &str) {
     // Load all selectors for this owner and match
     let Ok(subs) = state.db.list_selector_subscriptions_for_owner(owner_id).await else { return; };
@@ -550,6 +570,36 @@ async fn set_agent_secret(State(state): State<AppState>, auth: AuthContext, axum
     Ok(Json(json!({"ok": true})))
 }
 
+async fn list_agents(State(state): State<AppState>, auth: AuthContext) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+    let agents = state.db.list_agents(auth.owner_id).await.map_err(internal_error)?;
+    let out = agents.into_iter().map(|(id, roles, created_at)| {
+        json!({
+            "id": id,
+            "roles": roles,
+            "created_at": created_at
+        })
+    }).collect();
+    Ok(Json(out))
+}
+
+async fn get_agent(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(agent_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let agent = state.db.get_agent(auth.owner_id, agent_id).await.map_err(internal_error)?;
+    match agent {
+        Some((id, roles, created_at)) => Ok(Json(json!({
+            "id": id,
+            "roles": roles,
+            "created_at": created_at
+        }))),
+        None => Err((StatusCode::NOT_FOUND, "agent not found".into()))
+    }
+}
+
+async fn delete_agent(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(agent_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
+    state.db.delete_agent(auth.owner_id, agent_id).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
+}
+
 #[derive(Deserialize)]
 struct SecretCreateReq { name: String, scope_type: String, scope_id: Option<Uuid>, value: String }
 async fn create_secret(State(state): State<AppState>, auth: AuthContext, Json(req): Json<SecretCreateReq>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
@@ -609,6 +659,93 @@ async fn decrypt_secret(State(state): State<AppState>, auth: AuthContext, axum::
     Ok(Json(json!({"value": String::from_utf8_lossy(&plaintext)})))
 }
 
+async fn list_secrets(State(state): State<AppState>, auth: AuthContext, Query(q): Query<ListSecretsQuery>) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+    // List secrets for the authenticated owner, optionally filtered by scope
+    let rows = state.db.list_secrets(auth.owner_id, q.scope_type.as_deref(), q.scope_id).await.map_err(internal_error)?;
+    let out = rows.into_iter().map(|(id, name, scope_type, scope_id, created_at)| {
+        json!({
+            "id": id,
+            "name": name,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "created_at": created_at
+        })
+    }).collect();
+    Ok(Json(out))
+}
+
+#[derive(Deserialize)]
+struct ListSecretsQuery { 
+    scope_type: Option<String>, 
+    scope_id: Option<Uuid> 
+}
+
+async fn update_secret(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(secret_id): axum::extract::Path<Uuid>, Json(req): Json<SecretUpdateReq>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { 
+        return Err((StatusCode::FORBIDDEN, "curator role required".into())); 
+    }
+    
+    // Re-encrypt with new value
+    let kek_b64 = std::env::var("LOCAL_KEK_BASE64").map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "LOCAL_KEK_BASE64 missing".into()))?;
+    let kek = base64::decode(kek_b64).map_err(internal_error)?;
+    
+    // Generate new DEK for the updated value
+    let dek = rand::random::<[u8;32]>();
+    
+    // Encrypt new value with DEK
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+    use aes_gcm::aead::{Aead, OsRng, rand_core::RngCore, KeyInit};
+    let key = Key::<Aes256Gcm>::from_slice(&dek);
+    let cipher = Aes256Gcm::new(key);
+    let mut nonce_bytes = [0u8;12]; 
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher.encrypt(nonce, req.value.as_bytes()).map_err(internal_error)?;
+    let mut enc_blob = Vec::with_capacity(12 + ciphertext.len());
+    enc_blob.extend_from_slice(&nonce_bytes);
+    enc_blob.extend_from_slice(&ciphertext);
+    
+    // Wrap DEK with KEK
+    use chacha20poly1305::{XChaCha20Poly1305, Key as XKey, XNonce};
+    use chacha20poly1305::aead::KeyInit as _;
+    let xkey = XKey::from_slice(&kek);
+    let x = XChaCha20Poly1305::new(xkey);
+    let mut xnonce_bytes = [0u8;24]; 
+    OsRng.fill_bytes(&mut xnonce_bytes);
+    let dek_ct = x.encrypt(XNonce::from_slice(&xnonce_bytes), dek.as_slice()).map_err(internal_error)?;
+    let mut dek_encrypted = Vec::with_capacity(24 + dek_ct.len());
+    dek_encrypted.extend_from_slice(&xnonce_bytes);
+    dek_encrypted.extend_from_slice(&dek_ct);
+    
+    // Update in database
+    state.db.update_secret(auth.owner_id, secret_id, &enc_blob, &dek_encrypted).await.map_err(internal_error)?;
+    state.db.audit_secret(secret_id, Some(auth.agent_id), "update", Some("value updated")).await.map_err(internal_error)?;
+    
+    Ok(Json(json!({"ok": true})))
+}
+
+#[derive(Deserialize)]
+struct SecretUpdateReq { 
+    value: String 
+}
+
+async fn delete_secret(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(secret_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { 
+        return Err((StatusCode::FORBIDDEN, "curator role required".into())); 
+    }
+    
+    // Audit before deletion
+    state.db.audit_secret(secret_id, Some(auth.agent_id), "delete", Some("secret deleted")).await.map_err(internal_error)?;
+    
+    // Delete the secret
+    let rows = state.db.delete_secret(auth.owner_id, secret_id).await.map_err(internal_error)?;
+    if rows == 0 { 
+        return Err((StatusCode::NOT_FOUND, "secret not found".into())); 
+    }
+    
+    Ok(Json(json!({"ok": true})))
+}
+
 async fn list_dlq(State(state): State<AppState>, auth: AuthContext) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
     if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
     let rows = state.db.list_webhook_dlq(auth.owner_id).await.map_err(internal_error)?;
@@ -628,11 +765,54 @@ async fn retry_dlq(State(state): State<AppState>, auth: AuthContext, axum::extra
     Ok(Json(json!({"requeued": true})))
 }
 
+async fn delete_dlq(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
+    state.db.delete_webhook_dlq(auth.owner_id, id).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
+}
+
 #[derive(Deserialize)]
 struct TenantReq { name: String }
 async fn ensure_tenant(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(tenant_id): axum::extract::Path<Uuid>, Json(req): Json<TenantReq>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if auth.owner_id != tenant_id && !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "forbidden".into())); }
     state.db.ensure_tenant(tenant_id, &req.name).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn list_tenants(State(state): State<AppState>, auth: AuthContext) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
+    let tenants = state.db.list_tenants().await.map_err(internal_error)?;
+    let out = tenants.into_iter().map(|(id, name, created_at)| {
+        json!({
+            "id": id,
+            "name": name,
+            "created_at": created_at
+        })
+    }).collect();
+    Ok(Json(out))
+}
+
+async fn get_tenant(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(tenant_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let tenant = state.db.get_tenant(tenant_id).await.map_err(internal_error)?;
+    match tenant {
+        Some((id, name, created_at)) => Ok(Json(json!({
+            "id": id,
+            "name": name,
+            "created_at": created_at
+        }))),
+        None => Err((StatusCode::NOT_FOUND, "tenant not found".into()))
+    }
+}
+
+async fn update_tenant(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(tenant_id): axum::extract::Path<Uuid>, Json(req): Json<TenantReq>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if auth.owner_id != tenant_id && !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "forbidden".into())); }
+    state.db.update_tenant(tenant_id, &req.name).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn delete_tenant(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(tenant_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
+    state.db.delete_tenant(tenant_id).await.map_err(internal_error)?;
     Ok(Json(json!({"ok": true})))
 }
 
@@ -791,6 +971,18 @@ async fn list_selectors(State(state): State<AppState>, auth: AuthContext) -> Res
     if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
     let subs = state.db.list_selector_subscriptions(auth.owner_id, auth.agent_id).await.map_err(internal_error)?;
     Ok(Json(subs))
+}
+
+async fn update_selector(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(selector_id): axum::extract::Path<Uuid>, Json(req): Json<Selector>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
+    state.db.update_selector(auth.owner_id, auth.agent_id, selector_id, req).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn delete_selector(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(selector_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
+    state.db.delete_selector(auth.owner_id, auth.agent_id, selector_id).await.map_err(internal_error)?;
+    Ok(Json(json!({"ok": true})))
 }
 
 // Auth extractor: JWT by default; dev mode explicit via AUTH_MODE=disabled with OWNER_ID/AGENT_ID
