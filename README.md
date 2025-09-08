@@ -31,33 +31,78 @@ graph TB
         Admin[👔 Admin Dashboard]
     end
 
-    subgraph "Tool Layer (All Equal Citizens)"
-        VB[🎨 Visual Builder<br/>- UI authoring<br/>- Component catalog<br/>- Live preview<br/>- Plan validation/apply]
-        Search[🔍 Search Tool<br/>- Web search<br/>- Knowledge base<br/>- Vector search]
-        ImgGen[🖼️ Image Gen Tool<br/>- DALL-E/Stable Diffusion<br/>- Asset management]
-        DataTool[📊 Data Analysis Tool<br/>- SQL queries<br/>- Visualizations]
-        CodeTool[⚙️ Code Execution Tool<br/>- Sandboxed runtime<br/>- Result capture]
-        CustomTool[🔧 Custom Tools<br/>- Domain-specific<br/>- Legacy integrations]
+    subgraph "Tool Layer - All Equal Citizens"
+        VB["🎨 Visual Builder
+        UI authoring
+        Component catalog
+        Live preview
+        Plan validation/apply"]
+        Search["🔍 Search Tool
+        Web search
+        Knowledge base
+        Vector search"]
+        ImgGen["🖼️ Image Gen Tool
+        DALL-E/Stable Diffusion
+        Asset management"]
+        DataTool["📊 Data Analysis Tool
+        SQL queries
+        Visualizations"]
+        CodeTool["⚙️ Code Execution Tool
+        Sandboxed runtime
+        Result capture"]
+        CustomTool["🔧 Custom Tools
+        Domain-specific
+        Legacy integrations"]
     end
 
     subgraph "Agent Layer"
-        Orchestrator[🎭 Orchestrator Agent<br/>- Event → Plan mapping<br/>- Tool coordination<br/>- Context management]
-        TaskAgent[🤖 Task Agents<br/>- Specialized workers<br/>- Domain experts]
-        LLMAgent[🧠 LLM Agent<br/>- Natural language<br/>- Intent parsing<br/>- Plan generation]
-        MonitorAgent[📈 Monitor Agent<br/>- Health checks<br/>- Performance<br/>- Alerts]
+        Orchestrator["🎭 Orchestrator Agent
+        Event → Plan mapping
+        Tool coordination
+        Context management"]
+        TaskAgent["🤖 Task Agents
+        Specialized workers
+        Domain experts"]
+        LLMAgent["🧠 LLM Agent
+        Natural language
+        Intent parsing
+        Plan generation"]
+        MonitorAgent["📈 Monitor Agent
+        Health checks
+        Performance
+        Alerts"]
     end
 
     subgraph "SDK Layer"
-        SDK[📦 RCRT SDK<br/>- createClient()<br/>- Auth handling<br/>- SSE subscriptions<br/>- CRUD operations<br/>- applyPlan() helper]
+        SDK["📦 RCRT SDK
+        createClient()
+        Auth handling
+        SSE subscriptions
+        CRUD operations
+        applyPlan() helper"]
     end
 
-    subgraph "RCRT Core (The Substrate)"
-        API[🌐 REST API<br/>/breadcrumbs<br/>/search<br/>/acl]
-        SSE[📡 SSE Stream<br/>/events/stream<br/>Real-time updates]
-        Auth[🔐 Auth/ACL<br/>JWT validation<br/>Row-level security]
-        VecSearch[🔎 Vector Search<br/>ONNX embeddings<br/>Semantic queries]
-        DB[(🗄️ PostgreSQL<br/>Breadcrumbs<br/>History<br/>ACL rules)]
-        EventBus[📨 NATS<br/>Event distribution<br/>Pub/Sub]
+    subgraph "RCRT Core - The Substrate"
+        API["🌐 REST API
+        /breadcrumbs
+        /search
+        /acl"]
+        SSE["📡 SSE Stream
+        /events/stream
+        Real-time updates"]
+        Auth["🔐 Auth/ACL
+        JWT validation
+        Row-level security"]
+        VecSearch["🔎 Vector Search
+        ONNX embeddings
+        Semantic queries"]
+        DB[("🗄️ PostgreSQL
+        Breadcrumbs
+        History
+        ACL rules")]
+        EventBus["📨 NATS
+        Event distribution
+        Pub/Sub"]
     end
 
     %% All tools use SDK equally
