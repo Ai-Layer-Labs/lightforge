@@ -172,8 +172,8 @@ export class RcrtClientEnhanced {
     return response.json();
   }
 
-  async getBreadcrumb(id: string, view: 'context' | 'full' = 'context'): Promise<Breadcrumb> {
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}?view=${view}`, {
+  async getBreadcrumb(id: string): Promise<Breadcrumb> {
+    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
       headers: this.defaultHeaders,
     });
 
@@ -186,12 +186,21 @@ export class RcrtClientEnhanced {
   }
 
   async getBreadcrumbFull(id: string): Promise<Breadcrumb> {
-    return this.getBreadcrumb(id, 'full');
+    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}/full`, {
+      headers: this.defaultHeaders,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to get full breadcrumb: ${error}`);
+    }
+
+    return response.json();
   }
 
   async updateBreadcrumb(id: string, version: number, updates: BreadcrumbUpdate): Promise<Breadcrumb> {
     const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         ...this.defaultHeaders,
         'If-Match': version.toString(),
@@ -204,7 +213,8 @@ export class RcrtClientEnhanced {
       throw new Error(`Failed to update breadcrumb: ${error}`);
     }
 
-    return response.json();
+    // Server returns OkResp; fetch fresh full resource for convenience
+    return this.getBreadcrumbFull(id);
   }
 
   async deleteBreadcrumb(id: string, version?: number): Promise<void> {
@@ -240,24 +250,16 @@ export class RcrtClientEnhanced {
   // ============ Search Operations ============
 
   async searchBreadcrumbs(params: SearchParams | Selector): Promise<Breadcrumb[]> {
+    // Map selector → simple tag filter only (API supports only 'tag')
     const queryParams = new URLSearchParams();
-    
-    if ('any_tags' in params || 'all_tags' in params) {
-      // It's a Selector
-      const response = await fetch(`${this.baseUrl}/search`, {
-        method: 'POST',
-        headers: this.defaultHeaders,
-        body: JSON.stringify(params),
-      });
+    const isSelector = (p: any): p is Selector => 'any_tags' in p || 'all_tags' in p;
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to search breadcrumbs: ${error}`);
-      }
-
-      return response.json();
+    if (isSelector(params)) {
+      const tagFromAny = params.any_tags?.find(t => typeof t === 'string');
+      const tagFromAll = params.all_tags?.find(t => typeof t === 'string');
+      const tag = tagFromAny || tagFromAll;
+      if (tag) queryParams.set('tag', tag);
     } else {
-      // It's SearchParams
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
           if (Array.isArray(value)) {
@@ -267,25 +269,29 @@ export class RcrtClientEnhanced {
           }
         }
       });
-
-      const response = await fetch(`${this.baseUrl}/breadcrumbs?${queryParams}`, {
-        headers: this.defaultHeaders,
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to search breadcrumbs: ${error}`);
-      }
-
-      return response.json();
     }
+
+    const response = await fetch(`${this.baseUrl}/breadcrumbs?${queryParams}`, {
+      headers: this.defaultHeaders,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to search breadcrumbs: ${error}`);
+    }
+
+    return response.json();
   }
 
   async vectorSearch(params: VectorSearchParams): Promise<Breadcrumb[]> {
-    const response = await fetch(`${this.baseUrl}/search/vector`, {
-      method: 'POST',
+    const qp = new URLSearchParams();
+    if (params.q) qp.set('q', params.q);
+    if (params.qvec) qp.set('qvec', JSON.stringify(params.qvec));
+    if (typeof params.nn === 'number') qp.set('nn', String(params.nn));
+    if (params.filters?.tag) qp.set('tag', params.filters.tag);
+
+    const response = await fetch(`${this.baseUrl}/breadcrumbs/search?${qp.toString()}`, {
       headers: this.defaultHeaders,
-      body: JSON.stringify(params),
     });
 
     if (!response.ok) {
@@ -326,7 +332,7 @@ export class RcrtClientEnhanced {
 
   async createOrUpdateAgent(agentId: string, roles: string[]): Promise<{ ok: boolean }> {
     const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: this.defaultHeaders,
       body: JSON.stringify({ roles }),
     });
@@ -413,7 +419,7 @@ export class RcrtClientEnhanced {
   // ============ ACL Operations ============
 
   async listAcls(): Promise<ACL[]> {
-    const response = await fetch(`${this.baseUrl}/acls`, {
+    const response = await fetch(`${this.baseUrl}/acl`, {
       headers: this.defaultHeaders,
     });
 
@@ -470,11 +476,11 @@ export class RcrtClientEnhanced {
 
   // ============ Secrets Operations ============
 
-  async createSecret(name: string, value: string, scope?: SecretScope): Promise<{ id: string }> {
+  async createSecret(name: string, value: string, scope_type?: string, scope_id?: string): Promise<{ id: string }> {
     const response = await fetch(`${this.baseUrl}/secrets`, {
       method: 'POST',
       headers: this.defaultHeaders,
-      body: JSON.stringify({ name, value, scope }),
+      body: JSON.stringify({ name, value, scope_type, scope_id }),
     });
 
     if (!response.ok) {
@@ -485,22 +491,26 @@ export class RcrtClientEnhanced {
     return response.json();
   }
 
-  async getSecret(secretId: string): Promise<{ value: string }> {
-    const response = await fetch(`${this.baseUrl}/secrets/${secretId}`, {
+  async getSecret(secretId: string, reason: string = 'SDK:getSecret'): Promise<{ value: string }> {
+    const response = await fetch(`${this.baseUrl}/secrets/${secretId}/decrypt`, {
+      method: 'POST',
       headers: this.defaultHeaders,
+      body: JSON.stringify({ reason }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Failed to get secret: ${error}`);
+      throw new Error(`Failed to decrypt secret: ${error}`);
     }
 
     return response.json();
   }
 
-  async listSecrets(scope?: SecretScope): Promise<Secret[]> {
-    const params = scope ? `?scope=${scope}` : '';
-    const response = await fetch(`${this.baseUrl}/secrets${params}`, {
+  async listSecrets(scope_type?: string, scope_id?: string): Promise<Secret[]> {
+    const qp = new URLSearchParams();
+    if (scope_type) qp.set('scope_type', scope_type);
+    if (scope_id) qp.set('scope_id', scope_id);
+    const response = await fetch(`${this.baseUrl}/secrets${qp.toString() ? `?${qp.toString()}` : ''}`, {
       headers: this.defaultHeaders,
     });
 
@@ -606,7 +616,7 @@ export class RcrtClientEnhanced {
 
       this.eventSource = es;
 
-      es.onmessage = (event) => {
+      es.onmessage = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
           onEvent(data);
@@ -615,7 +625,7 @@ export class RcrtClientEnhanced {
         }
       };
 
-      es.onerror = (error) => {
+      es.onerror = (error: any) => {
         console.error('SSE connection error:', error);
         es.close();
         if (shouldReconnect) {
@@ -653,7 +663,7 @@ export class RcrtClientEnhanced {
 
   async batchGet(ids: string[], view: 'context' | 'full' = 'context'): Promise<Breadcrumb[]> {
     const results = await Promise.all(
-      ids.map(id => this.getBreadcrumb(id, view))
+      ids.map(id => (view === 'full' ? this.getBreadcrumbFull(id) : this.getBreadcrumb(id)))
     );
     return results;
   }

@@ -51,5 +51,15 @@ export const POST = proxy;
 export const PUT = proxy;
 export const PATCH = proxy;
 export const DELETE = proxy;
+export const HEAD = proxy;
+export const OPTIONS = async (req: NextRequest) => {
+  // Basic CORS preflight passthrough
+  const resp = await proxy(req);
+  const headers = new Headers(resp.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD');
+  headers.set('Access-Control-Allow-Headers', req.headers.get('access-control-request-headers') || '*');
+  return new Response(null, { status: 204, headers });
+};
 
 
