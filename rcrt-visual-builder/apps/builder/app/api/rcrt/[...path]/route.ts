@@ -19,6 +19,18 @@ async function proxy(req: NextRequest) {
   headers.delete('origin');
   headers.delete('content-length');
   headers.set('accept', headers.get('accept') || '*/*');
+  // Ensure Authorization header is forwarded when present
+  const auth = req.headers.get('authorization');
+  if (auth) {
+    headers.set('authorization', auth);
+  } else {
+    // If access_token/token is provided in query (SSE in browsers), map it to Authorization
+    const qp = req.nextUrl.searchParams;
+    const token = qp.get('access_token') || qp.get('token');
+    if (token) {
+      headers.set('authorization', `Bearer ${token}`);
+    }
+  }
 
   const init: RequestInit = {
     method: req.method,

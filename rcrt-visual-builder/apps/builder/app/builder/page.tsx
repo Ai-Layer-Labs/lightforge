@@ -164,7 +164,7 @@ export default function BuilderPage() {
     try {
       registerHeroUIComponents();
       const list = await client.searchBreadcrumbs({ tag: workspace });
-      const full = list.length ? await client.batchGet(list.map((i: any) => i.id), 'full') : [];
+      const full = list.length ? await client.batchGet(list.map((i: any) => i.id), 'context') : [];
 
       // Ensure layout exists
       const hasLayout = full.some((b: any) => b?.schema_name === 'ui.layout.v1' || (Array.isArray(b?.tags) && b.tags.includes('ui:layout')));

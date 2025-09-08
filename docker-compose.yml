@@ -34,8 +34,18 @@ services:
       DB_URL: postgres://postgres:postgres@db:5432/rcrt
       NATS_URL: nats://nats:4222
       OWNER_ID: 00000000-0000-0000-0000-000000000001
-      AUTH_MODE: disabled
+      AUTH_MODE: jwt
       AGENT_ID: 00000000-0000-0000-0000-0000000000aa
+      JWT_PUBLIC_KEY_PEM: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuz8kjDEWaFNKNU0E2u//
+        u7ggsvTz78ol5+OnUPitLecBSJAACFE1mTk7jXNir6MOF8OEdFWMv8Qm8DQoSb+5
+        dwRDcQJgxIsf3nIvRWoltUaDoONsCzUlfMEikPkc/ukEBydsHi5+lyhJ7qinZZmj
+        t4fwc2t+NMIByw2OlVioEl3hblZC7PkC53z3WMJjnOJ6lTdcdA/yn45jEZ6BhKcV
+        wIJBfDW3fjWovi8DY0DnhS7Bgs0bupXw1zykoNmPEh9wPMCRSPqoQASRnOVOixJS
+        e06617Jc8Oaw+NCzGAqTNuDkh8NK1aZuz2FC856xKOmelaxhF/SAppS5G9QIp2Ll
+        SQIDAQAB
+        -----END PUBLIC KEY-----
       LOCAL_KEK_BASE64: ${LOCAL_KEK_BASE64}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENROUTER_REFERER: ${OPENROUTER_REFERER:-}

@@ -60,7 +60,7 @@ export const UILoader: React.FC<UILoaderProps> = ({
     setError(null);
     try {
       const list = await client.searchBreadcrumbs({ tag: workspace });
-      const full = await client.batchGet(list.map((i: any) => i.id), 'full');
+      const full = await client.batchGet(list.map((i: any) => i.id), 'context');
       if (process.env.NODE_ENV !== 'production') {
         console.debug('[UILoader] breadcrumbs found:', full.length);
       }
@@ -88,7 +88,9 @@ export const UILoader: React.FC<UILoaderProps> = ({
         const ao = a.context?.order ?? 0;
         const bo = b.context?.order ?? 0;
         if (ao !== bo) return ao - bo;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        const at = String(a?.title || '');
+        const bt = String(b?.title || '');
+        return at.localeCompare(bt);
       });
       setInstances(instances);
       setAllRecords(full);
@@ -110,6 +112,11 @@ export const UILoader: React.FC<UILoaderProps> = ({
   // Subscribe to workspace-level SSE and refresh on relevant events
   useEffect(() => {
     if (!client) return;
+    const authHeader = (client as any)?.defaultHeaders?.Authorization || (client as any)?.defaultHeaders?.authorization;
+    if (!authHeader) {
+      // Skip SSE when unauthenticated to avoid 401 spam; will reconnect when client updates with auth
+      return;
+    }
     // Cleanup previous stream if any
     if (stopStreamRef.current) {
       try { stopStreamRef.current(); } catch {}
@@ -239,19 +246,12 @@ export const UILoader: React.FC<UILoaderProps> = ({
   const StyleTag = inlineCSS ? <style id="rcrt-inline-css">{inlineCSS}</style> : null;
 
   // Wrap with HeroUIProvider using theme if present
-  if (theme) {
-    return (
-      <HeroUIProvider theme={theme}>
-        {StyleTag}
-        <AppShell />
-      </HeroUIProvider>
-    );
-  }
+  // Use provider without theme prop to satisfy types; theme injection can be handled globally if needed
   return (
-    <>
+    <HeroUIProvider>
       {StyleTag}
       <AppShell />
-    </>
+    </HeroUIProvider>
   );
 };
 

@@ -2,5 +2,6 @@
   "/_not-found/page": "app/_not-found/page.js",
   "/api/rcrt/[...path]/route": "app/api/rcrt/[...path]/route.js",
   "/agentic-demo/page": "app/agentic-demo/page.js",
+  "/api/auth/token/route": "app/api/auth/token/route.js",
   "/api/forge/apply/route": "app/api/forge/apply/route.js"
 }

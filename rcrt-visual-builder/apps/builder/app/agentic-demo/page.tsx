@@ -12,10 +12,13 @@ const UILoader = dynamic(
 const WORKSPACE = 'workspace:agentic-demo';
 
 export default function AgenticDemoPage() {
-  const client = useMemo(() => new RcrtClientEnhanced('/api/rcrt'), []);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const client = useMemo(() => new RcrtClientEnhanced('/api/rcrt', authToken ? 'jwt' : 'disabled', authToken || undefined), [authToken]);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const [uiClient, setUiClient] = useState<RcrtClientEnhanced | null>(null);
+  const applyClientRef = useRef<RcrtClientEnhanced | null>(null);
   const [showPanel, setShowPanel] = useState(false);
   const [planText, setPlanText] = useState<string>(() => JSON.stringify({
     schema_name: 'ui.plan.v1',
@@ -33,36 +36,40 @@ export default function AgenticDemoPage() {
   const [applyResult, setApplyResult] = useState<any | null>(null);
   const [working, setWorking] = useState(false);
 
-  const post = useCallback(async (body: any) => {
-    return client.createBreadcrumb(body).catch((e: any) => {
+  const post = useCallback(async (body: any, cli?: RcrtClientEnhanced) => {
+    const c = cli || client;
+    return c.createBreadcrumb(body).catch((e: any) => {
       const msg = String(e?.message || e).toLowerCase();
       if (msg.includes('conflict')) return { id: 'exists' } as any;
       throw e;
     });
   }, [client]);
 
-  const ensure = useCallback(async (body: any) => {
-    const list = await client.searchBreadcrumbs({ tag: WORKSPACE, schema_name: body.schema_name });
+  const ensure = useCallback(async (body: any, cli?: RcrtClientEnhanced) => {
+    const c = cli || client;
+    const list = await c.searchBreadcrumbs({ tag: WORKSPACE, schema_name: body.schema_name });
     const match = list.find((b: any) => b.title === body.title);
     if (match) return { id: match.id } as any;
-    return post(body);
+    return post(body, c);
   }, [client, post]);
 
-  const wipeInstances = useCallback(async () => {
-    const list = await client.searchBreadcrumbs({ tag: WORKSPACE });
-    const full = list.length ? await client.batchGet(list.map((i: any) => i.id), 'full') : [];
+  const wipeInstances = useCallback(async (cli?: RcrtClientEnhanced) => {
+    const c = cli || client;
+    const list = await c.searchBreadcrumbs({ tag: WORKSPACE });
+    const full = list.length ? await c.batchGet(list.map((i: any) => i.id), 'context') : [];
     for (const b of full) {
       const isInstance = b?.schema_name === 'ui.instance.v1' || (Array.isArray(b?.tags) && b.tags.includes('ui:instance'));
       const isState = b?.schema_name === 'ui.state.v1' || (Array.isArray(b?.tags) && b.tags.includes('ui:state'));
       if (isInstance || isState) {
-        try { await client.deleteBreadcrumb(b.id); } catch {}
+        try { await c.deleteBreadcrumb(b.id); } catch {}
       }
     }
   }, [client]);
 
-  const ensureLayout = useCallback(async () => {
-    const list = await client.searchBreadcrumbs({ tag: WORKSPACE });
-    const full = list.length ? await client.batchGet(list.map((i: any) => i.id), 'full') : [];
+  const ensureLayout = useCallback(async (cli?: RcrtClientEnhanced) => {
+    const c = cli || client;
+    const list = await c.searchBreadcrumbs({ tag: WORKSPACE });
+    const full = list.length ? await c.batchGet(list.map((i: any) => i.id), 'context') : [];
     const hasTag = (b: any, t: string) => Array.isArray(b?.tags) && b.tags.includes(t);
     const layout = full.find((f: any) => f?.schema_name === 'ui.layout.v1' || hasTag(f, 'ui:layout'));
     if (!layout) {
@@ -79,47 +86,48 @@ export default function AgenticDemoPage() {
             right: { className: 'w-full lg:w-96 p-3 border-l' }
           }
         }
-      });
+      }, c);
     }
   }, [client, post]);
 
-  const seedInitial = useCallback(async () => {
-    await ensureLayout();
+  const seedInitial = useCallback(async (cli?: RcrtClientEnhanced) => {
+    const c = cli || client;
+    await ensureLayout(c);
     // Top bar
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Navbar: Agentic',
       tags: [WORKSPACE, 'ui:instance', 'region:top'],
       context: { component_ref: 'Navbar', props: { className: 'z-10', children: 'Agentic Demo' }, order: 0 }
-    });
+    }, c);
     // Right helper card
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Helper',
       tags: [WORKSPACE, 'ui:instance', 'region:right'],
       context: { component_ref: 'Card', props: { className: 'p-4', children: 'Pick a category below. The UI will update live.' }, order: 0 }
-    });
+    }, c);
     // Shortlist Panel (state pointer)
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Shortlist Panel',
       tags: [WORKSPACE, 'ui:instance', 'region:right'],
       context: { component_ref: 'Card', props: { className: 'p-4', state_tag: 'ui:state;component:shortlist', state_prop: 'children' }, order: 10 }
-    });
+    }, c);
     // Chooser header
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Chooser Header',
       tags: [WORKSPACE, 'ui:instance', 'region:content'],
       context: { component_ref: 'Card', props: { className: 'p-2 opacity-80', children: 'Pick a category' }, order: 0 }
-    });
+    }, c);
     // Seed a results card
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Card: Results',
       tags: [WORKSPACE, 'ui:instance', 'region:content'],
       context: { component_ref: 'Card', props: { className: 'p-4', children: 'Results will appear here…' }, order: 3 }
-    });
+    }, c);
     // Seed category chooser buttons with bindings that emit ui.event.v1
     await ensure({
       schema_name: 'ui.instance.v1',
@@ -131,7 +139,7 @@ export default function AgenticDemoPage() {
         bindings: { onPress: { action: 'emit_breadcrumb', payload: { schema_name: 'ui.event.v1', title: 'Category Chosen', tags: [WORKSPACE, 'ui:event'], context: { category: 'gaming' } } } },
         order: 1
       }
-    });
+    }, c);
     await ensure({
       schema_name: 'ui.instance.v1',
       title: 'Button: Ultrabook',
@@ -142,15 +150,25 @@ export default function AgenticDemoPage() {
         bindings: { onPress: { action: 'emit_breadcrumb', payload: { schema_name: 'ui.event.v1', title: 'Category Chosen', tags: [WORKSPACE, 'ui:event'], context: { category: 'ultrabook' } } } },
         order: 2
       }
-    });
-  }, [ensureLayout, post]);
+    }, c);
+  }, [client, ensureLayout, post]);
 
   const handleSeed = useCallback(async () => {
     setIsBusy(true);
     setError(null);
     try {
-      await wipeInstances();
-      await seedInitial();
+      // Acquire JWT for demo (uses env defaults if body omitted)
+      let tokStr: string | undefined;
+      try {
+        const resp = await fetch('/api/auth/token', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+        const tok = await resp.json().catch(() => ({}));
+        if (tok?.token) { setAuthToken(tok.token); tokStr = tok.token; }
+      } catch {}
+      const authed = tokStr ? new RcrtClientEnhanced('/api/rcrt', 'jwt', tokStr) : client;
+      applyClientRef.current = tokStr ? new RcrtClientEnhanced('/api', 'jwt', tokStr) : new RcrtClientEnhanced('/api', 'disabled');
+      setUiClient(authed);
+      await wipeInstances(authed);
+      await seedInitial(authed);
       setSeeded(true);
       if (process.env.NODE_ENV !== 'production') {
         console.log('[seed] workspace:', WORKSPACE);
@@ -164,8 +182,8 @@ export default function AgenticDemoPage() {
 
   // Orchestrator: listen for ui.event.v1 in this workspace and react per walkthrough
   React.useEffect(() => {
-    if (!seeded) return;
-    const stop = client.startEventStream(
+    if (!seeded || !authToken) return;
+    const stop = (client as any).startEventStream(
       async (evt: any) => {
         try {
           const data: any = (evt && (evt as any).data) || evt;
@@ -187,9 +205,9 @@ export default function AgenticDemoPage() {
 
           if (eventName === 'onPress' && (category === 'gaming' || category === 'ultrabook')) {
             const actions: any[] = [];
-            const list = await client.searchBreadcrumbs({ tag: WORKSPACE });
-            const full = list.length ? await client.batchGet(list.map((i: any) => i.id), 'full') : [];
-            const placeholder = full.find((b: any) => (b?.context?.component_ref === 'Card') && String(b?.title || '').toLowerCase().includes('results'));
+            const list1 = await client.searchBreadcrumbs({ tag: WORKSPACE });
+            const ctxs1 = list1.length ? await client.batchGet(list1.map((i: any) => i.id), 'context') : [];
+            const placeholder = ctxs1.find((b: any) => (b?.context?.component_ref === 'Card') && String(b?.title || '').toLowerCase().includes('results'));
             if (placeholder) {
               actions.push({ type: 'update_instance', id: placeholder.id, updates: { props: { children: '' } } });
             }
@@ -211,13 +229,11 @@ export default function AgenticDemoPage() {
             if (process.env.NODE_ENV !== 'production') {
               console.log('[orchestrator] applying plan:', plan);
             }
-            const resp = await fetch('/api/forge/apply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(plan) });
-            if (!resp.ok) {
-              const text = await resp.text();
-              console.error('[orchestrator] apply failed:', resp.status, text);
-            } else {
-              const json = await resp.json().catch(() => ({}));
+            try {
+              const json = await (applyClientRef.current as any)?.applyPlan(plan);
               console.log('[orchestrator] apply ok:', json?.context);
+            } catch (e: any) {
+              console.error('[orchestrator] apply failed:', e?.message || String(e));
             }
           }
 
@@ -227,10 +243,10 @@ export default function AgenticDemoPage() {
             actions.push({ type: 'create_instance', region: 'content', instance: { component_ref: 'Drawer', props: {} } });
             actions.push({ type: 'create_instance', region: 'content', instance: { component_ref: 'Card', props: { className: 'p-4', children: `Specs for ${productId} (demo)` } } });
             const plan = { schema_name: 'ui.plan.v1', title: 'Show details', tags: [WORKSPACE, 'ui:plan'], context: { actions } };
-            const resp = await fetch('/api/forge/apply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(plan) });
-            if (!resp.ok) {
-              const text = await resp.text();
-              console.error('[orchestrator] details apply failed:', resp.status, text);
+            try {
+              await (applyClientRef.current as any)?.applyPlan(plan);
+            } catch (e: any) {
+              console.error('[orchestrator] details apply failed:', e?.message || String(e));
             }
             await post({ schema_name: 'ui.state.v1', title: `Shortlist: ${productId}`, tags: [WORKSPACE, 'ui:state', 'component:shortlist'], context: { value: `• ${productId}` } });
           }
@@ -238,10 +254,10 @@ export default function AgenticDemoPage() {
           // ignore
         }
       },
-      { filters: { any_tags: [WORKSPACE] } }
+      { filters: { any_tags: [WORKSPACE] }, token: authToken || undefined } as any
     );
     return () => { try { stop(); } catch {} };
-  }, [client, seeded]);
+  }, [client, seeded, authToken]);
 
   return (
     <div className="min-h-screen bg-content">
@@ -261,7 +277,7 @@ export default function AgenticDemoPage() {
           {seeded ? (
             <>
               <div>
-                <UILoader workspace={WORKSPACE} />
+                <UILoader workspace={WORKSPACE} rcrtClient={uiClient || client} />
               </div>
               <div>
                 <div className="border border-default rounded-lg overflow-hidden">

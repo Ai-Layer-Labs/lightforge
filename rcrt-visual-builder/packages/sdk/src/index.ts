@@ -150,6 +150,21 @@ export class RcrtClientEnhanced {
     }
   }
 
+  // Simple token setter for JWT/key after construction
+  setToken(token: string | null | undefined, mode: 'jwt' | 'key' = 'jwt'): void {
+    if (!token) {
+      delete this.defaultHeaders['Authorization'];
+      delete this.defaultHeaders['authorization' as any];
+      delete this.defaultHeaders['X-API-Key'];
+      return;
+    }
+    if (mode === 'jwt') {
+      this.defaultHeaders['Authorization'] = `Bearer ${token}`;
+    } else {
+      this.defaultHeaders['X-API-Key'] = token;
+    }
+  }
+
   // ============ Breadcrumb Operations ============
 
   async createBreadcrumb(body: BreadcrumbCreate, idempotencyKey?: string): Promise<{ id: string }> {
@@ -213,8 +228,8 @@ export class RcrtClientEnhanced {
       throw new Error(`Failed to update breadcrumb: ${error}`);
     }
 
-    // Server returns OkResp; fetch fresh full resource for convenience
-    return this.getBreadcrumbFull(id);
+    // Fetch fresh context view to avoid requiring read_full ACL
+    return this.getBreadcrumb(id);
   }
 
   async deleteBreadcrumb(id: string, version?: number): Promise<void> {
@@ -575,6 +590,7 @@ export class RcrtClientEnhanced {
       reconnectDelay?: number;
       filters?: Selector;
       agentId?: string;
+      token?: string;
     }
   ): () => void {
     const reconnectDelay = options?.reconnectDelay || 5000;
@@ -607,6 +623,13 @@ export class RcrtClientEnhanced {
       }
       if (options?.filters) {
         url.searchParams.append('filters', JSON.stringify(options.filters));
+      }
+      // Pass token via query for browsers where headers can't be set on EventSource
+      const explicitToken = options?.token;
+      const authHeader = (this.defaultHeaders['Authorization'] || (this.defaultHeaders as any)['authorization']) as string | undefined;
+      const tokenVal = explicitToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined);
+      if (tokenVal) {
+        url.searchParams.append('access_token', tokenVal);
       }
 
       // In browsers, native EventSource doesn't accept headers.
@@ -692,7 +715,7 @@ export class RcrtClientEnhanced {
   async getAgentDefinitions(workspaceTag?: string): Promise<Breadcrumb[]> {
     const params: SearchParams = { schema_name: 'agent.def.v1' };
     if (workspaceTag) {
-      params.tag = workspaceTag;
+      (params as any).tag = workspaceTag;
     }
     return this.searchBreadcrumbs(params);
   }
@@ -700,8 +723,44 @@ export class RcrtClientEnhanced {
   async getFlowDefinitions(workspaceTag?: string): Promise<Breadcrumb[]> {
     const params: SearchParams = { schema_name: 'flow.definition.v1' };
     if (workspaceTag) {
-      params.tag = workspaceTag;
+      (params as any).tag = workspaceTag;
     }
     return this.searchBreadcrumbs(params);
   }
+
+  // Apply a UI plan directly to the backend (assumes proxy/baseUrl handles auth)
+  async applyPlan(plan: any): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/forge/apply`, {
+      method: 'POST',
+      headers: this.defaultHeaders,
+      body: JSON.stringify(plan),
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to apply plan: ${error}`);
+    }
+    return response.json();
+  }
+}
+
+// Lightweight helper to create a client and optionally fetch a token from a tokenEndpoint
+export async function createClient(options?: {
+  baseUrl?: string;
+  tokenEndpoint?: string; // e.g. '/api/auth/token'
+  authMode?: 'disabled' | 'jwt' | 'key';
+}): Promise<RcrtClientEnhanced> {
+  const baseUrl = options?.baseUrl ?? '/api/rcrt';
+  const mode = options?.authMode ?? 'jwt';
+  let token: string | undefined;
+  if (options?.tokenEndpoint) {
+    try {
+      const resp = await fetch(options.tokenEndpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+      const json = await resp.json().catch(() => ({}));
+      if (json?.token) token = String(json.token);
+    } catch {
+      // ignore
+    }
+  }
+  const client = new RcrtClientEnhanced(baseUrl, token ? mode : 'disabled', token);
+  return client;
 }

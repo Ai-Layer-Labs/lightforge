@@ -19,6 +19,95 @@ RCRT is a production‑grade system for delivering the right context to agents a
 - The embedding provider defaults to an embedded ONNX model (MiniLM L6 v2, 384d), configurable via env.
 - Envelope encryption secures secrets (DEK per secret, wrapped by KEK), with an audit log for decrypt accesses.
 
+### RCRT Agentic Ecosystem
+
+RCRT serves as the foundation for a complete agentic system where tools, agents, and UIs interact through a unified interface. The Visual Builder (`rcrt-visual-builder/`) demonstrates this by implementing live UI updates via breadcrumb schemas.
+
+```mermaid
+graph TB
+    subgraph "Human Interface Layer"
+        User[👤 End User]
+        DevPortal[🛠️ Developer Portal]
+        Admin[👔 Admin Dashboard]
+    end
+
+    subgraph "Tool Layer (All Equal Citizens)"
+        VB[🎨 Visual Builder<br/>- UI authoring<br/>- Component catalog<br/>- Live preview<br/>- Plan validation/apply]
+        Search[🔍 Search Tool<br/>- Web search<br/>- Knowledge base<br/>- Vector search]
+        ImgGen[🖼️ Image Gen Tool<br/>- DALL-E/Stable Diffusion<br/>- Asset management]
+        DataTool[📊 Data Analysis Tool<br/>- SQL queries<br/>- Visualizations]
+        CodeTool[⚙️ Code Execution Tool<br/>- Sandboxed runtime<br/>- Result capture]
+        CustomTool[🔧 Custom Tools<br/>- Domain-specific<br/>- Legacy integrations]
+    end
+
+    subgraph "Agent Layer"
+        Orchestrator[🎭 Orchestrator Agent<br/>- Event → Plan mapping<br/>- Tool coordination<br/>- Context management]
+        TaskAgent[🤖 Task Agents<br/>- Specialized workers<br/>- Domain experts]
+        LLMAgent[🧠 LLM Agent<br/>- Natural language<br/>- Intent parsing<br/>- Plan generation]
+        MonitorAgent[📈 Monitor Agent<br/>- Health checks<br/>- Performance<br/>- Alerts]
+    end
+
+    subgraph "SDK Layer"
+        SDK[📦 RCRT SDK<br/>- createClient()<br/>- Auth handling<br/>- SSE subscriptions<br/>- CRUD operations<br/>- applyPlan() helper]
+    end
+
+    subgraph "RCRT Core (The Substrate)"
+        API[🌐 REST API<br/>/breadcrumbs<br/>/search<br/>/acl]
+        SSE[📡 SSE Stream<br/>/events/stream<br/>Real-time updates]
+        Auth[🔐 Auth/ACL<br/>JWT validation<br/>Row-level security]
+        VecSearch[🔎 Vector Search<br/>ONNX embeddings<br/>Semantic queries]
+        DB[(🗄️ PostgreSQL<br/>Breadcrumbs<br/>History<br/>ACL rules)]
+        EventBus[📨 NATS<br/>Event distribution<br/>Pub/Sub]
+    end
+
+    %% All tools use SDK equally
+    VB --> SDK
+    Search --> SDK
+    ImgGen --> SDK
+    DataTool --> SDK
+    CodeTool --> SDK
+    CustomTool --> SDK
+
+    %% All agents use SDK equally
+    Orchestrator --> SDK
+    TaskAgent --> SDK
+    LLMAgent --> SDK
+    MonitorAgent --> SDK
+
+    %% SDK talks to RCRT
+    SDK --> API
+    SDK --> SSE
+    SDK --> Auth
+    SDK --> VecSearch
+
+    %% RCRT internals
+    API --> DB
+    API --> EventBus
+    EventBus --> SSE
+    API --> Auth
+    VecSearch --> DB
+
+    %% User interactions
+    User --> VB
+    User --> Search
+    User --> ImgGen
+    DevPortal --> CustomTool
+    Admin --> MonitorAgent
+
+    %% Styling
+    classDef rcrtCore fill:#e1f5e1
+    classDef sdkLayer fill:#e1e5f5
+    classDef visualBuilder fill:#f5e1e1
+    classDef orchestratorAgent fill:#f5f5e1
+
+    class API,SSE,Auth,VecSearch,DB,EventBus rcrtCore
+    class SDK sdkLayer
+    class VB visualBuilder
+    class Orchestrator orchestratorAgent
+```
+
+**Key insight**: The Visual Builder is just one tool among many. From RCRT's perspective, all tools are authenticated clients that speak breadcrumbs. This creates a truly composable system where LLM agents can coordinate any combination of tools seamlessly.
+
 ### Key concepts
 - **Breadcrumb**: Minimal, persistent JSON context packet optimized for LLMs/automations.
 - **Roles**:
@@ -133,10 +222,29 @@ Alternatively, use Docker/Compose for a consistent environment.
 - SSE pings stop: ensure you run the latest image; message loops are isolated from the async runtime.
 - Webhook 4xx/5xx: check HMAC secret and delivery endpoint; inspect DLQ via `GET /dlq`.
 
+### Visual Builder Demo
+The Visual Builder (`rcrt-visual-builder/`) showcases RCRT's capabilities with a live agentic demo:
+
+```bash
+# Start RCRT backend
+docker compose up -d --build
+
+# Start Visual Builder
+cd rcrt-visual-builder/apps/builder
+pnpm dev
+
+# Open demo
+open http://localhost:3000/agentic-demo
+```
+
+Click "Seed Agentic Demo" → "Gaming" to see live UI updates via SSE as agents react to events and apply UI plans.
+
 ### Further reading
-- Design document: `docs/RCRT_System_Design.md`
-- Integration guide: `docs/Integration_Guide.md`
-- OpenAPI spec: `docs/openapi.json`
+- **Visual Builder**: `rcrt-visual-builder/docs/Quickstart.md`, `rcrt-visual-builder/docs/Auth.md`
+- **Full ecosystem**: `docs/RCRT_Full_Ecosystem_Diagram.md`
+- **Design document**: `docs/RCRT_System_Design.md`
+- **Integration guide**: `docs/Integration_Guide.md`
+- **OpenAPI spec**: `docs/openapi.json`
 
 ### 3-agent chain smoke test (Supervisor ↔ Researcher ↔ Synthesizer)
 

@@ -1036,9 +1036,9 @@ struct AuthContext { owner_id: Uuid, agent_id: Uuid, roles: Vec<String> }
 struct Claims { sub: String, owner_id: String, roles: Option<Vec<String>>, exp: Option<usize> }
 
 #[axum::async_trait]
-impl<S> FromRequestParts<S> for AuthContext where S: Send + Sync {
+impl FromRequestParts<AppState> for AuthContext {
     type Rejection = (StatusCode, String);
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         // Dev mode
         let auth_mode = std::env::var("AUTH_MODE").unwrap_or_else(|_| "enabled".into());
         if auth_mode == "disabled" {
@@ -1049,17 +1049,29 @@ impl<S> FromRequestParts<S> for AuthContext where S: Send + Sync {
             return Ok(AuthContext { owner_id: owner, agent_id: agent, roles: vec!["curator".into(), "emitter".into(), "subscriber".into()] });
         }
 
-        let state = parts.extensions.get::<AppState>().cloned()
-            .ok_or((StatusCode::INTERNAL_SERVER_ERROR, "missing state".into()))?;
         let Some(dec_key) = &state.jwt_decoding_key else {
             return Err((StatusCode::UNAUTHORIZED, "JWT required; set JWT_PUBLIC_KEY_PEM or use AUTH_MODE=disabled explicitly".into()));
         };
-        let auth_header = parts.headers.get(header::AUTHORIZATION)
-            .and_then(|h| h.to_str().ok())
-            .ok_or((StatusCode::UNAUTHORIZED, "missing Authorization".into()))?;
-        let token = auth_header.strip_prefix("Bearer ")
-            .ok_or((StatusCode::UNAUTHORIZED, "invalid Authorization header".into()))?;
-        let data = decode::<Claims>(token, dec_key, &state.jwt_validation)
+        // Allow Bearer header or access_token/token query for SSE/browser clients
+        let token = if let Some(hv) = parts.headers.get(header::AUTHORIZATION).and_then(|h| h.to_str().ok()) {
+            hv.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "invalid Authorization header".into()))?
+                .to_string()
+        } else {
+            // Parse query for access_token
+            let q = parts.uri.query().unwrap_or("");
+            let mut token_val: Option<String> = None;
+            for pair in q.split('&') {
+                let mut it = pair.splitn(2, '=');
+                if let (Some(k), Some(v)) = (it.next(), it.next()) {
+                    if k == "access_token" || k == "token" {
+                        token_val = Some(percent_encoding::percent_decode_str(v).decode_utf8_lossy().to_string());
+                        break;
+                    }
+                }
+            }
+            token_val.ok_or((StatusCode::UNAUTHORIZED, "missing Authorization".into()))?
+        };
+        let data = decode::<Claims>(&token, dec_key, &state.jwt_validation)
             .map_err(|e| (StatusCode::UNAUTHORIZED, format!("invalid token: {}", e)))?;
         let owner = Uuid::parse_str(&data.claims.owner_id)
             .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid owner_id in token".into()))?;

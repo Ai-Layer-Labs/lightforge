@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   const errors: any[] = [];
 
   const base = new URL('/api/rcrt/', req.url).toString().replace(/\/$/, '');
+  const incomingAuth = req.headers.get('authorization') || undefined;
   const timeoutMs = 4000;
   const timeout = () => {
     const ctrl = new AbortController();
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
           const idemKey = act?.idempotency_key || planIdem || `ui.create.${workspace}.${Date.now()}.${i}`;
           const resp = await fetch(`${base}/breadcrumbs`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json', 'Idempotency-Key': String(idemKey) },
+            headers: { 'content-type': 'application/json', 'Idempotency-Key': String(idemKey), ...(incomingAuth ? { authorization: incomingAuth } : {}) },
             body: JSON.stringify(body),
             signal: timeout()
           });
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
           const idemKey = act?.idempotency_key || planIdem || `ui.createFromTemplate.${workspace}.${Date.now()}.${i}`;
           const resp = await fetch(`${base}/breadcrumbs`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json', 'Idempotency-Key': String(idemKey) },
+            headers: { 'content-type': 'application/json', 'Idempotency-Key': String(idemKey), ...(incomingAuth ? { authorization: incomingAuth } : {}) },
             body: JSON.stringify(body),
             signal: timeout()
           });
@@ -82,12 +83,12 @@ export async function POST(req: NextRequest) {
           break;
         }
         case 'update_instance': {
-          const respGet = await fetch(`${base}/breadcrumbs/${act.id}`, { signal: timeout() });
+          const respGet = await fetch(`${base}/breadcrumbs/${act.id}`, { headers: incomingAuth ? { authorization: incomingAuth } : undefined, signal: timeout() });
           if (!respGet.ok) throw new Error(await respGet.text());
           const cur = await respGet.json();
           const resp = await fetch(`${base}/breadcrumbs/${act.id}`, {
             method: 'PATCH',
-            headers: { 'content-type': 'application/json', 'If-Match': String(cur.version) },
+            headers: { 'content-type': 'application/json', 'If-Match': String(cur.version), ...(incomingAuth ? { authorization: incomingAuth } : {}) },
             body: JSON.stringify({ context: { ...(cur.context || {}), ...(act.updates?.context || {}), props: { ...(cur?.context?.props || {}), ...(act.updates?.props || {}) }, bindings: { ...(cur?.context?.bindings || {}), ...(act.updates?.bindings || {}) } } }),
             signal: timeout()
           });
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
           break;
         }
         case 'delete_instance': {
-          const resp = await fetch(`${base}/breadcrumbs/${act.id}`, { method: 'DELETE', signal: timeout() });
+          const resp = await fetch(`${base}/breadcrumbs/${act.id}`, { method: 'DELETE', headers: incomingAuth ? { authorization: incomingAuth } : undefined, signal: timeout() });
           if (!resp.ok) throw new Error(await resp.text());
           console.log('[forge/apply] deleted:', act.id);
           deleted.push({ id: act.id });
