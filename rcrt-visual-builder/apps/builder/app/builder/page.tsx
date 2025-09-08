@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { ComponentRegistry } from '@rcrt-builder/heroui-breadcrumbs/src/registry/ComponentRegistry';
@@ -14,6 +14,101 @@ const ComposedHeroUIDemos = dynamic(
   () => import('@rcrt-builder/heroui-breadcrumbs/src/custom/ComposedHeroUIDemos').then(m => m.ComposedHeroUIDemos),
   { ssr: false }
 );
+
+const PlanPanel: React.FC<{ workspace: string }> = ({ workspace }) => {
+  const [planText, setPlanText] = useState<string>(() => JSON.stringify({
+    schema_name: 'ui.plan.v1',
+    title: 'Add Button',
+    tags: [workspace, 'ui:plan'],
+    context: { actions: [ { type: 'create_instance', region: 'content', instance: { component_ref: 'Button', props: { color: 'primary', children: 'Save' }, order: 1 } } ] }
+  }, null, 2));
+  const [validation, setValidation] = useState<any | null>(null);
+  const [result, setResult] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validate = async () => {
+    setIsLoading(true); setError(null); setResult(null); setValidation(null);
+    try {
+      // Quick client-side JSON check for immediate feedback
+      try { JSON.parse(planText); } catch { setIsLoading(false); setError('Plan is not valid JSON'); return; }
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 7000);
+      const resp = await fetch('/api/forge/validate?ts=' + Date.now(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: planText,
+        signal: ctrl.signal
+      });
+      clearTimeout(t);
+      const text = await resp.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!resp.ok) {
+        setError(`Validate failed: ${resp.status}`);
+      }
+      setValidation(data);
+    } catch (e: any) {
+      setError(e?.name === 'AbortError' ? 'Validate request timed out' : (e?.message || String(e)));
+    } finally { setIsLoading(false); }
+  };
+
+  const apply = async () => {
+    setIsLoading(true); setError(null); setResult(null);
+    try {
+      try { JSON.parse(planText); } catch { setIsLoading(false); setError('Plan is not valid JSON'); return; }
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 7000);
+      const resp = await fetch('/api/forge/apply', {
+        method: 'POST', headers: { 'content-type': 'application/json', 'accept': 'application/json' }, body: planText, signal: ctrl.signal
+      });
+      clearTimeout(t);
+      const text = await resp.text();
+      let data: any; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!resp.ok) setError(`Apply failed: ${resp.status}`);
+      setResult(data);
+    } catch (e: any) {
+      setError(e?.name === 'AbortError' ? 'Apply request timed out' : (e?.message || String(e)));
+    } finally { setIsLoading(false); }
+  };
+
+  const ok = validation?.context?.ok === true;
+
+  return (
+    <div className="border border-default rounded-lg overflow-hidden">
+      <div className="px-3 py-2 text-sm opacity-80">Plan Panel</div>
+      <textarea className="w-full h-48 p-3 text-sm bg-background border-t border-default outline-none"
+        value={planText} onChange={(e) => setPlanText(e.target.value)} />
+      <div className="p-3 flex gap-2">
+        <button onClick={validate} disabled={isLoading} className="text-sm px-3 py-1.5 rounded bg-sky-600 text-white">Validate</button>
+        <button onClick={apply} disabled={isLoading || !ok} className="text-sm px-3 py-1.5 rounded bg-emerald-600 text-white disabled:opacity-50">Apply</button>
+        {isLoading && <span className="text-sm opacity-70">Working…</span>}
+        {error && <span className="text-sm text-red-500">{error}</span>}
+      </div>
+      {validation && (
+        <div className="px-3 pb-3 text-xs">
+          <div className="mb-1">Validation: {validation?.context?.ok ? 'ok' : 'failed'}</div>
+          {!validation?.context?.ok && Array.isArray(validation?.context?.errors) && (
+            <ul className="list-disc pl-5">
+              {validation.context.errors.map((e: any, idx: number) => (
+                <li key={idx}><span className="opacity-70">[{e.code}]</span> {e.path}: {e.message}</li>
+              ))}
+            </ul>
+          )}
+          {!validation?.context && validation?.raw && (
+            <div className="opacity-70">{String(validation.raw).slice(0, 300)}</div>
+          )}
+        </div>
+      )}
+      {result && (
+        <div className="px-3 pb-3 text-xs">
+          <div className="mb-1">Applied: {result?.context?.ok ? 'ok' : 'errors'}</div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 function getDefaultProps(name: string): any {
   switch (name) {
@@ -125,7 +220,12 @@ export default function BuilderPage() {
     }
   }, [client]);
 
-  useEffect(() => { seed(); }, [seed]);
+  const seedRunRef = useRef(false);
+  useEffect(() => {
+    if (seedRunRef.current) return; // Avoid double-run in React Strict Mode (dev)
+    seedRunRef.current = true;
+    seed();
+  }, [seed]);
 
   if (error) {
     return <div className="p-6 text-red-500">{error}</div>;
@@ -139,6 +239,10 @@ export default function BuilderPage() {
           <div>
             <h2 className="text-lg font-semibold mb-2">Composed Demos</h2>
             <ComposedHeroUIDemos />
+            <div className="mt-6">
+              <h3 className="text-base font-semibold mb-2">Plan/Validate/Apply</h3>
+              <PlanPanel workspace={workspace} />
+            </div>
           </div>
           <div>
             <h2 className="text-lg font-semibold mb-2">Instances via UILoader</h2>

@@ -6,8 +6,9 @@ ARG FEATURES
 COPY Cargo.toml ./
 COPY crates/rcrt-core/Cargo.toml crates/rcrt-core/Cargo.toml
 COPY crates/rcrt-server/Cargo.toml crates/rcrt-server/Cargo.toml
-
-COPY . .
+COPY migrations migrations
+COPY docs docs
+COPY crates/ crates/
 
 # Pre-fetch dependencies now that full sources are present
 RUN cargo fetch

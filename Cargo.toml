@@ -5,5 +5,8 @@ members = [
 ]
 resolver = "2"
 
+# Keep non-Rust folders out of the Docker build context to avoid multi-GB transfers
+# Build image uses only crates/ and migrations/ copied in Dockerfile
+
 
  

@@ -661,10 +661,25 @@ export class RcrtClientEnhanced {
     return results;
   }
 
-  async batchGet(ids: string[], view: 'context' | 'full' = 'context'): Promise<Breadcrumb[]> {
-    const results = await Promise.all(
-      ids.map(id => (view === 'full' ? this.getBreadcrumbFull(id) : this.getBreadcrumb(id)))
-    );
+  async batchGet(
+    ids: string[],
+    view: 'context' | 'full' = 'context',
+    concurrency: number = 16
+  ): Promise<Breadcrumb[]> {
+    const total = ids.length;
+    const results: Breadcrumb[] = new Array(total) as any;
+    let cursor = 0;
+    const worker = async () => {
+      while (true) {
+        const idx = cursor++;
+        if (idx >= total) return;
+        const id = ids[idx];
+        const item = view === 'full' ? await this.getBreadcrumbFull(id) : await this.getBreadcrumb(id);
+        results[idx] = item;
+      }
+    };
+    const workers = Array.from({ length: Math.min(Math.max(1, concurrency), total) }, () => worker());
+    await Promise.all(workers);
     return results;
   }
 

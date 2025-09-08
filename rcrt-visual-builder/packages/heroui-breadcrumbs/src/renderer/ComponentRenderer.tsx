@@ -3,7 +3,7 @@
  * Renders UI component breadcrumbs as React components
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { UIComponentV1, UIInstanceV1 } from '@rcrt-builder/core';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { ComponentRegistry } from '../registry/ComponentRegistry';
@@ -14,6 +14,8 @@ interface ComponentRendererProps {
   workspace: string;
   onEvent?: (eventName: string, data: any) => void;
   className?: string;
+  subscribeUpdates?: boolean;
+  resolvePointer?: (tagString: string, preferredSchema?: string) => any;
 }
 
 export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
@@ -21,7 +23,9 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
   rcrtClient,
   workspace,
   onEvent,
-  className
+  className,
+  subscribeUpdates = false,
+  resolvePointer
 }) => {
   const [componentState, setComponentState] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +37,7 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
     ? (breadcrumb as UIInstanceV1).context?.component_ref
     : (breadcrumb as UIComponentV1).context?.component_type;
   
-  const props = isInstance
+  const rawProps = isInstance
     ? ((breadcrumb as UIInstanceV1).context?.props || {})
     : {};
   
@@ -45,7 +49,9 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
   const Component = componentType ? ComponentRegistry.get(componentType) : undefined;
   
   if (!Component) {
-    console.error(`Component type ${componentType} not found in registry`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`Component type ${componentType} not found in registry`);
+    }
     return <div>Unknown component: {componentType}</div>;
   }
   
@@ -62,20 +68,44 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
     setIsLoading(true);
     
     try {
+      const toSerializableEventData = (value: any): any => {
+        try {
+          if (value === undefined) return undefined;
+          const t = typeof value;
+          if (t === 'string' || t === 'number' || t === 'boolean' || value === null) return value;
+          // Common UI events carry a target/currentTarget with value
+          const maybeVal = (value && (value.target?.value ?? value.currentTarget?.value));
+          if (maybeVal !== undefined && (typeof maybeVal === 'string' || typeof maybeVal === 'number' || typeof maybeVal === 'boolean')) {
+            return { value: maybeVal };
+          }
+          // If it's plain object/array and serializable, keep a shallow clone
+          const shallow = Array.isArray(value) ? [...value] : { ...value };
+          JSON.stringify(shallow);
+          return shallow;
+        } catch {
+          // Fallback: omit non-serializable payloads (avoids circular structures)
+          return undefined;
+        }
+      };
       switch (binding.action) {
         case 'emit_breadcrumb':
           // Create a breadcrumb based on the binding payload
-          await rcrtClient.createBreadcrumb({
-            ...binding.payload,
-            tags: [...(binding.payload.tags || []), workspace],
-            context: {
-              ...binding.payload.context,
-              triggered_by: breadcrumb.id,
-              event_name: eventName,
-              event_data: args[0],
-              timestamp: new Date().toISOString()
+          {
+            const created = await rcrtClient.createBreadcrumb({
+              ...binding.payload,
+              tags: [...(binding.payload.tags || []), workspace],
+              context: {
+                ...binding.payload.context,
+                triggered_by: (breadcrumb as any).id,
+                event_name: eventName,
+                event_data: toSerializableEventData(args[0]),
+                timestamp: new Date().toISOString()
+              }
+            });
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[emit_breadcrumb] id:', created?.id, 'title:', binding?.payload?.title);
             }
-          });
+          }
           break;
           
         case 'update_state':
@@ -145,10 +175,14 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
           break;
           
         default:
-          console.warn(`Unknown binding action: ${binding.action}`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`Unknown binding action: ${binding.action}`);
+          }
       }
     } catch (error) {
-      console.error(`Error handling event ${eventName}:`, error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`Error handling event ${eventName}:`, error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -175,12 +209,12 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
     return handlers;
   }, [bindings, handleEvent, isInstance, breadcrumb]);
   
-  // Subscribe to breadcrumb updates
+  // Subscribe to breadcrumb updates (disabled by default to avoid opening many SSE connections)
   useEffect(() => {
+    if (!subscribeUpdates) return;
     const cleanup = rcrtClient.startEventStream(
       (event) => {
         if (event.breadcrumb_id === breadcrumb.id && event.type === 'breadcrumb.updated') {
-          // Reload breadcrumb and update props
           rcrtClient.getBreadcrumb(breadcrumb.id).then((updated) => {
             if (isInstance) {
               const newProps = (updated as UIInstanceV1).context.props;
@@ -193,18 +227,45 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
         filters: { breadcrumb_id: breadcrumb.id }
       }
     );
-    
     return cleanup;
-  }, [breadcrumb.id, rcrtClient, isInstance, componentState]);
+  }, [breadcrumb.id, rcrtClient, isInstance, componentState, subscribeUpdates]);
   
-  // Merge props with state
-  const finalProps: any = {
+  // Resolve pointers and merge props with state
+  const resolvePointers = useCallback((inputProps: any): any => {
+    const out: any = { ...inputProps };
+    // Resolve ui.asset pointers (e.g., src_tag → src from asset)
+    if (typeof out.src_tag === 'string' && typeof (resolvePointer as any) === 'function') {
+      const asset = (resolvePointer as any)(out.src_tag, 'ui.asset.v1');
+      if (asset && asset.context) {
+        if (asset.context.url) out.src = asset.context.url;
+        if (asset.context.alt && !out.alt) out.alt = asset.context.alt;
+        if (typeof asset.context.width === 'number' && !out.width) out.width = asset.context.width;
+        if (typeof asset.context.height === 'number' && !out.height) out.height = asset.context.height;
+      }
+    }
+    // Resolve ui.state pointers (e.g., state_tag → value)
+    if (typeof out.state_tag === 'string' && typeof (resolvePointer as any) === 'function') {
+      const state = (resolvePointer as any)(out.state_tag, 'ui.state.v1');
+      if (state && state.context && state.context.value !== undefined) {
+        out.value = state.context.value;
+        // Allow mapping key to prop
+        if (typeof out.state_prop === 'string') {
+          out[out.state_prop] = state.context.value;
+        }
+      }
+    }
+    return out;
+  }, [resolvePointer]);
+
+  const props = useMemo(() => resolvePointers(rawProps), [rawProps, resolvePointers]);
+
+  const finalProps: any = useMemo(() => ({
     ...props,
     ...componentState,
     ...eventHandlers,
     className,
-    'data-breadcrumb-id': breadcrumb.id
-  };
+    'data-breadcrumb-id': (breadcrumb as any).id
+  }), [props, componentState, eventHandlers, className, breadcrumb]);
   // Note: avoid passing internal flags like isLoading to UI components/dom
   // No default children fallbacks; render as-is to avoid hidden legacy behavior
   

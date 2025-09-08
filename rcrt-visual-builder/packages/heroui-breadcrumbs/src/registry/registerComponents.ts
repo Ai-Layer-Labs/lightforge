@@ -192,5 +192,7 @@ export function registerHeroUIComponents() {
   ComponentRegistry.register('BuilderCanvas', BuilderCanvas as any);
   ComponentRegistry.register('BuilderPalette', BuilderPalette as any);
   
-  console.log('Registered HeroUI components:', ComponentRegistry.getTypes());
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Registered HeroUI components:', ComponentRegistry.getTypes());
+  }
 }

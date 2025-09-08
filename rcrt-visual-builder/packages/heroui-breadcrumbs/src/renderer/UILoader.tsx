@@ -4,7 +4,7 @@
  */
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { HeroUIProvider } from '@heroui/react';
 import { ComponentRenderer } from './ComponentRenderer';
@@ -34,6 +34,8 @@ export const UILoader: React.FC<UILoaderProps> = ({
   const [inlineCSS, setInlineCSS] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [allRecords, setAllRecords] = useState<any[]>([]);
+  const stopStreamRef = useRef<(() => void) | null>(null);
 
   // Ensure HeroUI components are registered once
   useEffect(() => {
@@ -52,43 +54,97 @@ export const UILoader: React.FC<UILoaderProps> = ({
   }, [rcrtClient, rcrtUrl]);
 
   // Load layout, theme, optional inline CSS, and UI instances (summary → full)
+  const load = useCallback(async () => {
+    if (!client) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const list = await client.searchBreadcrumbs({ tag: workspace });
+      const full = await client.batchGet(list.map((i: any) => i.id), 'full');
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[UILoader] breadcrumbs found:', full.length);
+      }
+      const hasTag = (b: any, t: string) => Array.isArray(b?.tags) && b.tags.includes(t);
+      const layoutBc = full.find((f: any) => f?.schema_name === 'ui.layout.v1' || hasTag(f, 'ui:layout')) || null;
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[UILoader] layout found:', layoutBc?.title, layoutBc?.context?.regions);
+      }
+      setLayout(layoutBc);
+      const themeBc = full.find((f: any) => f?.schema_name === 'ui.theme.v1' || hasTag(f, 'ui:theme')) || null;
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[UILoader] theme found:', themeBc?.title);
+      }
+      setTheme(themeBc?.context || null);
+      const stylesBc = full.find((f: any) => f?.schema_name === 'ui.styles.v1' || hasTag(f, 'ui:styles')) || null;
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[UILoader] styles found:', stylesBc?.title);
+      }
+      setInlineCSS(stylesBc?.context?.css || null);
+      const instances = full.filter((f: any) => f?.schema_name === 'ui.instance.v1' || hasTag(f, 'ui:instance'));
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[UILoader] instances found:', instances.length, instances.map((i: any) => ({ title: i.title, tags: i.tags })));
+      }
+      instances.sort((a: any, b: any) => {
+        const ao = a.context?.order ?? 0;
+        const bo = b.context?.order ?? 0;
+        if (ao !== bo) return ao - bo;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+      setInstances(instances);
+      setAllRecords(full);
+    } catch (e: any) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[UILoader] failed to load UI:', e);
+      }
+      setError(e?.message || String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [client, workspace]);
+
   useEffect(() => {
     if (!client) return;
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const list = await client.searchBreadcrumbs({ tag: workspace });
-        const full = await client.batchGet(list.map((i: any) => i.id), 'full');
-        console.debug('[UILoader] breadcrumbs found:', full.length);
-        const hasTag = (b: any, t: string) => Array.isArray(b?.tags) && b.tags.includes(t);
-        const layoutBc = full.find((f: any) => f?.schema_name === 'ui.layout.v1' || hasTag(f, 'ui:layout')) || null;
-        console.debug('[UILoader] layout found:', layoutBc?.title, layoutBc?.context?.regions);
-        setLayout(layoutBc);
-        const themeBc = full.find((f: any) => f?.schema_name === 'ui.theme.v1' || hasTag(f, 'ui:theme')) || null;
-        console.debug('[UILoader] theme found:', themeBc?.title);
-        setTheme(themeBc?.context || null);
-        const stylesBc = full.find((f: any) => f?.schema_name === 'ui.styles.v1' || hasTag(f, 'ui:styles')) || null;
-        console.debug('[UILoader] styles found:', stylesBc?.title);
-        setInlineCSS(stylesBc?.context?.css || null);
-        const instances = full.filter((f: any) => f?.schema_name === 'ui.instance.v1' || hasTag(f, 'ui:instance'));
-        console.debug('[UILoader] instances found:', instances.length, instances.map((i: any) => ({ title: i.title, tags: i.tags })));
-        instances.sort((a: any, b: any) => {
-          const ao = a.context?.order ?? 0;
-          const bo = b.context?.order ?? 0;
-          if (ao !== bo) return ao - bo;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        });
-        setInstances(instances);
-      } catch (e: any) {
-        console.error('[UILoader] failed to load UI:', e);
-        setError(e?.message || String(e));
-      } finally {
-        setIsLoading(false);
-      }
-    };
     load();
-  }, [client, workspace, selector]);
+  }, [client, workspace, selector, load]);
+
+  // Subscribe to workspace-level SSE and refresh on relevant events
+  useEffect(() => {
+    if (!client) return;
+    // Cleanup previous stream if any
+    if (stopStreamRef.current) {
+      try { stopStreamRef.current(); } catch {}
+      stopStreamRef.current = null;
+    }
+    const stop = client.startEventStream(
+      async (evt: any) => {
+        try {
+          const t = String(evt?.type || '').toLowerCase();
+          if (!t) return;
+          if (t.includes('breadcrumb.created') || t.includes('breadcrumb.updated') || t.includes('breadcrumb.deleted')) {
+            // Avoid reloading on transient ui.event.v1 events to reduce flicker
+            const bid = (evt as any)?.breadcrumb_id || (evt as any)?.id;
+            if (bid) {
+              try {
+                const brief = await client.getBreadcrumb(bid);
+                if (brief?.schema_name === 'ui.event.v1') {
+                  return;
+                }
+              } catch {
+                // If we can't fetch, fall back to reload
+              }
+            }
+            await load();
+          }
+        } catch {}
+      },
+      { filters: { any_tags: [workspace] } }
+    );
+    stopStreamRef.current = stop;
+    return () => {
+      try { stop(); } catch {}
+      stopStreamRef.current = null;
+    };
+  }, [client, workspace, load]);
 
   if (!client) return null;
 
@@ -139,6 +195,20 @@ export const UILoader: React.FC<UILoaderProps> = ({
               rcrtClient={client!}
               workspace={workspace}
               onEvent={onEvent}
+              subscribeUpdates={false}
+              resolvePointer={(tagString: string, preferredSchema?: string) => {
+                const tokens = String(tagString || '')
+                  .split(';')
+                  .map((t) => t.trim())
+                  .filter(Boolean);
+                if (tokens.length === 0) return undefined as any;
+                const candidates = allRecords.filter((rec) => Array.isArray(rec?.tags) && tokens.every((t) => rec.tags.includes(t)));
+                if (preferredSchema) {
+                  const hit = candidates.find((r) => r?.schema_name === preferredSchema);
+                  if (hit) return hit;
+                }
+                return candidates[0];
+              }}
             />
           ))}
       </div>

@@ -61,14 +61,8 @@
       "static/chunks/_app-pages-browser_node_modules_pnpm_heroui_dom-animation_2_1_1_0ca9ca7ade45725f50b78eca57405-9ec097.js"
     ]
   },
-  "app\\builder\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/custom/ComposedHeroUIDemos": {
-    "id": "app\\builder\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/custom/ComposedHeroUIDemos",
-    "files": [
-      "static/chunks/_app-pages-browser_packages_heroui-breadcrumbs_src_custom_ComposedHeroUIDemos_tsx.js"
-    ]
-  },
-  "app\\builder\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/renderer/UILoader": {
-    "id": "app\\builder\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/renderer/UILoader",
+  "app\\agentic-demo\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/renderer/UILoader": {
+    "id": "app\\agentic-demo\\page.tsx -> @rcrt-builder/heroui-breadcrumbs/src/renderer/UILoader",
     "files": [
       "static/chunks/_app-pages-browser_packages_heroui-breadcrumbs_src_renderer_UILoader_tsx.js"
     ]

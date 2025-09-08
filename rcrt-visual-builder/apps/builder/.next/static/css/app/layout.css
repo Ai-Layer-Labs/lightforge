@@ -1153,11 +1153,17 @@ video {
 .h-40 {
   height: 10rem;
 }
+.h-48 {
+  height: 12rem;
+}
 .h-5 {
   height: 1.25rem;
 }
 .h-6 {
   height: 1.5rem;
+}
+.h-64 {
+  height: 16rem;
 }
 .h-7 {
   height: 1.75rem;
@@ -1798,6 +1804,9 @@ video {
   scroll-padding-top: 1.5rem;
   scroll-padding-bottom: 1.5rem;
 }
+.list-disc {
+  list-style-type: disc;
+}
 .list-none {
   list-style-type: none;
 }
@@ -2137,6 +2146,9 @@ video {
 .border-l {
   border-left-width: 1px;
 }
+.border-t {
+  border-top-width: 1px;
+}
 .border-solid {
   border-style: solid;
 }
@@ -2436,6 +2448,10 @@ video {
 .bg-divider {
   background-color: hsl(var(--heroui-divider) / 0.15);
 }
+.bg-emerald-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(5 150 105 / var(--tw-bg-opacity, 1));
+}
 .bg-foreground {
   --tw-bg-opacity: 1;
   background-color: hsl(var(--heroui-foreground) / var(--tw-bg-opacity, 1));
@@ -2498,6 +2514,10 @@ video {
 }
 .bg-secondary\/20 {
   background-color: hsl(var(--heroui-secondary) / 0.2);
+}
+.bg-sky-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(2 132 199 / var(--tw-bg-opacity, 1));
 }
 .bg-success {
   --tw-bg-opacity: 1;
@@ -2770,6 +2790,9 @@ video {
 .pb-2 {
   padding-bottom: 0.5rem;
 }
+.pb-3 {
+  padding-bottom: 0.75rem;
+}
 .pb-4 {
   padding-bottom: 1rem;
 }
@@ -2787,6 +2810,9 @@ video {
 }
 .pl-1 {
   padding-left: 0.25rem;
+}
+.pl-5 {
+  padding-left: 1.25rem;
 }
 .pl-\[1px\] {
   padding-left: 1px;
@@ -2858,6 +2884,10 @@ video {
 .text-\[100\%\] {
   font-size: 100%;
 }
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
 .text-lg {
   font-size: 1.125rem;
   line-height: 1.75rem;
@@ -2869,6 +2899,10 @@ video {
 .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
+}
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 .font-bold {
   font-weight: 700;
@@ -5299,6 +5333,10 @@ body {
 
 .disabled\:cursor-default:disabled {
   cursor: default;
+}
+
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
 }
 
 .group:hover .group-hover\:pointer-events-auto {
@@ -9120,6 +9158,14 @@ body {
 
   .lg\:w-80 {
     width: 20rem;
+  }
+
+  .lg\:w-96 {
+    width: 24rem;
+  }
+
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lg\:grid-cols-3 {

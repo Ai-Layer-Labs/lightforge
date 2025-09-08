@@ -116,7 +116,15 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
     // if qvec not provided, attempt to embed ?q=title/context
     let qvec: Vec<f32> = if let Some(qv) = q.qvec {
         qv.split(',').filter_map(|s| s.parse::<f32>().ok()).collect()
-    } else if let Some(text) = q.q { embed_text(text).map_err(|e| (StatusCode::BAD_REQUEST, e))? } else { return Ok(Json(vec![])); };
+    } else if let Some(text) = q.q {
+        match embed_text(text) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("vector_search embedding failed: {}", e);
+                return Ok(Json(vec![]));
+            }
+        }
+    } else { return Ok(Json(vec![])); };
     let limit = q.nn.unwrap_or(5).max(1) as i64;
 
     let mut sql = String::from("select id, title, tags, version, updated_at from breadcrumbs where owner_id = $1");
@@ -176,16 +184,31 @@ fn embed_text(text: String) -> Result<Vec<f32>, String> {
     let ids = encoding.get_ids();
     let ids_vec: Vec<i64> = ids.iter().map(|&x| x as i64).collect();
     let shape: Vec<usize> = vec![1, ids.len()];
-    let inputs = inputs!{ "input_ids" => Value::from_array((shape, ids_vec)).map_err(|e| e.to_string())? };
-    let vec: Vec<f32> = {
+    let mask_vec: Vec<i64> = vec![1i64; ids.len()];
+    let seg_vec: Vec<i64> = vec![0i64; ids.len()];
+
+    // Try with common BERT-style inputs first; fall back to input_ids only if model rejects extra inputs
+    let try_run = |with_all: bool| -> Result<Vec<f32>, String> {
         let mut guard = session.lock().unwrap();
-        let outputs = guard.run(inputs).map_err(|e| e.to_string())?;
+        let outputs = if with_all {
+            let inp = inputs!{
+                "input_ids" => Value::from_array((shape.clone(), ids_vec.clone())).map_err(|e| e.to_string())?,
+                "attention_mask" => Value::from_array((shape.clone(), mask_vec.clone())).map_err(|e| e.to_string())?,
+                "token_type_ids" => Value::from_array((shape.clone(), seg_vec.clone())).map_err(|e| e.to_string())?
+            };
+            guard.run(inp).map_err(|e| e.to_string())?
+        } else {
+            let inp = inputs!{
+                "input_ids" => Value::from_array((shape.clone(), ids_vec.clone())).map_err(|e| e.to_string())?
+            };
+            guard.run(inp).map_err(|e| e.to_string())?
+        };
         let (_shape, data) = outputs[0]
             .try_extract_tensor::<f32>()
             .map_err(|_| "embedding output not a float tensor".to_string())?;
         let hidden: usize = std::env::var("EMBED_DIM").ok().and_then(|s| s.parse().ok()).unwrap_or(384usize);
         if data.len() == hidden {
-            data.to_vec()
+            Ok(data.to_vec())
         } else {
             let mut acc = vec![0f32; hidden];
             let mut count: usize = 0;
@@ -194,7 +217,15 @@ fn embed_text(text: String) -> Result<Vec<f32>, String> {
                 count += 1;
             }
             if count > 0 { for i in 0..hidden { acc[i] /= count as f32; } }
-            acc
+            Ok(acc)
+        }
+    };
+    let vec = match try_run(true) {
+        Ok(v) => v,
+        Err(e) => {
+            // Retry with minimal inputs for models that don't expect mask/segment
+            tracing::warn!("embed_text run with all inputs failed, retrying with input_ids only: {}", e);
+            try_run(false)?
         }
     };
     // L2 normalize
@@ -333,9 +364,8 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
     // Publish event (best-effort)
     #[cfg(feature = "nats")]
     if let Some(conn) = &state.nats_conn {
-        let subj = format!("bc.{}.updated", bc.id);
-        let payload = json!({
-            "type":"breadcrumb.updated",
+        // Send both created and updated for immediate consumers that expect either
+        let mut payload_base = json!({
             "breadcrumb_id": bc.id,
             "owner_id": auth.owner_id,
             "version": bc.version,
@@ -343,9 +373,22 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
             "schema_name": bc.schema_name,
             "updated_at": bc.updated_at,
             "context": bc.context
-        }).to_string();
-        let _ = conn.publish(&subj, payload.as_bytes());
-        fanout_events_and_webhooks(&state, auth.owner_id, &bc, &payload).await;
+        });
+        let mut created_obj = payload_base.clone();
+        if let Some(obj) = created_obj.as_object_mut() {
+            obj.insert("type".to_string(), json!("breadcrumb.created"));
+        }
+        let mut updated_obj = payload_base;
+        if let Some(obj) = updated_obj.as_object_mut() {
+            obj.insert("type".to_string(), json!("breadcrumb.updated"));
+        }
+        let created = created_obj.to_string();
+        let updated = updated_obj.to_string();
+        let subj_created = format!("bc.{}.created", bc.id);
+        let subj_updated = format!("bc.{}.updated", bc.id);
+        let _ = conn.publish(&subj_created, created.as_bytes());
+        let _ = conn.publish(&subj_updated, updated.as_bytes());
+        fanout_events_and_webhooks(&state, auth.owner_id, &bc, &updated).await;
     }
     Ok(Json(CreateResp { id: bc.id }))
 }

@@ -19,7 +19,12 @@ services:
       - "4222:4222"
       - "8222:8222"
   rcrt:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Enable ONNX embedding by default; can be overridden: FEATURES: "embed-onnx nats"
+        FEATURES: "embed-onnx nats"
     depends_on:
       db:
         condition: service_healthy
@@ -35,6 +40,8 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENROUTER_REFERER: ${OPENROUTER_REFERER:-}
       OPENROUTER_SITE_TITLE: ${OPENROUTER_SITE_TITLE:-}
+      EMBED_MODEL: /app/models/model.onnx
+      EMBED_TOKENIZER: /app/models/tokenizer.json
     ports:
       - "8081:8080"
 
