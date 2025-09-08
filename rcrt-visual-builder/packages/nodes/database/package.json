@@ -1,0 +1,25 @@
+{
+  "name": "@rcrt-builder/nodes-database",
+  "version": "1.0.0",
+  "description": "Database nodes for RCRT Visual Builder",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@rcrt-builder/core": "workspace:*",
+    "@rcrt-builder/node-sdk": "workspace:*",
+    "@rcrt-builder/sdk": "workspace:*",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}

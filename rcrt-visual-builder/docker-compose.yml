@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (for RCRT)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rcrt-postgres
+    environment:
+      POSTGRES_USER: rcrt
+      POSTGRES_PASSWORD: rcrt123
+      POSTGRES_DB: breadcrumbs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rcrt -d breadcrumbs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NATS Message Bus (for RCRT)
+  nats:
+    image: nats:latest
+    container_name: rcrt-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js", "-m", "8222"]
+    healthcheck:
+      test: ["CMD", "nats", "account", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RCRT Backend (existing Rust implementation)
+  rcrt:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: rcrt-backend
+    environment:
+      DATABASE_URL: postgres://rcrt:rcrt123@postgres:5432/breadcrumbs
+      NATS_URL: nats://nats:4222
+      AUTH_MODE: disabled
+      PORT: 8081
+      RUST_LOG: info
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Visual Builder UI (development)
+  builder-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.builder
+    container_name: rcrt-builder-ui
+    environment:
+      RCRT_URL: http://rcrt:8081
+      NODE_ENV: development
+      PORT: 3000
+      VITE_RCRT_URL: http://localhost:8081
+      VITE_OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/builder:/app
+      - ./packages:/packages
+      - /app/node_modules
+      - /packages/*/node_modules
+    depends_on:
+      rcrt:
+        condition: service_healthy
+    command: ["pnpm", "dev"]
+
+  # Agent Runner Service (development)
+  agent-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: rcrt-agent-runner
+    environment:
+      RCRT_URL: http://rcrt:8081
+      NODE_ENV: development
+      PORT: 3001
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      WORKSPACE: workspace:builder
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/agent-runner:/app
+      - ./packages:/packages
+      - /app/node_modules
+      - /packages/*/node_modules
+    depends_on:
+      rcrt:
+        condition: service_healthy
+    command: ["pnpm", "dev"]
+
+  # Node Development Server (hot-reload for node development)
+  node-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.nodedev
+    container_name: rcrt-node-dev
+    environment:
+      RCRT_URL: http://rcrt:8081
+      WORKSPACE: workspace:builder
+    volumes:
+      - ./packages/nodes:/packages/nodes
+      - ./packages/node-sdk:/packages/node-sdk
+      - /packages/*/node_modules
+    depends_on:
+      rcrt:
+        condition: service_healthy
+    command: ["pnpm", "--filter", "@rcrt-builder/node-sdk", "dev:server"]
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: rcrt-network

@@ -1,0 +1,1244 @@
+[
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Button / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:button:default",
+      "component:Button"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQnV0dG9uIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Button default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Input / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:input:default",
+      "component:Input"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgSW5wdXQgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Input default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Card / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:card:default",
+      "component:Card"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2FyZCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Card default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Select / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:select:default",
+      "component:Select"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU2VsZWN0IGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Select default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Modal / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:modal:default",
+      "component:Modal"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTW9kYWwgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Modal default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Table / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:table:default",
+      "component:Table"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVGFibGUgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Table default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Tabs / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:tabs:default",
+      "component:Tabs"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVGFicyBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Tabs default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Badge / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:badge:default",
+      "component:Badge"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQmFkZ2UgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Badge default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Tooltip / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:tooltip:default",
+      "component:Tooltip"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVG9vbHRpcCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Tooltip default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Progress / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:progress:default",
+      "component:Progress"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUHJvZ3Jlc3MgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Progress default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Checkbox / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:checkbox:default",
+      "component:Checkbox"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2hlY2tib3ggZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Checkbox default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: CheckboxGroup / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:checkboxgroup:default",
+      "component:CheckboxGroup"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2hlY2tib3hHcm91cCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "CheckboxGroup default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Radio / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:radio:default",
+      "component:Radio"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUmFkaW8gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Radio default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: RadioGroup / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:radiogroup:default",
+      "component:RadioGroup"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUmFkaW9Hcm91cCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "RadioGroup default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Switch / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:switch:default",
+      "component:Switch"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU3dpdGNoIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Switch default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Slider / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:slider:default",
+      "component:Slider"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU2xpZGVyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Slider default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Textarea / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:textarea:default",
+      "component:Textarea"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVGV4dGFyZWEgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Textarea default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Autocomplete / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:autocomplete:default",
+      "component:Autocomplete"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQXV0b2NvbXBsZXRlIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Autocomplete default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DatePicker / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:datepicker:default",
+      "component:DatePicker"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRGF0ZVBpY2tlciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "DatePicker default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DateInput / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dateinput:default",
+      "component:DateInput"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRGF0ZUlucHV0IGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DateInput default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DateRangePicker / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:daterangepicker:default",
+      "component:DateRangePicker"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRGF0ZVJhbmdlUGlja2VyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DateRangePicker default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: TimeInput / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:timeinput:default",
+      "component:TimeInput"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVGltZUlucHV0IGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "TimeInput default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NumberInput / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:numberinput:default",
+      "component:NumberInput"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTnVtYmVySW5wdXQgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "NumberInput default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Avatar / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:avatar:default",
+      "component:Avatar"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQXZhdGFyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Avatar default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: AvatarGroup / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:avatargroup:default",
+      "component:AvatarGroup"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQXZhdGFyR3JvdXAgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "AvatarGroup default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Chip / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:chip:default",
+      "component:Chip"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2hpcCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Chip default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Divider / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:divider:default",
+      "component:Divider"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRGl2aWRlciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Divider default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Link / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:link:default",
+      "component:Link"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTGluayBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Link default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: User / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:user:default",
+      "component:User"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgVXNlciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "User default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Code / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:code:default",
+      "component:Code"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ29kZSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Code default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Kbd / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:kbd:default",
+      "component:Kbd"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgS2JkIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Kbd default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Image / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:image:default",
+      "component:Image"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgSW1hZ2UgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Image default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Snippet / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:snippet:default",
+      "component:Snippet"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU25pcHBldCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Snippet default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Breadcrumbs / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:breadcrumbs:default",
+      "component:Breadcrumbs"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQnJlYWRjcnVtYnMgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Breadcrumbs default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: BreadcrumbItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:breadcrumbitem:default",
+      "component:BreadcrumbItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQnJlYWRjcnVtYkl0ZW0gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "BreadcrumbItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Navbar / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbar:default",
+      "component:Navbar"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Navbar default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarBrand / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbarbrand:default",
+      "component:NavbarBrand"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyQnJhbmQgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarBrand default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarContent / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbarcontent:default",
+      "component:NavbarContent"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyQ29udGVudCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarContent default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbaritem:default",
+      "component:NavbarItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFySXRlbSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarMenuToggle / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbarmenutoggle:default",
+      "component:NavbarMenuToggle"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyTWVudVRvZ2dsZSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarMenuToggle default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarMenu / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbarmenu:default",
+      "component:NavbarMenu"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyTWVudSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarMenu default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: NavbarMenuItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:navbarmenuitem:default",
+      "component:NavbarMenuItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTmF2YmFyTWVudUl0ZW0gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "NavbarMenuItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Dropdown / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dropdown:default",
+      "component:Dropdown"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJvcGRvd24gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Dropdown default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DropdownTrigger / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dropdowntrigger:default",
+      "component:DropdownTrigger"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJvcGRvd25UcmlnZ2VyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DropdownTrigger default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DropdownMenu / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dropdownmenu:default",
+      "component:DropdownMenu"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJvcGRvd25NZW51IGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DropdownMenu default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DropdownItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dropdownitem:default",
+      "component:DropdownItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJvcGRvd25JdGVtIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DropdownItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DropdownSection / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:dropdownsection:default",
+      "component:DropdownSection"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJvcGRvd25TZWN0aW9uIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DropdownSection default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Pagination / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:pagination:default",
+      "component:Pagination"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUGFnaW5hdGlvbiBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Pagination default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Skeleton / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:skeleton:default",
+      "component:Skeleton"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU2tlbGV0b24gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Skeleton default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Spinner / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:spinner:default",
+      "component:Spinner"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU3Bpbm5lciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Spinner default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: CircularProgress / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:circularprogress:default",
+      "component:CircularProgress"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2lyY3VsYXJQcm9ncmVzcyBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "CircularProgress default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Alert / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:alert:default",
+      "component:Alert"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQWxlcnQgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Alert default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: ScrollShadow / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:scrollshadow:default",
+      "component:ScrollShadow"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU2Nyb2xsU2hhZG93IGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "ScrollShadow default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Spacer / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:spacer:default",
+      "component:Spacer"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgU3BhY2VyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Spacer default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Popover / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:popover:default",
+      "component:Popover"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUG9wb3ZlciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Popover default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: PopoverTrigger / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:popovertrigger:default",
+      "component:PopoverTrigger"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUG9wb3ZlclRyaWdnZXIgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "PopoverTrigger default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: PopoverContent / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:popovercontent:default",
+      "component:PopoverContent"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUG9wb3ZlckNvbnRlbnQgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "PopoverContent default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Drawer / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:drawer:default",
+      "component:Drawer"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJhd2VyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Drawer default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DrawerContent / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:drawercontent:default",
+      "component:DrawerContent"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJhd2VyQ29udGVudCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "DrawerContent default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DrawerHeader / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:drawerheader:default",
+      "component:DrawerHeader"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJhd2VySGVhZGVyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DrawerHeader default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DrawerBody / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:drawerbody:default",
+      "component:DrawerBody"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJhd2VyQm9keSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "DrawerBody default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: DrawerFooter / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:drawerfooter:default",
+      "component:DrawerFooter"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgRHJhd2VyRm9vdGVyIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "DrawerFooter default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Accordion / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:accordion:default",
+      "component:Accordion"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQWNjb3JkaW9uIGRlZmF1bHQKICAgICAgICA8L3RleHQ+CiAgICAgIDwvc3ZnPgogICAg",
+      "width": 400,
+      "height": 200,
+      "alt": "Accordion default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: AccordionItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:accordionitem:default",
+      "component:AccordionItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQWNjb3JkaW9uSXRlbSBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "AccordionItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Listbox / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:listbox:default",
+      "component:Listbox"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTGlzdGJveCBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "Listbox default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: ListboxItem / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:listboxitem:default",
+      "component:ListboxItem"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTGlzdGJveEl0ZW0gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "ListboxItem default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: ListboxSection / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:listboxsection:default",
+      "component:ListboxSection"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgTGlzdGJveFNlY3Rpb24gZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "ListboxSection default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: Calendar / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:calendar:default",
+      "component:Calendar"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgQ2FsZW5kYXIgZGVmYXVsdAogICAgICAgIDwvdGV4dD4KICAgICAgPC9zdmc+CiAgICA=",
+      "width": 400,
+      "height": 200,
+      "alt": "Calendar default preview"
+    }
+  },
+  {
+    "schema_name": "ui.asset.v1",
+    "title": "Asset: RangeCalendar / default",
+    "tags": [
+      "workspace:builder",
+      "ui:asset",
+      "asset:rangecalendar:default",
+      "component:RangeCalendar"
+    ],
+    "context": {
+      "kind": "image",
+      "content_type": "image/svg+xml",
+      "data_base64": "CiAgICAgIDxzdmcgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmNGY0ZjUiLz4KICAgICAgICA8dGV4dCB4PSIyMDAiIHk9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIAogICAgICAgICAgICAgIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM3MTcxN2EiPgogICAgICAgICAgUmFuZ2VDYWxlbmRhciBkZWZhdWx0CiAgICAgICAgPC90ZXh0PgogICAgICA8L3N2Zz4KICAgIA==",
+      "width": 400,
+      "height": 200,
+      "alt": "RangeCalendar default preview"
+    }
+  }
+]

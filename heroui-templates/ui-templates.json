@@ -1,0 +1,4235 @@
+[
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "solid",
+        "size": "md",
+        "color": "default",
+        "isDisabled": false,
+        "isLoading": false,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:default",
+      "description": "Interactive button component for triggering actions"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button / primary",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui",
+      "variant:primary"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "solid",
+        "size": "md",
+        "color": "primary",
+        "isDisabled": false,
+        "isLoading": false,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:primary",
+      "description": "Button primary variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button / secondary",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui",
+      "variant:secondary"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "solid",
+        "size": "md",
+        "color": "secondary",
+        "isDisabled": false,
+        "isLoading": false,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:secondary",
+      "description": "Button secondary variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button / danger",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui",
+      "variant:danger"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "solid",
+        "size": "md",
+        "color": "danger",
+        "isDisabled": false,
+        "isLoading": false,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:danger",
+      "description": "Button danger variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button / ghost",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui",
+      "variant:ghost"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "ghost",
+        "size": "md",
+        "color": "default",
+        "isDisabled": false,
+        "isLoading": false,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:ghost",
+      "description": "Button ghost variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Button / loading",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Button",
+      "palette:heroui",
+      "variant:loading"
+    ],
+    "context": {
+      "component_type": "Button",
+      "default_props": {
+        "variant": "solid",
+        "size": "md",
+        "color": "default",
+        "isDisabled": false,
+        "isLoading": true,
+        "children": "Button"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:button:loading",
+      "description": "Button loading variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Label",
+        "placeholder": "Enter text..."
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:default",
+      "description": "Text input field for collecting user data"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input / bordered",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui",
+      "variant:bordered"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "bordered",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Label",
+        "placeholder": "Enter text..."
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:bordered",
+      "description": "Input bordered variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input / underlined",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui",
+      "variant:underlined"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "underlined",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Label",
+        "placeholder": "Enter text..."
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:underlined",
+      "description": "Input underlined variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input / required",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui",
+      "variant:required"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Required Field",
+        "placeholder": "Enter text...",
+        "isRequired": true
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:required",
+      "description": "Input required variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input / with-description",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui",
+      "variant:with-description"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Label",
+        "placeholder": "Enter text...",
+        "description": "Helper text here"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:with-description",
+      "description": "Input with-description variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Input / error",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Input",
+      "palette:heroui",
+      "variant:error"
+    ],
+    "context": {
+      "component_type": "Input",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Label",
+        "placeholder": "Enter text...",
+        "isInvalid": true,
+        "errorMessage": "This field is required"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:input:error",
+      "description": "Input error variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Card",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Card",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Card",
+      "default_props": {
+        "shadow": "md",
+        "radius": "lg",
+        "children": "Card content"
+      },
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:card:default",
+      "description": "Container component for grouping related content"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Card / hoverable",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Card",
+      "palette:heroui",
+      "variant:hoverable"
+    ],
+    "context": {
+      "component_type": "Card",
+      "default_props": {
+        "shadow": "md",
+        "radius": "lg",
+        "children": "Card content",
+        "isHoverable": true
+      },
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:card:hoverable",
+      "description": "Card hoverable variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Card / pressable",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Card",
+      "palette:heroui",
+      "variant:pressable"
+    ],
+    "context": {
+      "component_type": "Card",
+      "default_props": {
+        "shadow": "md",
+        "radius": "lg",
+        "children": "Card content",
+        "isPressable": true
+      },
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:card:pressable",
+      "description": "Card pressable variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Card / no-shadow",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Card",
+      "palette:heroui",
+      "variant:no-shadow"
+    ],
+    "context": {
+      "component_type": "Card",
+      "default_props": {
+        "shadow": "none",
+        "radius": "lg",
+        "children": "Card content"
+      },
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:card:no-shadow",
+      "description": "Card no-shadow variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Card / small-radius",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Card",
+      "palette:heroui",
+      "variant:small-radius"
+    ],
+    "context": {
+      "component_type": "Card",
+      "default_props": {
+        "shadow": "md",
+        "radius": "sm",
+        "children": "Card content"
+      },
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:card:small-radius",
+      "description": "Card small-radius variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Select",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Select",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Select",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Select option",
+        "placeholder": "Choose an option"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "selectionMode": {
+          "type": "select",
+          "options": [
+            "single",
+            "multiple"
+          ],
+          "default": "single"
+        },
+        "label": {
+          "type": "string",
+          "default": "Select option"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Choose an option"
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Select",
+          "code": "<Select label=\"Framework\">\n  <SelectItem key=\"react\">React</SelectItem>\n  <SelectItem key=\"vue\">Vue</SelectItem>\n</Select>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/select",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Select, SelectItem } from \"@heroui/select\";",
+        "collective": "import { Select, SelectItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:select:default",
+      "description": "Dropdown selection component for choosing options"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Select / multiple",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Select",
+      "palette:heroui",
+      "variant:multiple"
+    ],
+    "context": {
+      "component_type": "Select",
+      "default_props": {
+        "variant": "flat",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Select option",
+        "placeholder": "Choose an option",
+        "selectionMode": "multiple"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "selectionMode": {
+          "type": "select",
+          "options": [
+            "single",
+            "multiple"
+          ],
+          "default": "single"
+        },
+        "label": {
+          "type": "string",
+          "default": "Select option"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Choose an option"
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Select",
+          "code": "<Select label=\"Framework\">\n  <SelectItem key=\"react\">React</SelectItem>\n  <SelectItem key=\"vue\">Vue</SelectItem>\n</Select>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/select",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Select, SelectItem } from \"@heroui/select\";",
+        "collective": "import { Select, SelectItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:select:multiple",
+      "description": "Select multiple variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Select / bordered",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Select",
+      "palette:heroui",
+      "variant:bordered"
+    ],
+    "context": {
+      "component_type": "Select",
+      "default_props": {
+        "variant": "bordered",
+        "size": "md",
+        "labelPlacement": "inside",
+        "label": "Select option",
+        "placeholder": "Choose an option"
+      },
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "selectionMode": {
+          "type": "select",
+          "options": [
+            "single",
+            "multiple"
+          ],
+          "default": "single"
+        },
+        "label": {
+          "type": "string",
+          "default": "Select option"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Choose an option"
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "name": "Basic Select",
+          "code": "<Select label=\"Framework\">\n  <SelectItem key=\"react\">React</SelectItem>\n  <SelectItem key=\"vue\">Vue</SelectItem>\n</Select>"
+        }
+      ],
+      "installation": {
+        "individual": "npm install @heroui/select",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Select, SelectItem } from \"@heroui/select\";",
+        "collective": "import { Select, SelectItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:select:bordered",
+      "description": "Select bordered variant"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Modal",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Modal",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Modal",
+      "default_props": {
+        "children": "Modal"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Modal Basic",
+          "code": "<Modal />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Modal } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:modal:default",
+      "description": "Modal component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Table",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Table",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Table",
+      "default_props": {
+        "children": "Table"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Table Basic",
+          "code": "<Table />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Table } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:table:default",
+      "description": "Table component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Tabs",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Tabs",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Tabs",
+      "default_props": {
+        "children": "Tabs"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Tabs Basic",
+          "code": "<Tabs />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Tabs } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:tabs:default",
+      "description": "Tabs component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Badge",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Badge",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Badge",
+      "default_props": {
+        "children": "Badge"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Badge Basic",
+          "code": "<Badge />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Badge } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:badge:default",
+      "description": "Badge component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Tooltip",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Tooltip",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Tooltip",
+      "default_props": {
+        "children": "Tooltip"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Tooltip Basic",
+          "code": "<Tooltip />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Tooltip } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:tooltip:default",
+      "description": "Tooltip component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Progress",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Progress",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Progress",
+      "default_props": {
+        "children": "Progress"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Progress Basic",
+          "code": "<Progress />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Progress } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:progress:default",
+      "description": "Progress component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Checkbox",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Checkbox",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Checkbox",
+      "default_props": {
+        "children": "Checkbox"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Checkbox Basic",
+          "code": "<Checkbox />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Checkbox } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:checkbox:default",
+      "description": "Checkbox component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: CheckboxGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:CheckboxGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "CheckboxGroup",
+      "default_props": {
+        "children": "CheckboxGroup"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "CheckboxGroup Basic",
+          "code": "<CheckboxGroup />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { CheckboxGroup } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:checkboxgroup:default",
+      "description": "CheckboxGroup component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Radio",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Radio",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Radio",
+      "default_props": {
+        "children": "Radio"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Radio Basic",
+          "code": "<Radio />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Radio } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:radio:default",
+      "description": "Radio component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: RadioGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:RadioGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "RadioGroup",
+      "default_props": {
+        "children": "RadioGroup"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "RadioGroup Basic",
+          "code": "<RadioGroup />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { RadioGroup } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:radiogroup:default",
+      "description": "RadioGroup component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Switch",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Switch",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Switch",
+      "default_props": {
+        "children": "Switch"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Switch Basic",
+          "code": "<Switch />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Switch } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:switch:default",
+      "description": "Switch component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Slider",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Slider",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Slider",
+      "default_props": {
+        "children": "Slider"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Slider Basic",
+          "code": "<Slider />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Slider } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:slider:default",
+      "description": "Slider component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Textarea",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Textarea",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Textarea",
+      "default_props": {
+        "children": "Textarea"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Textarea Basic",
+          "code": "<Textarea />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Textarea } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:textarea:default",
+      "description": "Textarea component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Autocomplete",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Autocomplete",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Autocomplete",
+      "default_props": {
+        "children": "Autocomplete"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Autocomplete Basic",
+          "code": "<Autocomplete />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Autocomplete } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:autocomplete:default",
+      "description": "Autocomplete component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DatePicker",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DatePicker",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DatePicker",
+      "default_props": {
+        "children": "DatePicker"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DatePicker Basic",
+          "code": "<DatePicker />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DatePicker } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:datepicker:default",
+      "description": "DatePicker component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DateInput",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DateInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DateInput",
+      "default_props": {
+        "children": "DateInput"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DateInput Basic",
+          "code": "<DateInput />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DateInput } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dateinput:default",
+      "description": "DateInput component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DateRangePicker",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DateRangePicker",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DateRangePicker",
+      "default_props": {
+        "children": "DateRangePicker"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DateRangePicker Basic",
+          "code": "<DateRangePicker />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DateRangePicker } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:daterangepicker:default",
+      "description": "DateRangePicker component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: TimeInput",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:TimeInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "TimeInput",
+      "default_props": {
+        "children": "TimeInput"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "TimeInput Basic",
+          "code": "<TimeInput />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { TimeInput } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:timeinput:default",
+      "description": "TimeInput component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NumberInput",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NumberInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NumberInput",
+      "default_props": {
+        "children": "NumberInput"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NumberInput Basic",
+          "code": "<NumberInput />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NumberInput } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:numberinput:default",
+      "description": "NumberInput component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Avatar",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Avatar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Avatar",
+      "default_props": {
+        "children": "Avatar"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Avatar Basic",
+          "code": "<Avatar />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Avatar } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:avatar:default",
+      "description": "Avatar component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: AvatarGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:AvatarGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "AvatarGroup",
+      "default_props": {
+        "children": "AvatarGroup"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "AvatarGroup Basic",
+          "code": "<AvatarGroup />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { AvatarGroup } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:avatargroup:default",
+      "description": "AvatarGroup component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Chip",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Chip",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Chip",
+      "default_props": {
+        "children": "Chip"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Chip Basic",
+          "code": "<Chip />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Chip } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:chip:default",
+      "description": "Chip component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Divider",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Divider",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Divider",
+      "default_props": {
+        "children": "Divider"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Divider Basic",
+          "code": "<Divider />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Divider } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:divider:default",
+      "description": "Divider component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Link",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Link",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Link",
+      "default_props": {
+        "children": "Link"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Link Basic",
+          "code": "<Link />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Link } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:link:default",
+      "description": "Link component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: User",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:User",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "User",
+      "default_props": {
+        "children": "User"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "User Basic",
+          "code": "<User />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { User } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:user:default",
+      "description": "User component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Code",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Code",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Code",
+      "default_props": {
+        "children": "Code"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Code Basic",
+          "code": "<Code />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Code } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:code:default",
+      "description": "Code component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Kbd",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Kbd",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Kbd",
+      "default_props": {
+        "children": "Kbd"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Kbd Basic",
+          "code": "<Kbd />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Kbd } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:kbd:default",
+      "description": "Kbd component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Image",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Image",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Image",
+      "default_props": {
+        "children": "Image"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Image Basic",
+          "code": "<Image />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Image } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:image:default",
+      "description": "Image component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Snippet",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Snippet",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Snippet",
+      "default_props": {
+        "children": "Snippet"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Snippet Basic",
+          "code": "<Snippet />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Snippet } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:snippet:default",
+      "description": "Snippet component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Breadcrumbs",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Breadcrumbs",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Breadcrumbs",
+      "default_props": {
+        "children": "Breadcrumbs"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Breadcrumbs Basic",
+          "code": "<Breadcrumbs />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Breadcrumbs } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:breadcrumbs:default",
+      "description": "Breadcrumbs component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: BreadcrumbItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:BreadcrumbItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "BreadcrumbItem",
+      "default_props": {
+        "children": "BreadcrumbItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "BreadcrumbItem Basic",
+          "code": "<BreadcrumbItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { BreadcrumbItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:breadcrumbitem:default",
+      "description": "BreadcrumbItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Navbar",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Navbar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Navbar",
+      "default_props": {
+        "children": "Navbar"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Navbar Basic",
+          "code": "<Navbar />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Navbar } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbar:default",
+      "description": "Navbar component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarBrand",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarBrand",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarBrand",
+      "default_props": {
+        "children": "NavbarBrand"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarBrand Basic",
+          "code": "<NavbarBrand />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarBrand } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbarbrand:default",
+      "description": "NavbarBrand component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarContent",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarContent",
+      "default_props": {
+        "children": "NavbarContent"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarContent Basic",
+          "code": "<NavbarContent />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarContent } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbarcontent:default",
+      "description": "NavbarContent component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarItem",
+      "default_props": {
+        "children": "NavbarItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarItem Basic",
+          "code": "<NavbarItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbaritem:default",
+      "description": "NavbarItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarMenuToggle",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarMenuToggle",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenuToggle",
+      "default_props": {
+        "children": "NavbarMenuToggle"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarMenuToggle Basic",
+          "code": "<NavbarMenuToggle />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenuToggle } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbarmenutoggle:default",
+      "description": "NavbarMenuToggle component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarMenu",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarMenu",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenu",
+      "default_props": {
+        "children": "NavbarMenu"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarMenu Basic",
+          "code": "<NavbarMenu />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenu } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbarmenu:default",
+      "description": "NavbarMenu component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: NavbarMenuItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:NavbarMenuItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenuItem",
+      "default_props": {
+        "children": "NavbarMenuItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "NavbarMenuItem Basic",
+          "code": "<NavbarMenuItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenuItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:navbarmenuitem:default",
+      "description": "NavbarMenuItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Dropdown",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Dropdown",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Dropdown",
+      "default_props": {
+        "children": "Dropdown"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Dropdown Basic",
+          "code": "<Dropdown />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Dropdown } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dropdown:default",
+      "description": "Dropdown component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DropdownTrigger",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DropdownTrigger",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownTrigger",
+      "default_props": {
+        "children": "DropdownTrigger"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DropdownTrigger Basic",
+          "code": "<DropdownTrigger />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownTrigger } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dropdowntrigger:default",
+      "description": "DropdownTrigger component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DropdownMenu",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DropdownMenu",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownMenu",
+      "default_props": {
+        "children": "DropdownMenu"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DropdownMenu Basic",
+          "code": "<DropdownMenu />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownMenu } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dropdownmenu:default",
+      "description": "DropdownMenu component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DropdownItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DropdownItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownItem",
+      "default_props": {
+        "children": "DropdownItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DropdownItem Basic",
+          "code": "<DropdownItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dropdownitem:default",
+      "description": "DropdownItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DropdownSection",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DropdownSection",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownSection",
+      "default_props": {
+        "children": "DropdownSection"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DropdownSection Basic",
+          "code": "<DropdownSection />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownSection } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:dropdownsection:default",
+      "description": "DropdownSection component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Pagination",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Pagination",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Pagination",
+      "default_props": {
+        "children": "Pagination"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Pagination Basic",
+          "code": "<Pagination />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Pagination } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:pagination:default",
+      "description": "Pagination component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Skeleton",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Skeleton",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Skeleton",
+      "default_props": {
+        "children": "Skeleton"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Skeleton Basic",
+          "code": "<Skeleton />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Skeleton } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:skeleton:default",
+      "description": "Skeleton component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Spinner",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Spinner",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Spinner",
+      "default_props": {
+        "children": "Spinner"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Spinner Basic",
+          "code": "<Spinner />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Spinner } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:spinner:default",
+      "description": "Spinner component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: CircularProgress",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:CircularProgress",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "CircularProgress",
+      "default_props": {
+        "children": "CircularProgress"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "CircularProgress Basic",
+          "code": "<CircularProgress />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { CircularProgress } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:circularprogress:default",
+      "description": "CircularProgress component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Alert",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Alert",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Alert",
+      "default_props": {
+        "children": "Alert"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Alert Basic",
+          "code": "<Alert />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Alert } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:alert:default",
+      "description": "Alert component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: ScrollShadow",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:ScrollShadow",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ScrollShadow",
+      "default_props": {
+        "children": "ScrollShadow"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "ScrollShadow Basic",
+          "code": "<ScrollShadow />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ScrollShadow } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:scrollshadow:default",
+      "description": "ScrollShadow component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Spacer",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Spacer",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Spacer",
+      "default_props": {
+        "children": "Spacer"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Spacer Basic",
+          "code": "<Spacer />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Spacer } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:spacer:default",
+      "description": "Spacer component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Popover",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Popover",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Popover",
+      "default_props": {
+        "children": "Popover"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Popover Basic",
+          "code": "<Popover />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Popover } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:popover:default",
+      "description": "Popover component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: PopoverTrigger",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:PopoverTrigger",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "PopoverTrigger",
+      "default_props": {
+        "children": "PopoverTrigger"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "PopoverTrigger Basic",
+          "code": "<PopoverTrigger />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { PopoverTrigger } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:popovertrigger:default",
+      "description": "PopoverTrigger component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: PopoverContent",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:PopoverContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "PopoverContent",
+      "default_props": {
+        "children": "PopoverContent"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "PopoverContent Basic",
+          "code": "<PopoverContent />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { PopoverContent } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:popovercontent:default",
+      "description": "PopoverContent component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Drawer",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Drawer",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Drawer",
+      "default_props": {
+        "children": "Drawer"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Drawer Basic",
+          "code": "<Drawer />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Drawer } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:drawer:default",
+      "description": "Drawer component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DrawerContent",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DrawerContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerContent",
+      "default_props": {
+        "children": "DrawerContent"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DrawerContent Basic",
+          "code": "<DrawerContent />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerContent } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:drawercontent:default",
+      "description": "DrawerContent component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DrawerHeader",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DrawerHeader",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerHeader",
+      "default_props": {
+        "children": "DrawerHeader"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DrawerHeader Basic",
+          "code": "<DrawerHeader />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerHeader } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:drawerheader:default",
+      "description": "DrawerHeader component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DrawerBody",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DrawerBody",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerBody",
+      "default_props": {
+        "children": "DrawerBody"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DrawerBody Basic",
+          "code": "<DrawerBody />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerBody } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:drawerbody:default",
+      "description": "DrawerBody component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: DrawerFooter",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:DrawerFooter",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerFooter",
+      "default_props": {
+        "children": "DrawerFooter"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "DrawerFooter Basic",
+          "code": "<DrawerFooter />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerFooter } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:drawerfooter:default",
+      "description": "DrawerFooter component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Accordion",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Accordion",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Accordion",
+      "default_props": {
+        "children": "Accordion"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Accordion Basic",
+          "code": "<Accordion />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Accordion } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:accordion:default",
+      "description": "Accordion component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: AccordionItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:AccordionItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "AccordionItem",
+      "default_props": {
+        "children": "AccordionItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "AccordionItem Basic",
+          "code": "<AccordionItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { AccordionItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:accordionitem:default",
+      "description": "AccordionItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Listbox",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Listbox",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Listbox",
+      "default_props": {
+        "children": "Listbox"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Listbox Basic",
+          "code": "<Listbox />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Listbox } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:listbox:default",
+      "description": "Listbox component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: ListboxItem",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:ListboxItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ListboxItem",
+      "default_props": {
+        "children": "ListboxItem"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "ListboxItem Basic",
+          "code": "<ListboxItem />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ListboxItem } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:listboxitem:default",
+      "description": "ListboxItem component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: ListboxSection",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:ListboxSection",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ListboxSection",
+      "default_props": {
+        "children": "ListboxSection"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "ListboxSection Basic",
+          "code": "<ListboxSection />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ListboxSection } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:listboxsection:default",
+      "description": "ListboxSection component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: Calendar",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:Calendar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Calendar",
+      "default_props": {
+        "children": "Calendar"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "Calendar Basic",
+          "code": "<Calendar />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Calendar } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:calendar:default",
+      "description": "Calendar component"
+    }
+  },
+  {
+    "schema_name": "ui.template.v1",
+    "title": "Template: RangeCalendar",
+    "tags": [
+      "workspace:builder",
+      "ui:template",
+      "component:RangeCalendar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "RangeCalendar",
+      "default_props": {
+        "children": "RangeCalendar"
+      },
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "examples": [
+        {
+          "name": "RangeCalendar Basic",
+          "code": "<RangeCalendar />"
+        }
+      ],
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { RangeCalendar } from \"@heroui/react\";"
+      },
+      "preview_asset_tag": "asset:rangecalendar:default",
+      "description": "RangeCalendar component"
+    }
+  }
+]

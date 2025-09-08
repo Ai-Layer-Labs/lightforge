@@ -1,0 +1,35 @@
+# Dockerfile for Agent Runner Service
+FROM node:20-alpine
+
+# Install pnpm
+RUN npm install -g pnpm@8
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy workspace files
+COPY pnpm-workspace.yaml package.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/node-sdk/package.json ./packages/node-sdk/
+COPY packages/runtime/package.json ./packages/runtime/
+COPY packages/nodes/llm/package.json ./packages/nodes/llm/
+COPY packages/nodes/agent/package.json ./packages/nodes/agent/
+COPY apps/agent-runner/package.json ./apps/agent-runner/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY packages ./packages
+COPY apps/agent-runner ./apps/agent-runner
+
+# Build packages
+RUN pnpm --filter "@rcrt-builder/*" build
+
+# Expose port
+EXPOSE 3001
+
+# Start agent runner
+WORKDIR /workspace/apps/agent-runner
+CMD ["pnpm", "start"]

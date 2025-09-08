@@ -133,7 +133,7 @@ curl -X DELETE http://localhost:8081/secrets/$SECRET_ID
 ### SDK usage
 TypeScript:
 ```
-import { RcrtClient } from '../../sdk/ts/index';
+import { RcrtClientEnhanced as RcrtClient } from '@rcrt-builder/sdk';
 const c = new RcrtClient('http://localhost:8081');
 await c.createBreadcrumb({ title:'Travel', context:{}, tags:['travel'] }, 'ikey-1');
 ```
@@ -225,7 +225,7 @@ curl -X POST http://localhost:8081/agents/$CAL_ID/webhooks -H 'Content-Type: app
 Travel Planner emits a breadcrumb (TypeScript SDK example):
 ```typescript
 // travel_planner.ts
-import { RcrtClient } from '../../sdk/ts/index';
+import { RcrtClientEnhanced as RcrtClient } from '@rcrt-builder/sdk';
 
 const BASE = process.env.RCRT_URL || 'http://localhost:8081';
 const c = new RcrtClient(BASE);

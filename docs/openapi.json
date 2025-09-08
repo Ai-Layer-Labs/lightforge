@@ -11,7 +11,16 @@
       "get": {
         "summary": "Health",
         "description": "Liveness/readiness probe. Returns 'ok' when the API is serving requests.",
-        "responses": { "200": { "description": "ok", "content": { "text/plain": { "schema": { "type": "string" } } } } }
+        "responses": { "200": { "description": "ok", "content": { "text/plain": { "schema": { "type": "string" } } } } },
+        "security": []
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus metrics",
+        "description": "Prometheus-compatible metrics endpoint.",
+        "responses": { "200": { "description": "Metrics", "content": { "text/plain": { "schema": { "type": "string" } } } } },
+        "security": []
       }
     },
     "/breadcrumbs": {
@@ -20,7 +29,7 @@
         "description": "Create a minimal, persistent breadcrumb. Emits events to matching subscribers. Requires role: emitter or curator. If supplied, Idempotency-Key deduplicates identical requests.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbCreate" } } } },
         "parameters": [{ "name": "Idempotency-Key", "in": "header", "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateResp" } } } } }
+        "responses": { "200": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateResp" } } } }, "409": { "description": "Conflict (duplicate Idempotency-Key)" } }
       },
       "get": {
         "summary": "List breadcrumbs",
@@ -86,11 +95,55 @@
         "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/SelectorSubscription" } } } } } }
       }
     },
+    "/subscriptions/selectors/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/SelectorId" }],
+      "put": {
+        "summary": "Update selector",
+        "description": "Update an existing selector subscription. Requires role: subscriber or curator.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Selector" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      },
+      "delete": {
+        "summary": "Delete selector",
+        "description": "Delete a selector subscription. Requires role: subscriber or curator.",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      }
+    },
     "/events/stream": {
       "get": {
         "summary": "SSE stream",
         "description": "Server-Sent Events stream of authorized events (owner-filtered and per-agent). Includes periodic ping events for liveness.",
         "responses": { "200": { "description": "SSE", "content": { "text/event-stream": {} } } }
+      }
+    },
+    "/acl": {
+      "get": {
+        "summary": "List ACL entries",
+        "description": "List ACL grants for the current owner. Requires curator in many cases.",
+        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AclItem" } } } } } }
+      }
+    },
+    "/acl/grant": {
+      "post": {
+        "summary": "Grant ACL",
+        "description": "Grant an action on a breadcrumb to an agent. Requires curator.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AclGrantAgent" } } } },
+        "responses": { "200": { "description": "Granted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IdResp" } } } } }
+      }
+    },
+    "/acl/revoke": {
+      "post": {
+        "summary": "Revoke ACL",
+        "description": "Revoke an action on a breadcrumb for an agent. Requires curator.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AclGrantAgent" } } } },
+        "responses": { "200": { "description": "Revoked", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RowsResp" } } } } }
+      }
+    },
+    "/agents": {
+      "get": {
+        "summary": "List agents",
+        "description": "List agents in the current owner scope.",
+        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AgentItem" } } } } } }
       }
     },
     "/agents/{id}": {
@@ -99,6 +152,16 @@
         "summary": "Register agent",
         "description": "Upsert agent metadata and roles within the tenant. Caller must be the agent or curator.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentRegReq" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      },
+      "get": {
+        "summary": "Get agent",
+        "description": "Fetch an agent by ID.",
+        "responses": { "200": { "description": "Agent", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentItem" } } } }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Delete agent",
+        "description": "Delete an agent (curator only).",
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
       }
     },
@@ -109,6 +172,14 @@
         "description": "Set or update agent webhook HMAC secret used to sign deliveries.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecretReq" } } } },
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      }
+    },
+    "/agents/run": {
+      "post": {
+        "summary": "Run multi-agent orchestration",
+        "description": "Trigger an agent pipeline. Requires curator or emitter.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentRunInput" } } } },
+        "responses": { "200": { "description": "Result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentRunOutput" } } } } }
       }
     },
     "/agents/{id}/webhooks": {
@@ -133,12 +204,35 @@
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
       }
     },
+    "/tenants": {
+      "get": {
+        "summary": "List tenants",
+        "description": "Curator-only: list all tenants.",
+        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TenantItem" } } } } } }
+      }
+    },
     "/tenants/{id}": {
       "parameters": [{ "$ref": "#/components/parameters/TenantId" }],
       "post": {
         "summary": "Ensure tenant",
         "description": "Idempotent creation/update of a tenant row (for dev/local bootstrapping).",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TenantReq" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      },
+      "get": {
+        "summary": "Get tenant",
+        "description": "Fetch a tenant by ID.",
+        "responses": { "200": { "description": "Tenant", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TenantItem" } } } }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "summary": "Update tenant",
+        "description": "Update tenant name. Caller must match owner or be curator.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TenantReq" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      },
+      "delete": {
+        "summary": "Delete tenant",
+        "description": "Curator-only: delete a tenant.",
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
       }
     },
@@ -148,6 +242,29 @@
         "description": "Create an envelope-encrypted secret using a local KEK (DEK per-secret; AES-GCM for value, XChaCha20-Poly1305 for DEK wrap). Requires curator.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecretCreateReq" } } } },
         "responses": { "200": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IdResp" } } } } }
+      },
+      "get": {
+        "summary": "List secrets",
+        "description": "List secrets for the current owner, optionally filtered by scope.",
+        "parameters": [
+          { "name": "scope_type", "in": "query", "schema": { "type": "string" } },
+          { "name": "scope_id", "in": "query", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/SecretListItem" } } } } } }
+      }
+    },
+    "/secrets/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/SecretId" }],
+      "put": {
+        "summary": "Update secret value",
+        "description": "Update the plaintext value of a secret. Requires curator.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecretUpdateReq" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      },
+      "delete": {
+        "summary": "Delete secret",
+        "description": "Delete a secret. Requires curator.",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
       }
     },
     "/secrets/{id}/decrypt": {
@@ -173,6 +290,14 @@
         "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/DlqItem" } } } } } }
       }
     },
+    "/dlq/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/DlqId" }],
+      "delete": {
+        "summary": "Delete DLQ item",
+        "description": "Curator-only: delete a single DLQ webhook delivery.",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
+      }
+    },
     "/dlq/{id}/retry": {
       "parameters": [{ "$ref": "#/components/parameters/DlqId" }],
       "post": {
@@ -190,7 +315,8 @@
       "TenantId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "SecretId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "DlqId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
-      "IfMatch": { "name": "If-Match", "in": "header", "schema": { "type": "string" } }
+      "IfMatch": { "name": "If-Match", "in": "header", "schema": { "type": "string" } },
+      "SelectorId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
     },
     "schemas": {
       "OkResp": { "type": "object", "properties": { "ok": { "type": "boolean" } } },
@@ -208,14 +334,27 @@
       "WebhookReq": { "type": "object", "properties": { "url": { "type": "string", "format": "uri" } }, "required": ["url"] },
       "WebhookItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "url": { "type": "string", "format": "uri" } } },
       "AgentRegReq": { "type": "object", "properties": { "roles": { "type": "array", "items": { "type": "string" } } }, "required": ["roles"] },
+      "AgentItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "roles": { "type": "array", "items": { "type": "string" } }, "created_at": { "type": "string", "format": "date-time" } } },
       "TenantReq": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] },
+      "TenantItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } },
       "SecretReq": { "type": "object", "properties": { "secret": { "type": "string" } }, "required": ["secret"] },
       "SecretCreateReq": { "type": "object", "properties": { "name": { "type": "string" }, "scope_type": { "type": "string" }, "scope_id": { "type": "string", "format": "uuid" }, "value": { "type": "string" } }, "required": ["name","scope_type","value"] },
+      "SecretUpdateReq": { "type": "object", "properties": { "value": { "type": "string" } }, "required": ["value"] },
+      "SecretListItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" }, "scope_type": { "type": "string" }, "scope_id": { "type": "string", "format": "uuid" }, "created_at": { "type": "string", "format": "date-time" } } },
       "SecretDecryptReq": { "type": "object", "properties": { "reason": { "type": "string" } } },
       "SecretValue": { "type": "object", "properties": { "value": { "type": "string" } } },
-      "DlqItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "url": { "type": "string" }, "payload": { }, "last_error": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+      "DlqItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "url": { "type": "string" }, "payload": { }, "last_error": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } },
+      "AclGrantAgent": { "type": "object", "properties": { "breadcrumb_id": { "type": "string", "format": "uuid" }, "grantee_agent_id": { "type": "string", "format": "uuid" }, "action": { "type": "string" } }, "required": ["breadcrumb_id","grantee_agent_id","action"] },
+      "AclItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "breadcrumb_id": { "type": "string", "format": "uuid" }, "grantee_agent_id": { "type": "string", "format": "uuid" }, "actions": { "type": "array", "items": { "type": "string" } }, "created_at": { "type": "string", "format": "date-time" } } },
+      "RowsResp": { "type": "object", "properties": { "rows": { "type": "integer" } } },
+      "AgentRunInput": { "type": "object", "properties": { "model": { "type": "string" }, "messages": { }, "referer": { "type": "string" }, "site_title": { "type": "string" } }, "required": ["model","messages"] },
+      "AgentRunOutput": { "type": "object", "properties": { "agent1_plan": { "type": "string" }, "agent2_execution": { "type": "string" }, "agent3_summary": { "type": "string" }, "final_answer": { "type": "string" } } }
+    },
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
     }
-  }
+  },
+  "security": [{ "bearerAuth": [] }]
 }
 
 

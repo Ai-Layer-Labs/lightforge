@@ -412,10 +412,7 @@ packages/
 │   │
 │   ├── breadcrumb/          # RCRT operation nodes
 │   │   ├── src/
-│   │   │   ├── emitter-node.ts
-│   │   │   ├── subscriber-node.ts
-│   │   │   ├── curator-node.ts
-│   │   │   └── search-node.ts
+│   │   │   └── breadcrumb-node.ts  # Single unified node for ALL operations
 │   │   └── package.json
 │   │
 │   └── utility/             # Utility nodes
@@ -1236,25 +1233,30 @@ Every service node receives credentials as an input, making the flow:
 ### 2. Node Template Breadcrumbs
 
 #### Core Node Types
+
+**Note**: The unified BreadcrumbNode is the ONLY implementation. No separate role nodes, no fallbacks - one node handles ALL RCRT operations through configuration.
+
 ```json
 {
   "schema_name": "node.template.v1",
-  "title": "Node Template: Breadcrumb",
-  "tags": ["node:template", "core", "v1.0.0"],
+  "title": "Node Template: Breadcrumb (Unified)",
+  "tags": ["node:template", "core", "v2.0.0"],
   "context": {
     "node_type": "BreadcrumbNode",
     "category": "core",
     "icon": "📝",
     "color": "#0072f5",
+    "description": "Single node for all RCRT operations - replaces separate role nodes",
     "ports": {
       "inputs": [
-        { "id": "emitter", "type": "operation", "role": "emitter", "color": "#17c964" },
-        { "id": "curator", "type": "operation", "role": "curator", "color": "#f31260" }
+        { "id": "trigger", "type": "event", "description": "Trigger operation" },
+        { "id": "data", "type": "data", "description": "Input data for create/update" }
       ],
       "outputs": [
+        { "id": "result", "type": "data", "description": "Operation result" },
         { "id": "context", "type": "data", "schema": "context.view", "color": "#0072f5" },
         { "id": "full", "type": "data", "schema": "full.view", "color": "#7828c8" },
-        { "id": "subscriber", "type": "event", "schema": "event.stream", "color": "#f5a524" }
+        { "id": "events", "type": "event", "schema": "event.stream", "color": "#f5a524" }
       ]
     },
     "config_ui": {
@@ -1262,14 +1264,22 @@ Every service node receives credentials as an input, making the flow:
         {
           "name": "operation",
           "type": "select",
-          "options": ["create", "read", "update", "delete", "search", "vector_search"],
-          "default": "read"
+          "options": ["create", "read", "update", "delete", "search", "vector_search", "subscribe"],
+          "default": "read",
+          "description": "CRUD operation to perform"
         },
         {
           "name": "workspace",
           "type": "text",
           "pattern": "^workspace:.*",
           "required": true
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "options": ["emitter", "subscriber", "curator"],
+          "description": "Required role for operation",
+          "dynamic": "based_on_operation"
         }
       ]
     },
@@ -2017,6 +2027,7 @@ rcrt-visual-builder/
 - [x] Build SSE client with reconnection logic (Auto-reconnect tested)
 - [x] Create basic agent runtime loop (AgentExecutor tested)
 - [x] Add full CRUD operations for all RCRT resources
+- [x] Implement unified BreadcrumbNode (no separate role nodes, no fallbacks!)
 
 ### Phase 2: Core Management UI (Week 2) 🚀 MUST HAVE - NEW!
 - [ ] **Agent Management Panel**
@@ -2451,7 +2462,7 @@ export const SystemHealthPanel: React.FC = () => {
 
 ### 1. RCRT Client (Enhanced SDK)
 ```typescript
-// sdk/ts/index-enhanced.ts - Production-ready, tested SDK
+// @rcrt-builder/sdk (packages/sdk) - Canonical SDK
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 
 export class RCRTClient extends RcrtClientEnhanced {

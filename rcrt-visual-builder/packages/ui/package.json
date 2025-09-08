@@ -1,0 +1,38 @@
+{
+  "name": "@rcrt-builder/ui",
+  "version": "1.0.0",
+  "description": "Visual builder UI components for RCRT",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@heroui/react": "^2.4.0",
+    "@rcrt-builder/core": "workspace:*",
+    "@rcrt-builder/sdk": "workspace:*",
+    "@rcrt-builder/node-sdk": "workspace:*",
+    "@xyflow/react": "^12.0.0",
+    "clsx": "^2.1.0",
+    "framer-motion": "^11.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hotkeys-hook": "^4.5.0",
+    "zustand": "^4.5.0",
+    "immer": "^10.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

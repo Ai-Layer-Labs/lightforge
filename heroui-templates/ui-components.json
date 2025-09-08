@@ -1,0 +1,2485 @@
+[
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Button",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Button",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Button",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "solid",
+            "bordered",
+            "light",
+            "flat",
+            "faded",
+            "shadow",
+            "ghost"
+          ],
+          "default": "solid"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "color": {
+          "type": "select",
+          "options": [
+            "default",
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "default": "default"
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isLoading": {
+          "type": "boolean",
+          "default": false
+        },
+        "startContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "endContent": {
+          "type": "react_node",
+          "optional": true
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Button"
+        }
+      },
+      "installation": {
+        "individual": "npm install @heroui/button",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Button } from \"@heroui/button\";",
+        "collective": "import { Button } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Basic Button",
+          "code": "<Button>Click me</Button>"
+        },
+        {
+          "name": "Primary Button",
+          "code": "<Button color=\"primary\">Primary</Button>"
+        },
+        {
+          "name": "Loading Button",
+          "code": "<Button isLoading>Loading</Button>"
+        },
+        {
+          "name": "With Icon",
+          "code": "<Button startContent={<PlusIcon />}>Add Item</Button>"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Input",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Input",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Input",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "labelPlacement": {
+          "type": "select",
+          "options": [
+            "inside",
+            "outside",
+            "outside-left"
+          ],
+          "default": "inside"
+        },
+        "label": {
+          "type": "string",
+          "default": "Label"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Enter text..."
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "errorMessage": {
+          "type": "string",
+          "optional": true
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "isInvalid": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "installation": {
+        "individual": "npm install @heroui/input",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Input } from \"@heroui/input\";",
+        "collective": "import { Input } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Basic Input",
+          "code": "<Input label=\"Email\" placeholder=\"Enter your email\" />"
+        },
+        {
+          "name": "Required Input",
+          "code": "<Input label=\"Password\" type=\"password\" isRequired />"
+        },
+        {
+          "name": "With Description",
+          "code": "<Input label=\"Username\" description=\"This will be your public display name\" />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Card",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Card",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Card",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "shadow": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "radius": {
+          "type": "select",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "full"
+          ],
+          "default": "lg"
+        },
+        "isHoverable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isPressable": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "children": {
+          "type": "react_node",
+          "default": "Card content"
+        }
+      },
+      "installation": {
+        "individual": "npm install @heroui/card",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Card, CardBody, CardHeader } from \"@heroui/card\";",
+        "collective": "import { Card, CardBody, CardHeader } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Basic Card",
+          "code": "<Card>\n  <CardBody>Card content</CardBody>\n</Card>"
+        },
+        {
+          "name": "Card with Header",
+          "code": "<Card>\n  <CardHeader>Header</CardHeader>\n  <CardBody>Content</CardBody>\n</Card>"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Select",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Select",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Select",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "variant": {
+          "type": "select",
+          "options": [
+            "flat",
+            "bordered",
+            "underlined",
+            "faded"
+          ],
+          "default": "flat"
+        },
+        "size": {
+          "type": "select",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "selectionMode": {
+          "type": "select",
+          "options": [
+            "single",
+            "multiple"
+          ],
+          "default": "single"
+        },
+        "label": {
+          "type": "string",
+          "default": "Select option"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Choose an option"
+        },
+        "isRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "isDisabled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "installation": {
+        "individual": "npm install @heroui/select",
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "individual": "import { Select, SelectItem } from \"@heroui/select\";",
+        "collective": "import { Select, SelectItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Basic Select",
+          "code": "<Select label=\"Framework\">\n  <SelectItem key=\"react\">React</SelectItem>\n  <SelectItem key=\"vue\">Vue</SelectItem>\n</Select>"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Modal",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Modal",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Modal",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Modal } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Modal Basic",
+          "code": "<Modal />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Table",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Table",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Table",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Table } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Table Basic",
+          "code": "<Table />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Tabs",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Tabs",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Tabs",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Tabs } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Tabs Basic",
+          "code": "<Tabs />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Badge",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Badge",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Badge",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Badge } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Badge Basic",
+          "code": "<Badge />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Tooltip",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Tooltip",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Tooltip",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Tooltip } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Tooltip Basic",
+          "code": "<Tooltip />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Progress",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Progress",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Progress",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Progress } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Progress Basic",
+          "code": "<Progress />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Checkbox",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Checkbox",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Checkbox",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Checkbox } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Checkbox Basic",
+          "code": "<Checkbox />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: CheckboxGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:CheckboxGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "CheckboxGroup",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { CheckboxGroup } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "CheckboxGroup Basic",
+          "code": "<CheckboxGroup />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Radio",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Radio",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Radio",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Radio } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Radio Basic",
+          "code": "<Radio />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: RadioGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:RadioGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "RadioGroup",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { RadioGroup } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "RadioGroup Basic",
+          "code": "<RadioGroup />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Switch",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Switch",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Switch",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Switch } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Switch Basic",
+          "code": "<Switch />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Slider",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Slider",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Slider",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Slider } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Slider Basic",
+          "code": "<Slider />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Textarea",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Textarea",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Textarea",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Textarea } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Textarea Basic",
+          "code": "<Textarea />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Autocomplete",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Autocomplete",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Autocomplete",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Autocomplete } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Autocomplete Basic",
+          "code": "<Autocomplete />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DatePicker",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DatePicker",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DatePicker",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DatePicker } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DatePicker Basic",
+          "code": "<DatePicker />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DateInput",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DateInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DateInput",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DateInput } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DateInput Basic",
+          "code": "<DateInput />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DateRangePicker",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DateRangePicker",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DateRangePicker",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DateRangePicker } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DateRangePicker Basic",
+          "code": "<DateRangePicker />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: TimeInput",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:TimeInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "TimeInput",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { TimeInput } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "TimeInput Basic",
+          "code": "<TimeInput />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NumberInput",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NumberInput",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NumberInput",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NumberInput } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NumberInput Basic",
+          "code": "<NumberInput />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Avatar",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Avatar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Avatar",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Avatar } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Avatar Basic",
+          "code": "<Avatar />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: AvatarGroup",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:AvatarGroup",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "AvatarGroup",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { AvatarGroup } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "AvatarGroup Basic",
+          "code": "<AvatarGroup />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Chip",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Chip",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Chip",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Chip } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Chip Basic",
+          "code": "<Chip />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Divider",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Divider",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Divider",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Divider } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Divider Basic",
+          "code": "<Divider />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Link",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Link",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Link",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Link } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Link Basic",
+          "code": "<Link />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: User",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:User",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "User",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { User } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "User Basic",
+          "code": "<User />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Code",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Code",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Code",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Code } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Code Basic",
+          "code": "<Code />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Kbd",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Kbd",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Kbd",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Kbd } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Kbd Basic",
+          "code": "<Kbd />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Image",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Image",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Image",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Image } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Image Basic",
+          "code": "<Image />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Snippet",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Snippet",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Snippet",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Snippet } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Snippet Basic",
+          "code": "<Snippet />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Breadcrumbs",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Breadcrumbs",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Breadcrumbs",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Breadcrumbs } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Breadcrumbs Basic",
+          "code": "<Breadcrumbs />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: BreadcrumbItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:BreadcrumbItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "BreadcrumbItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { BreadcrumbItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "BreadcrumbItem Basic",
+          "code": "<BreadcrumbItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Navbar",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Navbar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Navbar",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Navbar } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Navbar Basic",
+          "code": "<Navbar />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarBrand",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarBrand",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarBrand",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarBrand } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarBrand Basic",
+          "code": "<NavbarBrand />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarContent",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarContent",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarContent } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarContent Basic",
+          "code": "<NavbarContent />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarItem Basic",
+          "code": "<NavbarItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarMenuToggle",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarMenuToggle",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenuToggle",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenuToggle } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarMenuToggle Basic",
+          "code": "<NavbarMenuToggle />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarMenu",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarMenu",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenu",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenu } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarMenu Basic",
+          "code": "<NavbarMenu />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: NavbarMenuItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:NavbarMenuItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "NavbarMenuItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { NavbarMenuItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "NavbarMenuItem Basic",
+          "code": "<NavbarMenuItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Dropdown",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Dropdown",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Dropdown",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Dropdown } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Dropdown Basic",
+          "code": "<Dropdown />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DropdownTrigger",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DropdownTrigger",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownTrigger",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownTrigger } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DropdownTrigger Basic",
+          "code": "<DropdownTrigger />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DropdownMenu",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DropdownMenu",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownMenu",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownMenu } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DropdownMenu Basic",
+          "code": "<DropdownMenu />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DropdownItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DropdownItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DropdownItem Basic",
+          "code": "<DropdownItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DropdownSection",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DropdownSection",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DropdownSection",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DropdownSection } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DropdownSection Basic",
+          "code": "<DropdownSection />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Pagination",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Pagination",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Pagination",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Pagination } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Pagination Basic",
+          "code": "<Pagination />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Skeleton",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Skeleton",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Skeleton",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Skeleton } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Skeleton Basic",
+          "code": "<Skeleton />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Spinner",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Spinner",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Spinner",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Spinner } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Spinner Basic",
+          "code": "<Spinner />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: CircularProgress",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:CircularProgress",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "CircularProgress",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { CircularProgress } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "CircularProgress Basic",
+          "code": "<CircularProgress />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Alert",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Alert",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Alert",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Alert } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Alert Basic",
+          "code": "<Alert />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: ScrollShadow",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:ScrollShadow",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ScrollShadow",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ScrollShadow } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "ScrollShadow Basic",
+          "code": "<ScrollShadow />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Spacer",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Spacer",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Spacer",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Spacer } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Spacer Basic",
+          "code": "<Spacer />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Popover",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Popover",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Popover",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Popover } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Popover Basic",
+          "code": "<Popover />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: PopoverTrigger",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:PopoverTrigger",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "PopoverTrigger",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { PopoverTrigger } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "PopoverTrigger Basic",
+          "code": "<PopoverTrigger />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: PopoverContent",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:PopoverContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "PopoverContent",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { PopoverContent } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "PopoverContent Basic",
+          "code": "<PopoverContent />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Drawer",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Drawer",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Drawer",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Drawer } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Drawer Basic",
+          "code": "<Drawer />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DrawerContent",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DrawerContent",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerContent",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerContent } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DrawerContent Basic",
+          "code": "<DrawerContent />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DrawerHeader",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DrawerHeader",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerHeader",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerHeader } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DrawerHeader Basic",
+          "code": "<DrawerHeader />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DrawerBody",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DrawerBody",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerBody",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerBody } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DrawerBody Basic",
+          "code": "<DrawerBody />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: DrawerFooter",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:DrawerFooter",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "DrawerFooter",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { DrawerFooter } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "DrawerFooter Basic",
+          "code": "<DrawerFooter />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Accordion",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Accordion",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Accordion",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Accordion } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Accordion Basic",
+          "code": "<Accordion />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: AccordionItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:AccordionItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "AccordionItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { AccordionItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "AccordionItem Basic",
+          "code": "<AccordionItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Listbox",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Listbox",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Listbox",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Listbox } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Listbox Basic",
+          "code": "<Listbox />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: ListboxItem",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:ListboxItem",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ListboxItem",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ListboxItem } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "ListboxItem Basic",
+          "code": "<ListboxItem />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: ListboxSection",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:ListboxSection",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "ListboxSection",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { ListboxSection } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "ListboxSection Basic",
+          "code": "<ListboxSection />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: Calendar",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:Calendar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "Calendar",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { Calendar } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "Calendar Basic",
+          "code": "<Calendar />"
+        }
+      ]
+    }
+  },
+  {
+    "schema_name": "ui.component.v1",
+    "title": "UI Component: RangeCalendar",
+    "tags": [
+      "workspace:builder",
+      "ui:component",
+      "component:RangeCalendar",
+      "palette:heroui"
+    ],
+    "context": {
+      "component_type": "RangeCalendar",
+      "library": "heroui",
+      "library_version": "2.x",
+      "props_schema": {
+        "children": {
+          "type": "react_node",
+          "optional": true
+        }
+      },
+      "installation": {
+        "collective": "npm install @heroui/react"
+      },
+      "imports": {
+        "collective": "import { RangeCalendar } from \"@heroui/react\";"
+      },
+      "examples": [
+        {
+          "name": "RangeCalendar Basic",
+          "code": "<RangeCalendar />"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "name": "@rcrt-builder/nodes-observability",
+  "version": "1.0.0",
+  "description": "Observability nodes for RCRT Visual Builder",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@rcrt-builder/core": "workspace:*",
+    "@rcrt-builder/node-sdk": "workspace:*",
+    "@rcrt-builder/sdk": "workspace:*",
+    "langfuse": "^3.3.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}

@@ -246,3 +246,7 @@ Expected: Supervisor creates tasks → Researcher emits findings → Supervisor 
 Apache 2.0 (or your preferred license). Add a `LICENSE` file as appropriate.
 
 
+David@XELNAGAv2 MINGW64 ~/Documents/GitHub/breadcrums/rcrt-visual-builder/apps/agent-runner (main)
+$ npm run dev 2>&1
+David@XELNAGAv2 MINGW64 ~/Documents/GitHub/breadcrums (main)
+$ cd rcrt-visual-builder/apps/builder && pnpm -s dev --port 3000 | cat
