@@ -5,12 +5,16 @@ export const dynamic = 'force-dynamic';
 
 // Forward-applies a validated plan by calling the RCRT backend via the local proxy
 export async function POST(req: NextRequest) {
+  console.log('[forge/apply] Starting plan application');
   const plan = await req.json().catch(() => ({}));
   const tags: string[] = Array.isArray(plan?.tags) ? plan.tags : [];
   const workspace = tags.find((t) => t.startsWith('workspace:')) || 'workspace:unknown';
 
   const actions: any[] = Array.isArray(plan?.context?.actions) ? plan.context.actions : [];
   const planIdem = plan?.context?.idempotency_key ? String(plan.context.idempotency_key) : undefined;
+
+  console.log(`[forge/apply] Processing ${actions.length} actions for workspace: ${workspace}`);
+  console.log(`[forge/apply] Auth header present: ${!!req.headers.get('authorization')}`);
 
   const created: any[] = [];
   const updated: any[] = [];
@@ -28,6 +32,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < actions.length; i++) {
     const act = actions[i];
+    console.log(`[forge/apply] Processing action ${i + 1}/${actions.length}: ${act?.type}`);
     try {
       switch (act?.type) {
         case 'create_instance': {
@@ -49,7 +54,11 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify(body),
             signal: timeout()
           });
-          if (!resp.ok) throw new Error(await resp.text());
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            console.log(`[forge/apply] Create failed: ${resp.status} - ${errorText}`);
+            throw new Error(errorText);
+          }
           const createdRes = await resp.json();
           console.log('[forge/apply] created:', createdRes?.id, body?.title);
           created.push(createdRes);

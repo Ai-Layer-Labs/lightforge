@@ -13,7 +13,16 @@ const WORKSPACE = 'workspace:agentic-demo';
 
 export default function AgenticDemoPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const client = useMemo(() => new RcrtClientEnhanced('/api/rcrt', authToken ? 'jwt' : 'disabled', authToken || undefined), [authToken]);
+  // Fix: RcrtClientEnhanced expects up to 3 arguments, not 4
+  const client = useMemo(
+    () =>
+      new RcrtClientEnhanced(
+        '/api/rcrt',
+        authToken ? 'jwt' : 'disabled',
+        authToken || undefined
+      ),
+    [authToken]
+  );
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seeded, setSeeded] = useState(false);
@@ -35,6 +44,27 @@ export default function AgenticDemoPage() {
   const [validation, setValidation] = useState<any | null>(null);
   const [applyResult, setApplyResult] = useState<any | null>(null);
   const [working, setWorking] = useState(false);
+
+  // Fetch token on mount
+  React.useEffect(() => {
+    if (!authToken) {
+      fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.token) {
+            setAuthToken(data.token);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch token:', err);
+          setError('Failed to fetch authentication token');
+        });
+    }
+  }, [authToken]);
 
   const post = useCallback(async (body: any, cli?: RcrtClientEnhanced) => {
     const c = cli || client;
@@ -157,18 +187,18 @@ export default function AgenticDemoPage() {
     setIsBusy(true);
     setError(null);
     try {
-      // Acquire JWT for demo (uses env defaults if body omitted)
-      let tokStr: string | undefined;
-      try {
-        const resp = await fetch('/api/auth/token', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
-        const tok = await resp.json().catch(() => ({}));
-        if (tok?.token) { setAuthToken(tok.token); tokStr = tok.token; }
-      } catch {}
-      const authed = tokStr ? new RcrtClientEnhanced('/api/rcrt', 'jwt', tokStr) : client;
-      applyClientRef.current = tokStr ? new RcrtClientEnhanced('/api', 'jwt', tokStr) : new RcrtClientEnhanced('/api', 'disabled');
-      setUiClient(authed);
-      await wipeInstances(authed);
-      await seedInitial(authed);
+      // Wait for auth token to be available
+      if (!authToken) {
+        setError('Waiting for authentication...');
+        return;
+      }
+      
+      // Use the existing client which already has the token
+      setUiClient(client);
+      applyClientRef.current = new RcrtClientEnhanced('/api', 'jwt', authToken);
+      
+      await wipeInstances(client);
+      await seedInitial(client);
       setSeeded(true);
       if (process.env.NODE_ENV !== 'production') {
         console.log('[seed] workspace:', WORKSPACE);
@@ -178,7 +208,7 @@ export default function AgenticDemoPage() {
     } finally {
       setIsBusy(false);
     }
-  }, [seedInitial, wipeInstances]);
+  }, [seedInitial, wipeInstances, client, authToken]);
 
   // Orchestrator: listen for ui.event.v1 in this workspace and react per walkthrough
   React.useEffect(() => {
@@ -265,10 +295,10 @@ export default function AgenticDemoPage() {
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={handleSeed}
-            disabled={isBusy}
+            disabled={isBusy || !authToken}
             className={`px-4 py-2 rounded-md text-white ${isBusy ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
-            {isBusy ? 'Seeding…' : 'Seed Agentic Demo'}
+            {isBusy ? 'Seeding…' : !authToken ? 'Token pending...' : 'Seed Agentic Demo'}
           </button>
           <span className="text-sm opacity-75">Workspace: {WORKSPACE}</span>
           {error && <span className="text-sm text-red-400">{error}</span>}

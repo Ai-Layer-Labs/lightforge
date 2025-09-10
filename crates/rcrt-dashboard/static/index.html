@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCRT Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">RCRT Dashboard</div>
+            <div class="controls">
+                <div class="stats" id="stats">Loading...</div>
+                <button class="btn" onclick="refreshBreadcrumbs()">Refresh</button>
+                <button class="btn" onclick="resetView()">Reset View</button>
+                <button class="btn" onclick="resetNodePositions()">Reset Layout</button>
+                <button class="btn" onclick="showAdminPanel()" id="adminBtn">Admin</button>
+            </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="left-panel" id="leftPanel">
+            <div class="panel-toggle" onclick="togglePanel()">◀</div>
+            
+            <!-- Filters Section -->
+            <div class="panel-section">
+                <h3>🔍 Filters</h3>
+                <div class="form-group">
+                    <label for="searchInput">Search Title</label>
+                    <input type="text" id="searchInput" class="form-input" placeholder="Search breadcrumbs..." 
+                           oninput="applyFilters()">
+                </div>
+                <div class="form-group">
+                    <label>Filter by Tags</label>
+                    <div class="tag-filter-container" id="tagFilterContainer">
+                        <div class="available-tags" id="availableTags">
+                            <!-- Available tags will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="dateFromFilter">Date Range</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="date" id="dateFromFilter" class="form-input" style="flex: 1;" onchange="applyFilters()">
+                        <span style="color: rgba(255,255,255,0.6);">to</span>
+                        <input type="date" id="dateToFilter" class="form-input" style="flex: 1;" onchange="applyFilters()">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small" onclick="clearFilters()">Clear All</button>
+                    <button class="btn-small" onclick="showAllBreadcrumbs()">Show All</button>
+                    <button class="btn-small" onclick="showRecentBreadcrumbs()">Last 7 Days</button>
+                </div>
+                <div class="btn-group" style="margin-top: 0.5rem;">
+                    <button class="btn-small btn-danger" onclick="deleteAllFiltered()" id="deleteAllBtn" style="display: none;">
+                        🗑️ Delete All Filtered (<span id="deleteAllCount">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- CRUD Operations Section -->
+            <div class="panel-section">
+                <h3>➕ Create New</h3>
+                <div class="form-group">
+                    <label for="newTitle">Title</label>
+                    <input type="text" id="newTitle" class="form-input" placeholder="Breadcrumb title...">
+                </div>
+                <div class="form-group">
+                    <label for="newContext">Context (JSON)</label>
+                    <textarea id="newContext" class="form-textarea" placeholder='{"key": "value"}'></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tags</label>
+                    <div class="tag-input-container" onclick="focusTagInput()">
+                        <div id="newTags"></div>
+                        <input type="text" class="tag-input" id="tagInput" placeholder="Add tag..." 
+                               onkeydown="handleTagInput(event)">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="createBreadcrumb()">Create</button>
+                    <button class="btn-small" onclick="clearForm()">Clear</button>
+                </div>
+            </div>
+
+            <!-- Selected Breadcrumb Details & Edit -->
+            <div class="panel-section" id="selectedSection" style="display: none;">
+                <h3>📋 Selected Breadcrumb</h3>
+                <div class="breadcrumb-details" id="breadcrumbDetails">
+                    <!-- Breadcrumb details will be populated here -->
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="enterEditMode()">Edit</button>
+                    <button class="btn-small btn-danger" onclick="deleteBreadcrumb()">Delete</button>
+                    <button class="btn-small" onclick="subscribeToThisBreadcrumb()">📡 Subscribe</button>
+                    <button class="btn-small" onclick="deselectBreadcrumb()">Deselect</button>
+                </div>
+            </div>
+
+            <!-- Edit Section -->
+            <div class="panel-section" id="editSection" style="display: none;">
+                <h3>✏️ Edit Breadcrumb</h3>
+                <div class="form-group">
+                    <label for="editTitle">Title</label>
+                    <input type="text" id="editTitle" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="editContext">Context (JSON)</label>
+                    <textarea id="editContext" class="form-textarea"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tags</label>
+                    <div class="tag-input-container" onclick="focusEditTagInput()">
+                        <div id="editTags"></div>
+                        <input type="text" class="tag-input" id="editTagInput" placeholder="Add tag..." 
+                               onkeydown="handleEditTagInput(event)">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="updateBreadcrumb()">Update</button>
+                    <button class="btn-small" onclick="cancelEdit()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Selected Agent Details & Edit -->
+            <div class="panel-section" id="selectedAgentSection" style="display: none;">
+                <h3>🤖 Selected Agent</h3>
+                <div class="breadcrumb-details" id="agentDetails">
+                    <!-- Agent details will be populated here -->
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="enterAgentEditMode()">Edit Roles</button>
+                    <button class="btn-small btn-danger" onclick="deleteAgent()">Delete Agent</button>
+                    <button class="btn-small" onclick="deselectAgent()">Deselect</button>
+                </div>
+            </div>
+
+            <!-- Agent Edit Section -->
+            <div class="panel-section" id="editAgentSection" style="display: none;">
+                <h3>⚙️ Edit Agent Roles</h3>
+                <div class="form-group">
+                    <label>Agent ID (Read-only)</label>
+                    <input type="text" id="editAgentId" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Roles</label>
+                    <div class="tag-input-container" onclick="focusAgentRoleInput()">
+                        <div id="editAgentRoles"></div>
+                        <input type="text" class="tag-input" id="agentRoleInput" placeholder="Add role (curator, emitter, subscriber)..." 
+                               onkeydown="handleAgentRoleInput(event)">
+                    </div>
+                    <div style="color: rgba(255,255,255,0.6); font-size: 0.7rem; margin-top: 0.3rem;">
+                        Available roles: curator, emitter, subscriber
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="updateAgent()">Update Roles</button>
+                    <button class="btn-small" onclick="cancelAgentEdit()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Breadcrumb List Section -->
+            <div class="panel-section">
+                <h3>📋 Breadcrumbs (<span id="breadcrumbCount">0</span>)</h3>
+                <div class="breadcrumb-list" id="breadcrumbList">
+                    <!-- Breadcrumb items will be populated here -->
+                </div>
+            </div>
+
+            <!-- Agent List Section -->
+            <div class="panel-section">
+                <h3>🤖 Agents (<span id="agentCount">0</span>)</h3>
+                <div class="breadcrumb-list" id="agentList">
+                    <!-- Agent items will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas" id="canvas">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading breadcrumbs...
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel" id="rightPanel">
+            <div class="panel-toggle" onclick="toggleRightPanel()">▶</div>
+            
+            <div class="event-stream">
+                <div class="stream-header">
+                    <div class="stream-status">
+                        <div class="status-indicator" id="streamStatus"></div>
+                        <span id="streamStatusText">Connecting to stream...</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">
+                        NATS JetStream Events
+                    </div>
+                </div>
+                
+                <div class="stream-controls">
+                    <button class="btn-small" onclick="clearEventLog()">Clear Log</button>
+                    <button class="btn-small" onclick="toggleAutoScroll()" id="autoScrollBtn">Auto-scroll: ON</button>
+                    <button class="btn-small" onclick="togglePingFilter()" id="pingFilterBtn">Hide Pings</button>
+                    <button class="btn-small" onclick="pauseStream()" id="pauseBtn">Pause</button>
+                </div>
+                <div class="stream-controls" style="margin-top: 0.5rem;">
+                    <button class="btn-small" onclick="testEvent()">Test Event</button>
+                    <button class="btn-small" onclick="reconnectStream()">Reconnect</button>
+                </div>
+                
+                <div class="event-list" id="eventList">
+                    <div class="event-item ping">
+                        <div class="event-header">
+                            <span class="event-type ping">System</span>
+                            <span class="event-time">Starting...</span>
+                        </div>
+                        <div class="event-details">Initializing event stream...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Modal -->
+    <div class="admin-modal" id="adminModal">
+        <div class="admin-content">
+            <div class="admin-header">
+                <div>
+                    <h2 style="color: #00f5ff;">🛠️ Admin Management</h2>
+                    <div style="color: rgba(255,165,0,0.8); font-size: 0.8rem; margin-top: 0.5rem;">
+                        ⚠️ Some operations require curator role
+                    </div>
+                </div>
+                <button class="admin-close" onclick="hideAdminPanel()">✕ Close</button>
+            </div>
+            
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showAdminTab('agents')">🤖 Agents</button>
+                <button class="admin-tab" onclick="showAdminTab('subscriptions')">📡 Subscriptions</button>
+                <button class="admin-tab" onclick="showAdminTab('tenants')">🏢 Tenants</button>
+                <button class="admin-tab" onclick="showAdminTab('secrets')">🔐 Secrets</button>
+                <button class="admin-tab" onclick="showAdminTab('acl')">🛡️ ACL</button>
+                <button class="admin-tab" onclick="showAdminTab('webhooks')">🔗 Webhooks</button>
+            </div>
+            
+            <!-- Agents Panel -->
+            <div class="admin-panel active" id="agentsPanel">
+                <h3>🤖 Agent Management</h3>
+                <div class="entity-list" id="agentsList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading agents...
+                    </div>
+                </div>
+                <button class="btn-small btn-primary" onclick="refreshAgents()">Refresh Agents</button>
+            </div>
+            
+            <!-- Subscriptions Panel -->
+            <div class="admin-panel" id="subscriptionsPanel">
+                <h3>📡 Breadcrumb Subscriptions</h3>
+                <div style="background: rgba(0, 245, 255, 0.1); border: 1px solid rgba(0, 245, 255, 0.3); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="color: #00f5ff; font-weight: 600; margin-bottom: 0.5rem;">🎯 Selector Subscriptions</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                        Agents subscribe to breadcrumbs using selectors that match by tags, schema, or context. 
+                        When matching breadcrumbs are created/updated, subscribed agents receive events via SSE, webhooks, or NATS.
+                    </div>
+                </div>
+                <div class="entity-list" id="subscriptionsList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading subscriptions...
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="refreshSubscriptions()">Refresh Subscriptions</button>
+                    <button class="btn-small" onclick="showCreateSubscription()">Create New</button>
+                </div>
+            </div>
+            
+            <!-- Tenants Panel -->
+            <div class="admin-panel" id="tenantsPanel">
+                <h3>🏢 Tenant Management</h3>
+                <div style="background: rgba(255,165,0,0.1); border: 1px solid rgba(255,165,0,0.3); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="color: #ffa500; font-weight: 600; margin-bottom: 0.5rem;">🔒 Curator Role Required</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                        Tenant management operations require the "curator" role. If you're seeing 403 errors, 
+                        your current agent may not have sufficient permissions.
+                    </div>
+                </div>
+                <div class="entity-list" id="tenantsList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading tenants...
+                    </div>
+                </div>
+                <button class="btn-small btn-primary" onclick="refreshTenants()">Refresh Tenants</button>
+            </div>
+            
+            <!-- Secrets Panel -->
+            <div class="admin-panel" id="secretsPanel">
+                <h3>🔐 Secret Management</h3>
+                <div style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 0.5rem;">🔒 Highly Privileged Operation</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                        Secret operations require "curator" role and are fully audited. All decrypt operations 
+                        are logged with agent ID and timestamp.
+                    </div>
+                </div>
+                <div class="entity-list" id="secretsList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading secrets...
+                    </div>
+                </div>
+                <button class="btn-small btn-primary" onclick="refreshSecrets()">Refresh Secrets</button>
+            </div>
+            
+            <!-- ACL Panel -->
+            <div class="admin-panel" id="aclPanel">
+                <h3>🛡️ Access Control</h3>
+                <div class="entity-list" id="aclList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading ACL entries...
+                    </div>
+                </div>
+                <button class="btn-small btn-primary" onclick="refreshAcl()">Refresh ACL</button>
+            </div>
+            
+            <!-- Webhooks Panel -->
+            <div class="admin-panel" id="webhooksPanel">
+                <h3>🔗 Webhook Management</h3>
+                <div class="entity-list" id="webhooksList">
+                    <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.6);">
+                        Loading webhooks...
+                    </div>
+                </div>
+                <button class="btn-small btn-primary" onclick="refreshWebhooks()">Refresh Webhooks</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

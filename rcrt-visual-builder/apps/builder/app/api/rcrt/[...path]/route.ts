@@ -46,16 +46,21 @@ async function proxy(req: NextRequest) {
     }
   }
 
-  const resp = await fetch(targetUrl, init as any);
+  try {
+    const resp = await fetch(targetUrl, init as any);
 
-  // Stream body directly (SSE compatible)
-  const respHeaders = new Headers(resp.headers);
-  respHeaders.set('Access-Control-Allow-Origin', '*');
-  return new Response(resp.body, {
-    status: resp.status,
-    statusText: resp.statusText,
-    headers: respHeaders
-  });
+    // Stream body directly (SSE compatible)
+    const respHeaders = new Headers(resp.headers);
+    respHeaders.set('Access-Control-Allow-Origin', '*');
+    return new Response(resp.body, {
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: respHeaders
+    });
+  } catch (err) {
+    console.error('[RCRT Proxy] fetch failed', { targetUrl, method: req.method, error: String(err) });
+    return new Response('Bad Gateway', { status: 502 });
+  }
 }
 
 export const GET = proxy;

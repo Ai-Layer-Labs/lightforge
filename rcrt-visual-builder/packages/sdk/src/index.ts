@@ -132,13 +132,21 @@ export class RcrtClientEnhanced {
   private baseUrl: string;
   private defaultHeaders: Record<string, string>;
   private eventSource?: EventSource;
+  private tokenEndpoint?: string;
+  private autoRefresh: boolean;
 
   constructor(
     baseUrl: string = 'http://localhost:8081',
     authMode: 'disabled' | 'jwt' | 'key' = 'disabled',
-    authToken?: string
+    authToken?: string,
+    options: {
+      tokenEndpoint?: string;
+      autoRefresh?: boolean;
+    } = {}
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.tokenEndpoint = options.tokenEndpoint;
+    this.autoRefresh = options.autoRefresh ?? true;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -165,15 +173,60 @@ export class RcrtClientEnhanced {
     }
   }
 
+  // Auto-refresh token when getting 401 responses
+  private async refreshTokenIfNeeded(): Promise<boolean> {
+    if (!this.autoRefresh || !this.tokenEndpoint) return false;
+    
+    try {
+      const response = await fetch(this.tokenEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) return false;
+      
+      const data = await response.json();
+      if (data?.token) {
+        this.setToken(data.token, 'jwt');
+        return true;
+      }
+    } catch (error) {
+      console.warn('Token refresh failed:', error);
+    }
+    return false;
+  }
+
+  // Enhanced fetch with automatic retry on 401
+  private async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+    let response = await fetch(url, {
+      ...options,
+      headers: { ...this.defaultHeaders, ...options.headers }
+    });
+    
+    // If 401 and auto-refresh enabled, try to refresh token once
+    if (response.status === 401 && this.autoRefresh && this.tokenEndpoint) {
+      const refreshed = await this.refreshTokenIfNeeded();
+      if (refreshed) {
+        response = await fetch(url, {
+          ...options,
+          headers: { ...this.defaultHeaders, ...options.headers }
+        });
+      }
+    }
+    
+    return response;
+  }
+
   // ============ Breadcrumb Operations ============
 
   async createBreadcrumb(body: BreadcrumbCreate, idempotencyKey?: string): Promise<{ id: string }> {
-    const headers = { ...this.defaultHeaders };
+    const headers: Record<string, string> = {};
     if (idempotencyKey) {
       headers['Idempotency-Key'] = idempotencyKey;
     }
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -188,9 +241,7 @@ export class RcrtClientEnhanced {
   }
 
   async getBreadcrumb(id: string): Promise<Breadcrumb> {
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -201,9 +252,7 @@ export class RcrtClientEnhanced {
   }
 
   async getBreadcrumbFull(id: string): Promise<Breadcrumb> {
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}/full`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/full`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -214,10 +263,9 @@ export class RcrtClientEnhanced {
   }
 
   async updateBreadcrumb(id: string, version: number, updates: BreadcrumbUpdate): Promise<Breadcrumb> {
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}`, {
       method: 'PATCH',
       headers: {
-        ...this.defaultHeaders,
         'If-Match': version.toString(),
       },
       body: JSON.stringify(updates),
@@ -233,12 +281,12 @@ export class RcrtClientEnhanced {
   }
 
   async deleteBreadcrumb(id: string, version?: number): Promise<void> {
-    const headers = { ...this.defaultHeaders };
+    const headers: Record<string, string> = {};
     if (version !== undefined) {
       headers['If-Match'] = version.toString();
     }
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}`, {
       method: 'DELETE',
       headers,
     });
@@ -250,9 +298,7 @@ export class RcrtClientEnhanced {
   }
 
   async getBreadcrumbHistory(id: string): Promise<any[]> {
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}/history`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/history`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -286,9 +332,7 @@ export class RcrtClientEnhanced {
       });
     }
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs?${queryParams}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs?${queryParams}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -305,9 +349,7 @@ export class RcrtClientEnhanced {
     if (typeof params.nn === 'number') qp.set('nn', String(params.nn));
     if (params.filters?.tag) qp.set('tag', params.filters.tag);
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/search?${qp.toString()}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/search?${qp.toString()}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -320,9 +362,7 @@ export class RcrtClientEnhanced {
   // ============ Agent CRUD Operations ============
 
   async listAgents(): Promise<Agent[]> {
-    const response = await fetch(`${this.baseUrl}/agents`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/agents`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -333,9 +373,7 @@ export class RcrtClientEnhanced {
   }
 
   async getAgent(agentId: string): Promise<Agent> {
-    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/agents/${agentId}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -346,9 +384,8 @@ export class RcrtClientEnhanced {
   }
 
   async createOrUpdateAgent(agentId: string, roles: string[]): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/agents/${agentId}`, {
       method: 'POST',
-      headers: this.defaultHeaders,
       body: JSON.stringify({ roles }),
     });
 
@@ -361,9 +398,8 @@ export class RcrtClientEnhanced {
   }
 
   async deleteAgent(agentId: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/agents/${agentId}`, {
       method: 'DELETE',
-      headers: this.defaultHeaders,
     });
 
     if (!response.ok) {
@@ -377,9 +413,7 @@ export class RcrtClientEnhanced {
   // ============ Tenant CRUD Operations ============
 
   async listTenants(): Promise<Tenant[]> {
-    const response = await fetch(`${this.baseUrl}/tenants`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/tenants`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -390,9 +424,7 @@ export class RcrtClientEnhanced {
   }
 
   async getTenant(tenantId: string): Promise<Tenant> {
-    const response = await fetch(`${this.baseUrl}/tenants/${tenantId}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/tenants/${tenantId}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -403,9 +435,8 @@ export class RcrtClientEnhanced {
   }
 
   async createOrUpdateTenant(tenantId: string, name: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/tenants/${tenantId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/tenants/${tenantId}`, {
       method: 'PUT',
-      headers: this.defaultHeaders,
       body: JSON.stringify({ name }),
     });
 
@@ -418,9 +449,8 @@ export class RcrtClientEnhanced {
   }
 
   async deleteTenant(tenantId: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/tenants/${tenantId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/tenants/${tenantId}`, {
       method: 'DELETE',
-      headers: this.defaultHeaders,
     });
 
     if (!response.ok) {
@@ -434,9 +464,7 @@ export class RcrtClientEnhanced {
   // ============ ACL Operations ============
 
   async listAcls(): Promise<ACL[]> {
-    const response = await fetch(`${this.baseUrl}/acl`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/acl`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -449,9 +477,7 @@ export class RcrtClientEnhanced {
   // ============ DLQ Operations ============
 
   async listDlq(): Promise<DLQItem[]> {
-    const response = await fetch(`${this.baseUrl}/dlq`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/dlq`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -462,9 +488,8 @@ export class RcrtClientEnhanced {
   }
 
   async deleteDlqItem(dlqId: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/dlq/${dlqId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/dlq/${dlqId}`, {
       method: 'DELETE',
-      headers: this.defaultHeaders,
     });
 
     if (!response.ok) {
@@ -476,9 +501,8 @@ export class RcrtClientEnhanced {
   }
 
   async retryDlqItem(dlqId: string): Promise<{ requeued: boolean }> {
-    const response = await fetch(`${this.baseUrl}/dlq/${dlqId}/retry`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/dlq/${dlqId}/retry`, {
       method: 'POST',
-      headers: this.defaultHeaders,
     });
 
     if (!response.ok) {
@@ -492,9 +516,8 @@ export class RcrtClientEnhanced {
   // ============ Secrets Operations ============
 
   async createSecret(name: string, value: string, scope_type?: string, scope_id?: string): Promise<{ id: string }> {
-    const response = await fetch(`${this.baseUrl}/secrets`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets`, {
       method: 'POST',
-      headers: this.defaultHeaders,
       body: JSON.stringify({ name, value, scope_type, scope_id }),
     });
 
@@ -507,9 +530,8 @@ export class RcrtClientEnhanced {
   }
 
   async getSecret(secretId: string, reason: string = 'SDK:getSecret'): Promise<{ value: string }> {
-    const response = await fetch(`${this.baseUrl}/secrets/${secretId}/decrypt`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets/${secretId}/decrypt`, {
       method: 'POST',
-      headers: this.defaultHeaders,
       body: JSON.stringify({ reason }),
     });
 
@@ -525,9 +547,7 @@ export class RcrtClientEnhanced {
     const qp = new URLSearchParams();
     if (scope_type) qp.set('scope_type', scope_type);
     if (scope_id) qp.set('scope_id', scope_id);
-    const response = await fetch(`${this.baseUrl}/secrets${qp.toString() ? `?${qp.toString()}` : ''}`, {
-      headers: this.defaultHeaders,
-    });
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets${qp.toString() ? `?${qp.toString()}` : ''}`);
 
     if (!response.ok) {
       const error = await response.text();
@@ -538,9 +558,8 @@ export class RcrtClientEnhanced {
   }
 
   async updateSecret(secretId: string, value: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/secrets/${secretId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets/${secretId}`, {
       method: 'PUT',
-      headers: this.defaultHeaders,
       body: JSON.stringify({ value }),
     });
 
@@ -553,9 +572,8 @@ export class RcrtClientEnhanced {
   }
 
   async deleteSecret(secretId: string): Promise<{ ok: boolean }> {
-    const response = await fetch(`${this.baseUrl}/secrets/${secretId}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets/${secretId}`, {
       method: 'DELETE',
-      headers: this.defaultHeaders,
     });
 
     if (!response.ok) {
@@ -567,9 +585,8 @@ export class RcrtClientEnhanced {
   }
 
   async getSecretsFromVault(vaultIdOrTag: string, reason: string): Promise<Record<string, string>> {
-    const response = await fetch(`${this.baseUrl}/secrets/vault/${vaultIdOrTag}`, {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/secrets/vault/${vaultIdOrTag}`, {
       headers: {
-        ...this.defaultHeaders,
         'X-Access-Reason': reason,
       },
     });
@@ -730,10 +747,34 @@ export class RcrtClientEnhanced {
 
   // Apply a UI plan directly to the backend (assumes proxy/baseUrl handles auth)
   async applyPlan(plan: any): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/forge/apply`, {
+    // First create the plan breadcrumb to get an ID (use RCRT endpoints)
+    // Determine the correct RCRT base URL
+    let rcrtBaseUrl = this.baseUrl;
+    if (this.baseUrl === '/api') {
+      rcrtBaseUrl = '/api/rcrt';
+    } else if (!this.baseUrl.includes('/rcrt')) {
+      rcrtBaseUrl = this.baseUrl.replace('/api', '/api/rcrt');
+    }
+    
+    const rcrtClient = new RcrtClientEnhanced(
+      rcrtBaseUrl, 
+      'jwt', 
+      this.defaultHeaders['Authorization']?.replace('Bearer ', ''),
+      { tokenEndpoint: this.tokenEndpoint, autoRefresh: this.autoRefresh }
+    );
+    const planBreadcrumb = await rcrtClient.createBreadcrumb(plan);
+    const planId = planBreadcrumb.id;
+    
+    // Then apply the plan using the ID (use forge endpoints)
+    // Ensure we use the correct base URL for forge (should be /api, not /api/rcrt)
+    let forgeBaseUrl = this.baseUrl;
+    if (this.baseUrl.includes('/rcrt')) {
+      forgeBaseUrl = this.baseUrl.replace('/rcrt', '');
+    }
+    
+    const response = await this.fetchWithAuth(`${forgeBaseUrl}/forge/apply`, {
       method: 'POST',
-      headers: this.defaultHeaders,
-      body: JSON.stringify(plan),
+      body: JSON.stringify({ planId }),
     });
     if (!response.ok) {
       const error = await response.text();
@@ -746,21 +787,38 @@ export class RcrtClientEnhanced {
 // Lightweight helper to create a client and optionally fetch a token from a tokenEndpoint
 export async function createClient(options?: {
   baseUrl?: string;
-  tokenEndpoint?: string; // e.g. '/api/auth/token'
+  tokenEndpoint?: string; // e.g. '/api/rcrt/auth/token' or 'http://rcrt:8080/auth/token'
   authMode?: 'disabled' | 'jwt' | 'key';
+  autoRefresh?: boolean;
 }): Promise<RcrtClientEnhanced> {
   const baseUrl = options?.baseUrl ?? '/api/rcrt';
   const mode = options?.authMode ?? 'jwt';
+  const autoRefresh = options?.autoRefresh ?? true;
   let token: string | undefined;
+  
   if (options?.tokenEndpoint) {
     try {
-      const resp = await fetch(options.tokenEndpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+      const resp = await fetch(options.tokenEndpoint, { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify({}) 
+      });
       const json = await resp.json().catch(() => ({}));
       if (json?.token) token = String(json.token);
     } catch {
-      // ignore
+      // ignore initial token fetch failure
     }
   }
-  const client = new RcrtClientEnhanced(baseUrl, token ? mode : 'disabled', token);
+  
+  const client = new RcrtClientEnhanced(
+    baseUrl, 
+    token ? mode : 'disabled', 
+    token,
+    {
+      tokenEndpoint: options?.tokenEndpoint,
+      autoRefresh
+    }
+  );
   return client;
 }
+

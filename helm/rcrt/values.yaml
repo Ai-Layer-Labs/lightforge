@@ -15,6 +15,20 @@ env:
   EMBED_MODEL: "/app/models/model.onnx"
   EMBED_TOKENIZER: "/app/models/tokenizer.json"
 
+toolsRunner:
+  enabled: true
+  image:
+    repository: rcrt-tools-runner
+    tag: latest
+    pullPolicy: IfNotPresent
+  workspace: "workspace:tools"
+  # In cluster, tools-runner should talk directly to rcrt service
+  rcrtBaseUrl: "http://rcrt:8080"
+  enableLangChain: true
+  enableBuiltins: true
+  enableUI: true
+  resources: {}
+
 resources: {}
 
 autoscaling:

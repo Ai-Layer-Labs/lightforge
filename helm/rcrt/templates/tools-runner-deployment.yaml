@@ -1,0 +1,34 @@
+{{- if .Values.toolsRunner.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rcrt-tools-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rcrt-tools-runner
+  template:
+    metadata:
+      labels:
+        app: rcrt-tools-runner
+    spec:
+      containers:
+        - name: tools-runner
+          image: {{ .Values.toolsRunner.image.repository }}:{{ .Values.toolsRunner.image.tag }}
+          imagePullPolicy: {{ .Values.toolsRunner.image.pullPolicy }}
+          env:
+            - name: RCRT_BASE_URL
+              value: {{ .Values.toolsRunner.rcrtBaseUrl | quote }}
+            - name: WORKSPACE
+              value: {{ .Values.toolsRunner.workspace | quote }}
+            - name: ENABLE_LANGCHAIN_TOOLS
+              value: {{ ternary "true" "false" .Values.toolsRunner.enableLangChain | quote }}
+            - name: ENABLE_BUILTIN_TOOLS
+              value: {{ ternary "true" "false" .Values.toolsRunner.enableBuiltins | quote }}
+            - name: ENABLE_TOOL_UI
+              value: {{ ternary "true" "false" .Values.toolsRunner.enableUI | quote }}
+          resources: {{- toYaml .Values.toolsRunner.resources | nindent 12 }}
+{{- end }}
+
+

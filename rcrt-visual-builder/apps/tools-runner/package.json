@@ -1,0 +1,57 @@
+{
+  "name": "@rcrt-builder/tools-runner",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "bin": {
+    "rcrt-tools": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "electron": "electron electron.js",
+    "electron:build": "electron-builder",
+    "electron:dev": "concurrently \"pnpm dev\" \"electron electron.js\""
+  },
+  "dependencies": {
+    "@rcrt-builder/tools": "workspace:*",
+    "@rcrt-builder/sdk": "workspace:*",
+    "dotenv": "^16.3.1"
+  },
+  "optionalDependencies": {
+    "langchain": "^0.3.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "concurrently": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "tsup": "^8.0.1",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.rcrt.tools-runner",
+    "productName": "RCRT Tools Runner",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

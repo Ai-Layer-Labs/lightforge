@@ -1,14 +1,14 @@
 # Dockerfile for Visual Builder UI
 FROM node:20-alpine
 
-# Install pnpm
-RUN npm install -g pnpm@8
+# Use corepack to pin pnpm version compatible with lockfile
+RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 
 # Set working directory
 WORKDIR /workspace
 
-# Copy workspace files
-COPY pnpm-workspace.yaml package.json ./
+# Copy workspace files (include lockfile for deterministic install)
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/core/package.json ./packages/core/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/node-sdk/package.json ./packages/node-sdk/
@@ -25,7 +25,11 @@ RUN pnpm install --frozen-lockfile
 COPY packages ./packages
 COPY apps/builder ./apps/builder
 
-# Build packages
+# Link workspace and per-package bins after sources are present
+RUN pnpm install --frozen-lockfile
+
+# Build packages (skip DTS for speed/compat)
+ENV TSUP_DTS=false
 RUN pnpm --filter "@rcrt-builder/*" build
 
 # Expose port
@@ -33,4 +37,4 @@ EXPOSE 3000
 
 # Start development server
 WORKDIR /workspace/apps/builder
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev", "-H", "0.0.0.0"]

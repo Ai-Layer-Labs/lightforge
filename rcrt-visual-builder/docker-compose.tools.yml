@@ -1,0 +1,62 @@
+# Docker Compose for RCRT + Tools Runner
+# Extends the base docker-compose.yml with tools integration
+
+version: '3.8'
+
+services:
+  # RCRT Tools Runner
+  rcrt-tools:
+    build:
+      context: .
+      dockerfile: apps/tools-runner/Dockerfile
+    environment:
+      # RCRT connection
+      - RCRT_BASE_URL=http://rcrt:8081
+      - WORKSPACE=workspace:tools
+      - DEPLOYMENT_MODE=docker
+      
+      # Tool configuration
+      - ENABLE_BUILTIN_TOOLS=true
+      - ENABLE_LANGCHAIN_TOOLS=true
+      - ENABLE_TOOL_UI=true
+      
+      # API Keys (set these in your .env file)
+      - SERPAPI_API_KEY=${SERPAPI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY:-}
+      
+    depends_on:
+      - rcrt
+    restart: unless-stopped
+    networks:
+      - rcrt-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Visual Builder with tools integration
+  rcrt-builder-tools:
+    build:
+      context: .
+      dockerfile: apps/builder/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_RCRT_BASE_URL=http://localhost:3000/api/rcrt
+      - RCRT_BASE_URL=http://rcrt:8081
+      - JWT_PRIVATE_KEY_PEM=${JWT_PRIVATE_KEY_PEM}
+      - TOOLS_WORKSPACE=workspace:tools
+    depends_on:
+      - rcrt
+      - rcrt-tools
+    restart: unless-stopped
+    networks:
+      - rcrt-network
+
+networks:
+  rcrt-network:
+    driver: bridge

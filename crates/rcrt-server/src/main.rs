@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use rcrt_core::{db::Db, models::{BreadcrumbCreate, BreadcrumbContextView, BreadcrumbFull, Selector, SelectorSubscription, AclGrantAgent}};
 use anyhow::Result;
 use sqlx::migrate::Migrator;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde_json::json;
+use chrono;
 #[cfg(feature = "nats")]
 use nats;
 use reqwest::Client as HttpClient;
@@ -32,6 +33,7 @@ static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
 struct AppState {
     db: Db,
     jwt_decoding_key: Option<DecodingKey>,
+    jwt_encoding_key: Option<EncodingKey>,
     jwt_validation: Validation,
     #[cfg(feature = "nats")]
     nats_conn: Option<nats::Connection>,
@@ -51,11 +53,18 @@ async fn main() -> Result<()> {
     let db = Db::connect(&db_url, owner_id, None).await?;
     // Run migrations on startup
     MIGRATOR.run(&db.pool).await?;
+    // Ensure default tenant exists (prevents FK violations on first boot)
+    db.ensure_tenant(owner_id, "Default Tenant").await?;
     // JWT config (optional for now)
     let jwt_pub_pem = std::env::var("JWT_PUBLIC_KEY_PEM").ok();
-    let (jwt_decoding_key, jwt_validation) = if let Some(pem) = jwt_pub_pem {
-        (Some(DecodingKey::from_rsa_pem(pem.as_bytes()).expect("invalid RSA pub key")), Validation::new(Algorithm::RS256))
-    } else { (None, Validation::new(Algorithm::RS256)) };
+    let jwt_priv_pem = std::env::var("JWT_PRIVATE_KEY_PEM").ok();
+    let (jwt_decoding_key, jwt_encoding_key, jwt_validation) = if let Some(pub_pem) = jwt_pub_pem {
+        let dec_key = DecodingKey::from_rsa_pem(pub_pem.as_bytes()).expect("invalid RSA pub key");
+        let enc_key = jwt_priv_pem.as_ref().map(|priv_pem| {
+            EncodingKey::from_rsa_pem(priv_pem.as_bytes()).expect("invalid RSA private key")
+        });
+        (Some(dec_key), enc_key, Validation::new(Algorithm::RS256))
+    } else { (None, None, Validation::new(Algorithm::RS256)) };
 
     // NATS (required when feature is enabled): fail fast if not reachable
     #[cfg(feature = "nats")]
@@ -65,9 +74,9 @@ async fn main() -> Result<()> {
     };
 
     #[cfg(feature = "nats")]
-    let state = AppState { db, jwt_decoding_key, jwt_validation, nats_conn };
+    let state = AppState { db, jwt_decoding_key, jwt_encoding_key, jwt_validation, nats_conn };
     #[cfg(not(feature = "nats"))]
-    let state = AppState { db, jwt_decoding_key, jwt_validation };
+    let state = AppState { db, jwt_decoding_key, jwt_encoding_key, jwt_validation };
 
     let app = Router::new()
         .route("/health", get(health))
@@ -76,6 +85,7 @@ async fn main() -> Result<()> {
         .route("/docs", get(docs_page))
         .route("/swagger", get(swagger_page))
         .route("/openapi.json", get(openapi_spec))
+        .route("/auth/token", post(generate_jwt_token))
         .route("/admin/purge", post(admin_purge))
         .route("/agents/run", post(run_agents))
         .route("/breadcrumbs", post(create_breadcrumb).get(list_breadcrumbs))
@@ -236,6 +246,77 @@ fn embed_text(text: String) -> Result<Vec<f32>, String> {
 fn embed_text(_text: String) -> Result<Vec<f32>, String> { Err("embedding disabled".into()) }
 
 async fn health() -> &'static str { "ok" }
+
+#[derive(Deserialize)]
+struct TokenRequest {
+    owner_id: String,
+    agent_id: String, 
+    roles: Option<Vec<String>>,
+    ttl_sec: Option<i64>,
+}
+
+#[derive(Serialize)]
+struct TokenResponse {
+    token: String,
+    owner_id: String,
+    agent_id: String,
+    roles: Vec<String>,
+    exp: i64,
+}
+
+async fn generate_jwt_token(State(state): State<AppState>, Json(req): Json<TokenRequest>) -> Result<Json<TokenResponse>, (StatusCode, String)> {
+    let Some(encoding_key) = &state.jwt_encoding_key else {
+        return Err((StatusCode::SERVICE_UNAVAILABLE, "JWT signing not configured (missing JWT_PRIVATE_KEY_PEM)".into()));
+    };
+    
+    // Require explicit values in request - no environment fallbacks
+    let owner_id = req.owner_id;
+    let agent_id = req.agent_id;
+    let roles = req.roles.unwrap_or_else(|| vec!["curator".into(), "emitter".into(), "subscriber".into()]);
+    let ttl_sec = req.ttl_sec.unwrap_or(3600); // 1 hour default
+    
+    // Validate UUIDs
+    let _owner_uuid = Uuid::parse_str(&owner_id)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid owner_id format".into()))?;
+    let agent_uuid = Uuid::parse_str(&agent_id)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid agent_id format".into()))?;
+    
+    let now = chrono::Utc::now().timestamp();
+    let exp = now + ttl_sec;
+    
+    let mut claims = json!({
+        "sub": agent_id,
+        "owner_id": owner_id,
+        "roles": roles,
+        "iat": now,
+        "exp": exp
+    });
+    
+    // Add optional issuer/audience if configured
+    if let Ok(iss) = std::env::var("JWT_ISSUER") {
+        claims["iss"] = json!(iss);
+    }
+    if let Ok(aud) = std::env::var("JWT_AUDIENCE") {
+        claims["aud"] = json!(aud);
+    }
+    
+    let header = Header::new(Algorithm::RS256);
+    let token = encode(&header, &claims, encoding_key)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("JWT encoding failed: {}", e)))?;
+    
+    // Ensure agent exists in database with these roles
+    if let Err(e) = state.db.upsert_agent(Uuid::parse_str(&owner_id).unwrap(), agent_uuid, roles.clone()).await {
+        tracing::warn!("Failed to upsert agent during token generation: {}", e);
+    }
+    
+    Ok(Json(TokenResponse {
+        token,
+        owner_id,
+        agent_id,
+        roles,
+        exp,
+    }))
+}
 
 async fn metrics() -> impl IntoResponse {
     let encoder = TextEncoder::new();
@@ -1077,7 +1158,12 @@ impl FromRequestParts<AppState> for AuthContext {
             .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid owner_id in token".into()))?;
         let agent = Uuid::parse_str(&data.claims.sub)
             .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid sub in token".into()))?;
-        Ok(AuthContext { owner_id: owner, agent_id: agent, roles: data.claims.roles.unwrap_or_default() })
+        let roles = data.claims.roles.unwrap_or_default();
+        // Ensure agent row exists with roles so FK on created_by/updated_by succeeds
+        if let Err(e) = state.db.upsert_agent(owner, agent, roles.clone()).await {
+            return Err(internal_error(e));
+        }
+        Ok(AuthContext { owner_id: owner, agent_id: agent, roles })
     }
 }
 
