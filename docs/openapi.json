@@ -305,6 +305,29 @@
         "description": "Curator-only: requeue a single DLQ webhook delivery and remove it from DLQ.",
         "responses": { "200": { "description": "Requeued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
       }
+    },
+    "/auth/token": {
+      "post": {
+        "summary": "Generate JWT token",
+        "description": "Generate a JWT token for authentication with specified owner_id, agent_id, and roles.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenRequest" } } } },
+        "responses": { "200": { "description": "Token generated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenResponse" } } } } },
+        "security": []
+      }
+    },
+    "/hygiene/stats": {
+      "get": {
+        "summary": "Get hygiene statistics",
+        "description": "Curator-only: get automatic hygiene system statistics and status.",
+        "responses": { "200": { "description": "Stats", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HygieneStats" } } } } }
+      }
+    },
+    "/hygiene/run": {
+      "post": {
+        "summary": "Trigger manual hygiene cleanup",
+        "description": "Curator-only: trigger manual hygiene cleanup of expired breadcrumbs and health checks.",
+        "responses": { "200": { "description": "Cleanup completed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HygieneRunResult" } } } } }
+      }
     }
   },
   "components": {
@@ -348,7 +371,11 @@
       "AclItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "breadcrumb_id": { "type": "string", "format": "uuid" }, "grantee_agent_id": { "type": "string", "format": "uuid" }, "actions": { "type": "array", "items": { "type": "string" } }, "created_at": { "type": "string", "format": "date-time" } } },
       "RowsResp": { "type": "object", "properties": { "rows": { "type": "integer" } } },
       "AgentRunInput": { "type": "object", "properties": { "model": { "type": "string" }, "messages": { }, "referer": { "type": "string" }, "site_title": { "type": "string" } }, "required": ["model","messages"] },
-      "AgentRunOutput": { "type": "object", "properties": { "agent1_plan": { "type": "string" }, "agent2_execution": { "type": "string" }, "agent3_summary": { "type": "string" }, "final_answer": { "type": "string" } } }
+      "AgentRunOutput": { "type": "object", "properties": { "agent1_plan": { "type": "string" }, "agent2_execution": { "type": "string" }, "agent3_summary": { "type": "string" }, "final_answer": { "type": "string" } } },
+      "TokenRequest": { "type": "object", "properties": { "owner_id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "roles": { "type": "array", "items": { "type": "string" } }, "ttl_sec": { "type": "integer", "description": "Token TTL in seconds", "default": 3600 } }, "required": ["owner_id", "agent_id"] },
+      "TokenResponse": { "type": "object", "properties": { "token": { "type": "string" }, "owner_id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "roles": { "type": "array", "items": { "type": "string" } }, "exp": { "type": "integer", "description": "Expiration timestamp" } } },
+      "HygieneStats": { "type": "object", "properties": { "runs_completed": { "type": "integer" }, "total_breadcrumbs_purged": { "type": "integer" }, "total_agents_cleaned": { "type": "integer" }, "last_run_duration_ms": { "type": "integer" }, "last_run_errors": { "type": "array", "items": { "type": "string" } }, "hygiene_enabled": { "type": "boolean" }, "last_updated": { "type": "string", "format": "date-time" } } },
+      "HygieneRunResult": { "type": "object", "properties": { "triggered": { "type": "boolean" }, "health_checks_purged": { "type": "integer" }, "expired_breadcrumbs_purged": { "type": "integer" }, "total_cleaned": { "type": "integer" }, "message": { "type": "string" } } }
     },
     "securitySchemes": {
       "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }

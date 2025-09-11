@@ -65,6 +65,7 @@ async fn main() -> Result<()> {
         .route("/api/breadcrumbs", get(get_breadcrumbs).post(create_breadcrumb))
         .route("/api/breadcrumbs/:id", get(get_breadcrumb_context).patch(update_breadcrumb).delete(delete_breadcrumb))
         .route("/api/events/stream", get(proxy_sse_stream))
+        .route("/api/auth/token", get(get_jwt_token)) // 🎯 NEW: Direct JWT access for frontend
         .route("/api/agents", get(get_agents))
         .route("/api/agents/:id", get(get_agent))
         .route("/api/tenants", get(get_tenants))

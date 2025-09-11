@@ -87,23 +87,9 @@ export class RCRTToolWrapper {
   async start(): Promise<void> {
     console.log(`[${this.tool.name}] Starting tool wrapper for workspace: ${this.workspace}`);
     
-    // Subscribe to tool requests
-    this.stopStream = this.client.startEventStream(async (evt: BreadcrumbEvent) => {
-      if (evt.type === 'created' || evt.type === 'updated') {
-        // Fetch the full breadcrumb to get schema and context
-        try {
-          const breadcrumb = await this.client.getBreadcrumb(evt.breadcrumb_id!);
-          if (breadcrumb.schema_name === 'tool.request.v1' && 
-              breadcrumb.context?.tool === this.tool.name) {
-            await this.handleRequest({ ...evt, ...breadcrumb });
-          }
-        } catch (error) {
-          console.error(`[${this.tool.name}] Failed to fetch breadcrumb:`, error);
-        }
-      }
-    }, { 
-      filters: { any_tags: [this.workspace, 'tool:request'] } 
-    });
+    // 🔧 ARCHITECTURE CHANGE: Centralized SSE dispatcher handles tool requests
+    // Individual wrappers no longer maintain separate SSE connections
+    console.log(`[${this.tool.name}] ✅ Tool ready - centralized dispatcher will route requests`);
 
     // Tool availability is managed by the central registry catalog
     // Individual tool definitions are no longer published
@@ -117,10 +103,8 @@ export class RCRTToolWrapper {
   async stop(): Promise<void> {
     console.log(`[${this.tool.name}] Stopping tool wrapper`);
     
-    if (this.stopStream) {
-      this.stopStream();
-      this.stopStream = undefined;
-    }
+    // 🔧 ARCHITECTURE CHANGE: No individual SSE streams to stop
+    // Centralized dispatcher handles all SSE connections
     
     if (this.tool.cleanup) {
       await this.tool.cleanup();

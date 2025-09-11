@@ -145,7 +145,7 @@ export const AgentNodeComponent = memo<NodeProps<AgentNodeData>>(({
               value={nodeData.model}
               onChange={(e) => setNodeData({ ...nodeData, model: e.target.value })}
             >
-              <Select.Option value="openrouter/anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</Select.Option>
+              <Select.Option value="openrouter/google/gemini-2.5-flash">Claude 3.5 Sonnet</Select.Option>
               <Select.Option value="openrouter/openai/gpt-4o">GPT-4o</Select.Option>
               <Select.Option value="openrouter/openai/gpt-4o-mini">GPT-4o Mini</Select.Option>
             </Select>

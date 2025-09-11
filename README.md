@@ -153,6 +153,105 @@ graph TB
 
 **Key insight**: The Visual Builder is just one tool among many. From RCRT's perspective, all tools are authenticated clients that speak breadcrumbs. This creates a truly composable system where LLM agents can coordinate any combination of tools seamlessly.
 
+### SDK Architecture Guide
+
+RCRT provides **multiple specialized SDK packages** that work together. Here's when to use each:
+
+#### **1. Core SDK (`packages/sdk/`)**
+**Purpose**: Basic RCRT operations - your starting point  
+**Use for**: Simple breadcrumb CRUD, search, auth, SSE  
+**Key class**: `RcrtClientEnhanced`
+
+```typescript
+import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
+
+const client = new RcrtClientEnhanced('http://localhost:8080');
+await client.createBreadcrumb({ title: 'Test', context: {}, tags: ['demo'] });
+const results = await client.searchBreadcrumbs({ tag: 'demo' });
+```
+
+#### **2. Tools SDK (`packages/tools/`)**
+**Purpose**: Tool registration, discovery, execution  
+**Use for**: Building tools that integrate with RCRT  
+**Key classes**: `ToolRegistry`, `RCRTToolWrapper`
+
+```typescript
+import { createToolRegistry } from '@rcrt-builder/tools';
+
+const registry = await createToolRegistry(client, 'workspace:demo', {
+  enableBuiltins: true,    // echo, timer, random
+  enableLangChain: true    // calculator, web_browser
+});
+```
+
+#### **3. Runtime SDK (`packages/runtime/`)**
+**Purpose**: Orchestrate AI agents and workflows  
+**Use for**: Building autonomous agents, flow execution  
+**Key classes**: `AgentExecutor`, `FlowExecutor`, `RuntimeManager`
+
+```typescript
+import { RuntimeManager } from '@rcrt-builder/runtime';
+
+const runtime = new RuntimeManager({
+  rcrtUrl: 'http://localhost:8080',
+  workspace: 'workspace:agents',
+  openRouterApiKey: 'your-key'
+});
+await runtime.start();
+```
+
+#### **4. Node SDK (`packages/node-sdk/`)**
+**Purpose**: Build custom processing nodes  
+**Use for**: Creating reusable workflow components  
+**Key classes**: `BaseNode`, `NodeRegistry`
+
+```typescript
+import { BaseNode, RegisterNode } from '@rcrt-builder/node-sdk';
+
+@RegisterNode({
+  schema_name: 'node.template.v1',
+  title: 'My Custom Node',
+  tags: ['node:template', 'custom'],
+  context: { node_type: 'custom', category: 'processing' }
+})
+class CustomNode extends BaseNode {
+  // Implementation
+}
+```
+
+#### **Package Dependencies**
+```
+Runtime SDK → Tools SDK → Core SDK
+Node SDK → Core SDK
+All packages → @rcrt-builder/core (shared types)
+```
+
+#### **File Locations Quick Reference**
+| SDK Package | Main Entry | Registry/Manager | Config |
+|-------------|------------|------------------|---------|
+| **Core** | `packages/sdk/src/index.ts` | - | - |
+| **Tools** | `packages/tools/src/index.ts` | `src/registry.ts` | `src/langchain.ts` |
+| **Runtime** | `packages/runtime/src/index.ts` | `src/runtime-manager.ts` | agent/flow executors |
+| **Node** | `packages/node-sdk/src/index.ts` | `src/registry.ts` | `src/dev-server.ts` |
+
+#### **When to Use Which SDK**
+
+- **Building a simple app?** → Start with **Core SDK**
+- **Need tools (search, calc, etc.)?** → Add **Tools SDK** 
+- **Want autonomous agents?** → Use **Runtime SDK**
+- **Building custom workflow nodes?** → Use **Node SDK**
+- **Full agentic system?** → Combine **Tools + Runtime SDKs**
+
+### Core Architecture Principle
+
+**Agents = Data + Subscriptions**  
+**Tools = Code**
+
+This fundamental distinction drives RCRT's power:
+- **Agents**: Behavior emerges from prompt breadcrumbs and context subscriptions (data-driven)
+- **Tools**: Capabilities come from API integrations and processing logic (code-driven)
+- **Result**: Infinite agent specializations with minimal tool implementations
+
 ### Key concepts
 - **Breadcrumb**: Minimal, persistent JSON context packet optimized for LLMs/automations.
 - **Roles**:

@@ -58,7 +58,7 @@ async function bootstrap() {
           max_flows: 1000,
         },
         settings: {
-          default_model: 'openrouter/anthropic/claude-3.5-sonnet',
+          default_model: 'openrouter/google/gemini-2.5-flash',
           features: ['agent-builder', 'flow-editor', 'real-time-collaboration'],
         },
       },
@@ -146,7 +146,7 @@ async function bootstrap() {
       tags: [WORKSPACE, 'agent:def', 'meta:agent'],
       context: {
         agent_id: 'agent.builder',
-        model: 'openrouter/anthropic/claude-3.5-sonnet',
+        model: 'openrouter/google/gemini-2.5-flash',
         system_prompt: `You are the Builder Agent for the RCRT Visual Builder System.
 
 Your role is to help users build other agents and flows by creating appropriate breadcrumbs.

@@ -29,14 +29,38 @@ let agentPositions = [];
 let connections = [];
 let customNodePositions = new Map(); // Store custom positions by ID
 let customAgentPositions = new Map(); // Store custom agent positions by ID
+
+// Tools visualization
+let availableTools = [];
+let toolPositions = [];
+let customToolPositions = new Map(); // Store custom tool positions by ID
 let dataLoaded = false; // Track if we've loaded initial data
 let isDraggingNode = false;
 let draggedNode = null;
-let draggedNodeType = null; // 'breadcrumb' or 'agent'
+let draggedNodeType = null; // 'breadcrumb', 'agent', or 'tool'
 let draggedNodeIndex = -1;
+let lastUserInteraction = Date.now(); // Track user activity
+
+// Chat interface variables
+let chatTags = [];
+let availableWorkspaces = new Set();
+let eventFilters = new Set(['all']); // Default to showing all events
+let breadcrumbTemplates = new Map();
+
+// Direct RCRT connection variables
+let rcrtJwtToken = null;
+let rcrtBaseUrl = 'http://localhost:8081'; // Direct RCRT connection
+
+// Persistent UI state variables
+let leftPanelWidth = 350; // Default width
+let rightPanelWidth = 350; // Default width
+let collapsedSections = new Set(); // Track collapsed sections
 
 // Pan functionality - only when not dragging a node
 canvasContainer.addEventListener('mousedown', (e) => {
+    // Track user interaction
+    lastUserInteraction = Date.now();
+    
     // Don't start canvas pan if clicking on a node
     if (e.target.classList.contains('breadcrumb-node') || e.target.classList.contains('agent-node') || e.target.closest('.breadcrumb-node') || e.target.closest('.agent-node')) {
         return;
@@ -91,6 +115,14 @@ document.addEventListener('mousemove', (e) => {
             
             // Save custom position for persistence (center coordinates)
             customAgentPositions.set(agentId, { x: canvasX, y: canvasY });
+            
+        } else if (draggedNodeType === 'tool' && toolPositions[draggedNodeIndex]) {
+            const toolId = toolPositions[draggedNodeIndex].id;
+            toolPositions[draggedNodeIndex].x = canvasX;
+            toolPositions[draggedNodeIndex].y = canvasY;
+            
+            // Save custom position for persistence (center coordinates)
+            customToolPositions.set(toolId, { x: canvasX, y: canvasY });
         }
         
         // Update connection lines in real-time
@@ -147,10 +179,10 @@ canvasContainer.addEventListener('wheel', (e) => {
 });
 
 function updateCanvasSize() {
-    const allPositions = [...nodePositions, ...agentPositions];
+    const allPositions = [...nodePositions, ...agentPositions, ...toolPositions];
     if (allPositions.length === 0) return;
     
-    // Calculate bounding box of all nodes (breadcrumbs + agents)
+    // Calculate bounding box of all nodes (breadcrumbs + agents + tools)
     const minX = Math.min(...allPositions.map(p => p.x));
     const maxX = Math.max(...allPositions.map(p => p.x + p.width));
     const minY = Math.min(...allPositions.map(p => p.y));
@@ -183,8 +215,9 @@ async function loadBreadcrumbs() {
         }
         breadcrumbs = await response.json();
         
-        // Clear any stale filtered results
-        filteredBreadcrumbs = [];
+        // Preserve current filter state during auto-refresh
+        // If filters are active, reapply them to the fresh data
+        const hadActiveFilters = filteredBreadcrumbs.length > 0;
         
         // Only load agents and subscriptions on first load, not on every refresh
         if (!dataLoaded) {
@@ -192,8 +225,16 @@ async function loadBreadcrumbs() {
             dataLoaded = true;
         }
         
-        renderBreadcrumbs();
+        // Reapply filters if they were active to preserve user state
+        if (hadActiveFilters) {
+            applyFilters();
+        } else {
+            renderBreadcrumbs();
+        }
         updateStats();
+        
+        // Update workspace options with fresh data
+        updateWorkspaceOptions();
     } catch (error) {
         console.error('Failed to load breadcrumbs:', error);
         canvas.innerHTML = `<div class="error">Failed to load breadcrumbs: ${error.message}</div>`;
@@ -215,11 +256,62 @@ async function loadAgentsAndSubscriptions() {
             subscriptions = await subsResponse.json();
             console.log('Loaded subscriptions:', subscriptions.length);
         }
+        
+        // 🔧 NEW: Load available tools from tool catalog
+        await loadAvailableTools();
+        
     } catch (error) {
         console.error('Failed to load agents/subscriptions:', error);
         // Continue without agent visualization if this fails
         agents = [];
         subscriptions = [];
+        availableTools = [];
+    }
+}
+
+// Load available tools from the tool catalog breadcrumb
+async function loadAvailableTools() {
+    try {
+        // Find the tool catalog breadcrumb
+        const toolCatalog = breadcrumbs.find(b => 
+            b.tags?.includes('tool:catalog') && 
+            b.title?.includes('Tool Catalog')
+        );
+        
+        if (toolCatalog) {
+            console.log('🛠️ Found tool catalog breadcrumb:', toolCatalog.id);
+            
+            // Get full context to see the tools list
+            const response = await fetch(`/api/breadcrumbs/${toolCatalog.id}`);
+            if (response.ok) {
+                const catalogData = await response.json();
+                
+                if (catalogData.context && catalogData.context.tools) {
+                    availableTools = catalogData.context.tools.map((tool, index) => ({
+                        name: tool.name,
+                        description: tool.description,
+                        category: tool.category,
+                        status: tool.status,
+                        id: `tool-${tool.name}`,
+                        index: index
+                    }));
+                    
+                    console.log('🛠️ Loaded tools:', availableTools.length, availableTools.map(t => t.name));
+                } else {
+                    console.warn('🛠️ Tool catalog found but no tools in context');
+                    availableTools = [];
+                }
+            } else {
+                console.error('🛠️ Failed to fetch tool catalog details');
+                availableTools = [];
+            }
+        } else {
+            console.warn('🛠️ No tool catalog breadcrumb found');
+            availableTools = [];
+        }
+    } catch (error) {
+        console.error('🛠️ Failed to load tools:', error);
+        availableTools = [];
     }
 }
 
@@ -227,6 +319,7 @@ function renderBreadcrumbs() {
     canvas.innerHTML = '';
     nodePositions = []; // Reset positions
     agentPositions = []; // Reset agent positions
+    toolPositions = []; // Reset tool positions
     connections = []; // Reset connections
     
     const toRender = filteredBreadcrumbs.length > 0 ? filteredBreadcrumbs : breadcrumbs;
@@ -243,7 +336,13 @@ function renderBreadcrumbs() {
         canvas.appendChild(node);
     });
     
-    // Render connection lines
+    // 🛠️ NEW: Render tool nodes
+    availableTools.forEach((tool, index) => {
+        const node = createToolNode(tool, index);
+        canvas.appendChild(node);
+    });
+    
+    // Render connection lines (agents → subscriptions, tools → created breadcrumbs)
     renderConnections();
     
     // Update canvas size to fit all nodes plus buffer
@@ -414,10 +513,100 @@ function createAgentNode(agent, index) {
     return node;
 }
 
+// 🛠️ NEW: Create tool nodes on canvas
+function createToolNode(tool, index) {
+    const node = document.createElement('div');
+    node.className = 'tool-node';
+    
+    // Check if we have a custom position for this tool
+    let x, y;
+    const nodeSize = 100;
+    
+    if (customToolPositions.has(tool.id)) {
+        // Use saved custom position
+        const saved = customToolPositions.get(tool.id);
+        x = saved.x - 50; // Convert from center back to top-left
+        y = saved.y - 50;
+        console.log(`Using saved position for tool ${tool.name}: center at ${saved.x}, ${saved.y}`);
+    } else {
+        // Use default grid position (place tools on the right side)
+        const cols = 3;
+        const startX = 800; // Place tools to the right of breadcrumbs  
+        const startY = 50;
+        x = startX + (index % cols) * (nodeSize + 20);
+        y = startY + Math.floor(index / cols) * (nodeSize + 20);
+    }
+    
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    
+    // Store position for connections (center coordinates)
+    toolPositions.push({
+        id: tool.id,
+        name: tool.name,
+        x: x + 50, // Center of square
+        y: y + 50, // Center of square
+        width: 100,
+        height: 100
+    });
+    
+    // Get tool-specific icon and color
+    const getToolIcon = (toolName, category) => {
+        if (toolName === 'openrouter') return '🧠';
+        if (toolName === 'ollama_local') return '🏠';
+        if (toolName === 'echo') return '📢';
+        if (toolName === 'timer') return '⏱️';
+        if (toolName === 'random') return '🎲';
+        if (toolName === 'calculator') return '🔢';
+        if (toolName === 'web_browser') return '🌐';
+        return category === 'llm' ? '🤖' : '🛠️';
+    };
+    
+    const icon = getToolIcon(tool.name, tool.category);
+    const statusColor = tool.status === 'active' ? '#00ff88' : '#ffaa00';
+    
+    node.innerHTML = `
+        <div class="tool-icon">${icon}</div>
+        <div class="tool-name">${tool.name}</div>
+        <div class="tool-status" style="color: ${statusColor};">${tool.status}</div>
+        <div class="tool-category">${tool.category || 'tool'}</div>
+    `;
+    
+    // Make tool node draggable
+    let toolMouseDown = false;
+    
+    node.addEventListener('mousedown', (e) => {
+        toolMouseDown = true;
+        setTimeout(() => {
+            if (toolMouseDown) {
+                isDraggingNode = true;
+                draggedNode = node;
+                draggedNodeType = 'tool';
+                draggedNodeIndex = index;
+                e.stopPropagation();
+            }
+        }, 150); // 150ms delay to distinguish click from drag
+    });
+    
+    node.addEventListener('mouseup', (e) => {
+        if (!isDraggingNode && toolMouseDown) {
+            // This was a click, not a drag
+            viewToolDetails(tool);
+        }
+        toolMouseDown = false;
+    });
+    
+    // Prevent text selection during drag
+    node.addEventListener('dragstart', (e) => e.preventDefault());
+    
+    return node;
+}
+
 function renderConnections() {
     console.log('🔗 Rendering connections...');
     console.log('Subscriptions:', subscriptions.length);
     console.log('Agent positions:', agentPositions.length);
+    console.log('Tool positions:', toolPositions.length);
     console.log('Node positions:', nodePositions.length);
     
     // Remove old connection lines
@@ -428,7 +617,7 @@ function renderConnections() {
     });
     connections = [];
     
-    // Create connection lines between agents and subscribed breadcrumbs
+    // 1. Create connection lines between agents and subscribed breadcrumbs
     subscriptions.forEach((subscription, subIndex) => {
         console.log(`📡 Processing subscription ${subIndex + 1}:`, {
             agent: subscription.agent_id.substring(30),
@@ -471,19 +660,69 @@ function renderConnections() {
         });
     });
     
-    console.log(`✅ Created ${connections.length} connection lines`);
+    // 2. 🛠️ NEW: Create connection lines between tools and breadcrumbs they created
+    availableTools.forEach((tool, toolIndex) => {
+        console.log(`🛠️ Processing tool ${toolIndex + 1}:`, tool.name);
+        
+        // Find tool position
+        const toolPos = toolPositions.find(pos => pos.id === tool.id);
+        if (!toolPos) {
+            console.log(`❌ Tool position not found:`, tool.name);
+            return;
+        }
+        
+        // Find breadcrumbs created by this tool
+        const toolBreadcrumbs = findToolCreatedBreadcrumbs(tool.name);
+        console.log(`🎯 Found ${toolBreadcrumbs.length} breadcrumbs created by ${tool.name}`);
+        
+        toolBreadcrumbs.forEach((breadcrumb) => {
+            // Find breadcrumb position in current render
+            const breadcrumbPos = nodePositions.find(pos => pos.id === breadcrumb.id);
+            
+            if (breadcrumbPos) {
+                console.log(`🔗 Creating tool connection: ${tool.name} → ${breadcrumb.title}`);
+                
+                // Create connection line with different styling than agent connections
+                const line = createToolConnectionLine(toolPos, breadcrumbPos, tool);
+                canvas.appendChild(line);
+                
+                connections.push({
+                    tool: tool.id,
+                    breadcrumb: breadcrumb.id,
+                    line: line,
+                    type: 'tool-creation'
+                });
+            } else {
+                console.log(`❌ Breadcrumb position not found for: ${breadcrumb.title}`);
+            }
+        });
+    });
+    
+    console.log(`✅ Created ${connections.length} total connection lines (agent subscriptions + tool creations)`);
 }
 
 function redrawConnections() {
     // Quickly redraw all connection lines with current positions
     connections.forEach(conn => {
         if (conn.line && conn.line.parentNode) {
-            const agentPos = agentPositions.find(pos => pos.id === conn.agent);
-            const breadcrumbIndex = breadcrumbs.findIndex(b => b.id === conn.breadcrumb);
-            
-            if (agentPos && breadcrumbIndex >= 0 && nodePositions[breadcrumbIndex]) {
-                const breadcrumbPos = nodePositions[breadcrumbIndex];
-                updateConnectionLine(conn.line, agentPos, breadcrumbPos);
+            if (conn.type === 'tool-creation') {
+                // Tool → breadcrumb connection
+                const toolPos = toolPositions.find(pos => pos.id === conn.tool);
+                const breadcrumbIndex = breadcrumbs.findIndex(b => b.id === conn.breadcrumb);
+                
+                if (toolPos && breadcrumbIndex >= 0 && nodePositions[breadcrumbIndex]) {
+                    const breadcrumbPos = nodePositions[breadcrumbIndex];
+                    updateConnectionLine(conn.line, toolPos, breadcrumbPos);
+                }
+            } else {
+                // Agent subscription connection
+                const agentPos = agentPositions.find(pos => pos.id === conn.agent);
+                const breadcrumbIndex = breadcrumbs.findIndex(b => b.id === conn.breadcrumb);
+                
+                if (agentPos && breadcrumbIndex >= 0 && nodePositions[breadcrumbIndex]) {
+                    const breadcrumbPos = nodePositions[breadcrumbIndex];
+                    updateConnectionLine(conn.line, agentPos, breadcrumbPos);
+                }
             }
         }
     });
@@ -565,9 +804,71 @@ function createConnectionLine(agentPos, breadcrumbPos, subscription) {
     return line;
 }
 
+// 🛠️ NEW: Create connection lines from tools to breadcrumbs they created
+function createToolConnectionLine(toolPos, breadcrumbPos, tool) {
+    const line = document.createElement('div');
+    line.className = 'connection-line tool-connection';
+    
+    // Calculate line position and length
+    const deltaX = breadcrumbPos.x - toolPos.x;
+    const deltaY = breadcrumbPos.y - toolPos.y;
+    const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const angle = Math.atan2(deltaY, deltaX);
+    
+    // Position line at tool center
+    line.style.left = `${toolPos.x}px`;
+    line.style.top = `${toolPos.y}px`;
+    line.style.width = `${length}px`;
+    line.style.transform = `rotate(${angle}rad)`;
+    
+    // Add tooltip with tool creation details
+    line.title = `🛠️ ${tool.name} created this breadcrumb`;
+    
+    return line;
+}
+
 function viewAgentDetails(agent) {
     // Show agent details in left panel instead of alert
     selectAgentForDetails(agent);
+}
+
+// 🛠️ NEW: View tool details when clicked
+function viewToolDetails(tool) {
+    const toolBreadcrumbs = findToolCreatedBreadcrumbs(tool.name);
+    
+    const details = `
+Tool Details:
+
+🛠️ Name: ${tool.name}
+📖 Description: ${tool.description}
+📂 Category: ${tool.category || 'general'}
+🔄 Status: ${tool.status}
+
+📊 Activity:
+• Created ${toolBreadcrumbs.length} breadcrumbs
+• Recent activity: ${toolBreadcrumbs.length > 0 ? 'Active' : 'No recent activity'}
+
+🔗 Tool Breadcrumbs:
+${toolBreadcrumbs.slice(0, 5).map(b => `• ${b.title.substring(0, 50)}${b.title.length > 50 ? '...' : ''}`).join('\n')}
+${toolBreadcrumbs.length > 5 ? `\n... and ${toolBreadcrumbs.length - 5} more` : ''}
+
+🎯 This tool ${tool.status === 'active' ? 'is ready to process requests' : 'is not currently active'}.
+    `.trim();
+    
+    alert(details);
+}
+
+// Find breadcrumbs created by a specific tool
+function findToolCreatedBreadcrumbs(toolName) {
+    const toCheck = filteredBreadcrumbs.length > 0 ? filteredBreadcrumbs : breadcrumbs;
+    
+    return toCheck.filter(breadcrumb => {
+        // Check for tool.response.v1 breadcrumbs with this tool name
+        return breadcrumb.tags?.includes('tool:response') &&
+               breadcrumb.title?.includes(`Response: ${toolName}`) ||
+               breadcrumb.title?.includes(`${toolName} Result`) ||
+               breadcrumb.title?.includes(`${toolName} Error`);
+    });
 }
 
 function selectAgentForDetails(agent) {
@@ -626,6 +927,9 @@ function displayAgentDetails(agent) {
 }
 
 async function selectBreadcrumbForDetails(id) {
+    // Track user interaction
+    lastUserInteraction = Date.now();
+    
     try {
         const response = await fetch(`/api/breadcrumbs/${id}`);
         if (!response.ok) {
@@ -688,8 +992,8 @@ function updateStats() {
 function refreshBreadcrumbs() {
     canvas.innerHTML = '<div class="loading"><div class="spinner"></div>Refreshing...</div>';
     
-    // Clear any selections and filters for a fresh start
-    deselectBreadcrumb();
+    // Preserve current user state (filters, selections) during manual refresh
+    // Only deselect if the selected item no longer exists after refresh
     
     // Force reload of agents and subscriptions to pick up changes
     dataLoaded = false;
@@ -708,18 +1012,19 @@ function resetNodePositions() {
         console.log('Resetting all node positions');
         customNodePositions.clear();
         customAgentPositions.clear();
+        customToolPositions.clear(); // 🛠️ Also clear tool positions
         renderBreadcrumbs();
     }
 }
 
 function centerViewOnContent() {
-    const allPositions = [...nodePositions, ...agentPositions];
+    const allPositions = [...nodePositions, ...agentPositions, ...toolPositions];
     if (allPositions.length === 0) return;
     
     const containerWidth = canvasContainer.clientWidth;
     const containerHeight = canvasContainer.clientHeight;
     
-    // Calculate content bounds including both breadcrumbs and agents
+    // Calculate content bounds including breadcrumbs, agents, and tools
     const minX = Math.min(...allPositions.map(p => p.x));
     const maxX = Math.max(...allPositions.map(p => p.x + p.width));
     const minY = Math.min(...allPositions.map(p => p.y));
@@ -1026,6 +1331,9 @@ function focusEditTagInput() {
 
 // Filtering Functions
 function applyFilters() {
+    // Track user interaction when filters are applied
+    lastUserInteraction = Date.now();
+    
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const dateFrom = document.getElementById('dateFromFilter').value;
     const dateTo = document.getElementById('dateToFilter').value;
@@ -1096,6 +1404,9 @@ function updateAvailableTags() {
 }
 
 function toggleTagFilter(tag) {
+    // Track user interaction
+    lastUserInteraction = Date.now();
+    
     const index = selectedTagFilters.indexOf(tag);
     if (index === -1) {
         selectedTagFilters.push(tag);
@@ -1517,22 +1828,54 @@ function toggleRightPanel() {
     toggle.textContent = panel.classList.contains('collapsed') ? '◀' : '▶';
 }
 
-function connectEventStream() {
+// Get JWT token from dashboard backend for direct RCRT connection
+async function getRCRTToken() {
+    try {
+        console.log('🔑 Fetching JWT token from dashboard backend...');
+        const response = await fetch('/api/auth/token');
+        
+        if (response.ok) {
+            const data = await response.json();
+            rcrtJwtToken = data.token;
+            rcrtBaseUrl = data.rcrt_base_url || 'http://localhost:8081';
+            console.log('✅ Got JWT token for direct RCRT connection');
+            return data.token;
+        } else {
+            console.error('❌ Failed to get JWT token:', response.status);
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Error getting JWT token:', error);
+        return null;
+    }
+}
+
+async function connectEventStream() {
     if (eventSource) {
         eventSource.close();
     }
     
     try {
-        console.log('Connecting to event stream at /api/events/stream');
-        eventSource = new EventSource('/api/events/stream');
+        console.log('🚀 Initializing direct RCRT SSE connection...');
+        
+        // 🎯 STEP 1: Get JWT token for direct connection
+        const token = await getRCRTToken();
+        
+        // 🔧 SECURITY FIX: CORS prevents direct cross-origin EventSource
+        // Use dashboard proxy for security compliance (but make it real-time!)
+        const streamUrl = '/api/events/stream';
+        console.log('🔐 Using secure dashboard proxy for RCRT SSE (required for CORS compliance)');
+        
+        eventSource = new EventSource(streamUrl);
         
         eventSource.onopen = function() {
-            console.log('EventSource connection opened');
-            updateStreamStatus(true, 'Connected');
+            console.log('EventSource connection opened: 🔐 Secure Dashboard Proxy');
+            updateStreamStatus(true, '🔐 Secure Proxy Connected');
             addEventToLog({
                 type: 'system',
-                message: 'Connected to event stream',
-                timestamp: new Date().toISOString()
+                message: '🔐 Connected via secure dashboard proxy (CORS compliant)',
+                timestamp: new Date().toISOString(),
+                connection_type: 'secure_proxy'
             });
         };
         
@@ -1577,10 +1920,10 @@ function connectEventStream() {
             });
             
             // Try to reconnect after 5 seconds
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (!streamPaused) {
                     console.log('Attempting to reconnect...');
-                    connectEventStream();
+                    await connectEventStream().catch(console.error);
                 }
             }, 5000);
         };
@@ -1626,15 +1969,114 @@ function addEventToLog(eventData) {
     renderEventLog();
 }
 
+// Generate chat-like event display with conversation content as hero
+function generateEnhancedEventDetails(event, action) {
+    const schema = event.schema_name || '';
+    
+    // 🎯 CHAT-LIKE UX: Show conversation content prominently for LLM events
+    if (schema === 'tool.request.v1' && event.context) {
+        const tool = event.context.tool || 'unknown';
+        
+        // LLM tool requests - show as user messages
+        if (tool === 'openrouter' || tool === 'ollama_local') {
+            const input = event.context.input || {};
+            if (input.messages && Array.isArray(input.messages)) {
+                const userMsg = input.messages.find(m => m.role === 'user');
+                if (userMsg) {
+                    // HERO: Show the actual prompt prominently
+                    return `
+                        <div class="chat-message user-message">
+                            <div class="message-header">👤 <strong>User</strong></div>
+                            <div class="message-content">"${escapeHtml(userMsg.content)}"</div>
+                        </div>
+                        <div class="message-meta">
+                            🧠 ${input.model || 'Unknown model'} • 📊 Max: ${input.max_tokens || 'N/A'} tokens
+                        </div>
+                    `;
+                }
+            }
+            return `🛠️ ${tool} tool request (no message content)`;
+        } else {
+            // Other tool requests
+            return `🛠️ <strong>${tool}</strong> tool request`;
+        }
+    }
+    
+    if (schema === 'tool.response.v1' && event.context) {
+        const tool = event.context.tool || 'unknown';
+        const status = event.context.status || 'unknown';
+        const executionTime = event.context.execution_time_ms;
+        
+        // LLM tool responses - show as AI messages
+        if ((tool === 'openrouter' || tool === 'ollama_local') && event.context.output) {
+            const output = event.context.output;
+            
+            if (status === 'success' && output.content) {
+                // HERO: Show the actual AI response prominently
+                return `
+                    <div class="chat-message ai-message">
+                        <div class="message-header">🤖 <strong>AI</strong> <span style="color: rgba(255,255,255,0.6);">(${tool})</span></div>
+                        <div class="message-content">"${escapeHtml(output.content)}"</div>
+                    </div>
+                    <div class="message-meta">
+                        ⚡ ${executionTime || 'N/A'}ms • 🧠 ${output.model || 'Unknown'} • 
+                        📈 ${output.usage?.total_tokens || 'N/A'} tokens • 
+                        💰 ${typeof output.cost_estimate === 'number' ? '$' + output.cost_estimate.toFixed(6) : 'N/A'}
+                    </div>
+                `;
+            } else {
+                // Error case
+                return `
+                    <div class="chat-message error-message">
+                        <div class="message-header">❌ <strong>Error</strong> <span style="color: rgba(255,255,255,0.6);">(${tool})</span></div>
+                        <div class="message-content">${escapeHtml(event.context.error || 'Unknown error')}</div>
+                    </div>
+                    <div class="message-meta">
+                        ⚡ ${executionTime || 'N/A'}ms • Status: ${status}
+                    </div>
+                `;
+            }
+        } else {
+            // Other tool responses
+            const outputData = event.context.output || event.context.result;
+            const outputStr = typeof outputData === 'object' ? 
+                JSON.stringify(outputData) : 
+                String(outputData);
+            return `🛠️ <strong>${tool}</strong> response: ${escapeHtml(outputStr.substring(0, 100))}${outputStr.length > 100 ? '...' : ''}`;
+        }
+    }
+    
+    // Non-tool events - standard display
+    let details = `${action.toUpperCase()}`;
+    if (event.breadcrumb_id) {
+        details += `: ${event.breadcrumb_id.toString().substring(0, 8)}...`;
+    }
+    if (event.title) {
+        details += `<br><strong>Title:</strong> ${escapeHtml(event.title.toString())}`;
+    }
+    if (event.tags && Array.isArray(event.tags)) {
+        details += `<br><strong>Tags:</strong> ${event.tags.join(', ')}`;
+    }
+    
+    return details;
+}
+
 function renderEventLog() {
-    console.log('Rendering event log with', eventLog.length, 'events, hidePings:', hidePings);
+    console.log('Rendering event log with', eventLog.length, 'events');
     const eventList = document.getElementById('eventList');
     
-    // Filter events based on ping filter setting
+    // Filter events based on event type filters and ping settings
     const filteredEvents = eventLog.filter(event => {
+        // Apply type-based filtering
+        if (!shouldShowEvent(event)) {
+            return false;
+        }
+        
+        // Legacy ping filter for backward compatibility
         if (hidePings && event.type === 'ping') {
             return false;
         }
+        
         return true;
     });
     
@@ -1648,7 +2090,15 @@ function renderEventLog() {
     
     eventList.innerHTML = filteredEvents.map(event => {
         const eventType = event.type || 'unknown';
-        const eventClass = eventType.replace(/\./g, '-');
+        const schema = event.schema_name || '';
+        
+        // Enhanced event class naming for tool-specific styling
+        let eventClass = eventType.replace(/\./g, '-');
+        if (schema === 'tool.request.v1') {
+            eventClass += ' tool-request';
+        } else if (schema === 'tool.response.v1') {
+            eventClass += ' tool-response';
+        }
         
         let details = '';
         let action = '';
@@ -1658,36 +2108,48 @@ function renderEventLog() {
             if (event.source) details += ` (${event.source})`;
         } else if (eventType.includes('breadcrumb')) {
             action = eventType.split('.')[1] || 'unknown';
-            details = `${action.toUpperCase()}`;
-            if (event.breadcrumb_id) {
-                details += `: ${event.breadcrumb_id.toString().substring(0, 8)}...`;
-            }
-            if (event.title) {
-                details += `<br>Title: ${escapeHtml(event.title.toString())}`;
-            }
-            if (event.tags && Array.isArray(event.tags)) {
-                details += `<br>Tags: ${event.tags.join(', ')}`;
-            }
+            details = generateEnhancedEventDetails(event, action);
         } else if (eventType === 'system') {
             details = event.message || 'System event';
         }
-        
+
+        const hasExpandableData = event.context || (event.rawEventData && event.rawEventData.length > 200);
+        // Remove redeclaration of 'schema' (already declared above)
+        const isLLMEvent = (schema === 'tool.request.v1' || schema === 'tool.response.v1') && 
+                          event.context?.tool && ['openrouter', 'ollama_local'].includes(event.context.tool);
+
         return `
             <div class="event-item ${eventClass}">
-                <div class="event-header">
-                    <span class="event-type ${action || eventType}">${eventType}</span>
-                    <span class="event-time">${event.displayTime}</span>
-                </div>
+                ${!isLLMEvent ? `
+                    <div class="event-header">
+                        <span class="event-type ${action || eventType}">${eventType}</span>
+                        <span class="event-time">${event.displayTime}</span>
+                    </div>
+                ` : `
+                    <div class="event-header" style="justify-content: flex-end;">
+                        <span class="event-time">${event.displayTime}</span>
+                    </div>
+                `}
                 <div class="event-details">${details}</div>
-                ${event.breadcrumb_id ? `<div class="event-id">ID: ${event.breadcrumb_id}</div>` : ''}
+                ${!isLLMEvent && event.breadcrumb_id ? `<div class="event-id">ID: ${event.breadcrumb_id}</div>` : ''}
+                ${hasExpandableData ? `
+                    <div class="event-expand">
+                        <button class="btn-small" onclick="toggleEventDetails('${event.breadcrumb_id || Date.now()}', this)" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; margin-top: 0.3rem;">
+                            📋 Show Details
+                        </button>
+                        <div class="event-full-details" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 0.7rem; max-height: 300px; overflow-y: auto;">
+                            <pre style="margin: 0; white-space: pre-wrap; color: rgba(255,255,255,0.9);">${escapeHtml(JSON.stringify(event.context || JSON.parse(event.rawEventData || '{}'), null, 2))}</pre>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `;
     }).reverse().join(''); // Show newest first
     
-    // Auto-scroll to bottom if enabled
+    // Auto-scroll to TOP since newest events are at top
     if (autoScroll) {
         setTimeout(() => {
-            eventList.scrollTop = eventList.scrollHeight;
+            eventList.scrollTop = 0; // Scroll to top for newest events
         }, 10);
     }
 }
@@ -1736,40 +2198,177 @@ function testEvent() {
     });
 }
 
-function reconnectStream() {
+// Toggle event details expansion
+function toggleEventDetails(eventId, button) {
+    const detailsDiv = button.nextElementSibling;
+    const isVisible = detailsDiv.style.display !== 'none';
+    
+    if (isVisible) {
+        detailsDiv.style.display = 'none';
+        button.textContent = '📋 Show Details';
+        button.style.background = 'rgba(0, 245, 255, 0.1)';
+    } else {
+        detailsDiv.style.display = 'block';
+        button.textContent = '📋 Hide Details';
+        button.style.background = 'rgba(0, 245, 255, 0.2)';
+    }
+}
+
+async function reconnectStream() {
     console.log('Manual reconnect triggered');
     if (eventSource) {
         eventSource.close();
     }
     updateStreamStatus(false, 'Reconnecting...');
-    setTimeout(() => {
-        connectEventStream();
-    }, 1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await connectEventStream().catch(console.error);
 }
 
 function togglePingFilter() {
-    hidePings = !hidePings;
-    const btn = document.getElementById('pingFilterBtn');
-    
-    if (hidePings) {
-        btn.textContent = 'Show Pings';
-        btn.style.background = 'rgba(255, 165, 0, 0.1)';
-        btn.style.borderColor = 'rgba(255, 165, 0, 0.3)';
-        btn.style.color = '#ffa500';
-        console.log('Ping events are now hidden');
-        
-        // Re-render existing log to hide pings
-        renderEventLog();
+    // This function is now integrated with the event filter system
+    if (eventFilters.has('ping')) {
+        toggleEventFilter('ping'); // Remove ping filter
     } else {
-        btn.textContent = 'Hide Pings';
-        btn.style.background = 'rgba(0, 245, 255, 0.1)';
-        btn.style.borderColor = 'rgba(0, 245, 255, 0.3)';
-        btn.style.color = '#00f5ff';
-        console.log('Ping events are now visible');
-        
-        // Re-render existing log to show pings
-        renderEventLog();
+        toggleEventFilter('ping'); // Add ping filter
     }
+}
+
+    // ============ PERSISTENT UI STATE MANAGEMENT ============
+
+// Save UI state to localStorage
+function saveUIState() {
+    const uiState = {
+        leftPanelWidth,
+        rightPanelWidth,
+        collapsedSections: Array.from(collapsedSections)
+    };
+    localStorage.setItem('rcrt-dashboard-ui-state', JSON.stringify(uiState));
+}
+
+// Load UI state from localStorage
+function loadUIState() {
+    try {
+        const saved = localStorage.getItem('rcrt-dashboard-ui-state');
+        if (saved) {
+            const uiState = JSON.parse(saved);
+            leftPanelWidth = uiState.leftPanelWidth || 350;
+            rightPanelWidth = uiState.rightPanelWidth || 350;
+            collapsedSections = new Set(uiState.collapsedSections || []);
+            
+            // Apply loaded widths
+            applyPanelWidths();
+            applyCollapsedSections();
+        }
+    } catch (error) {
+        console.error('Failed to load UI state:', error);
+    }
+}
+
+// Apply panel widths to DOM
+function applyPanelWidths() {
+    const leftPanel = document.getElementById('leftPanel');
+    const rightPanel = document.getElementById('rightPanel');
+    
+    if (leftPanel) {
+        leftPanel.style.width = `${leftPanelWidth}px`;
+    }
+    if (rightPanel) {
+        rightPanel.style.width = `${rightPanelWidth}px`;
+    }
+    
+    console.log(`Applied panel widths: left=${leftPanelWidth}px, right=${rightPanelWidth}px`);
+}
+
+// Apply collapsed sections state
+function applyCollapsedSections() {
+    collapsedSections.forEach(sectionId => {
+        const section = document.querySelector(`[data-section="${sectionId}"]`);
+        if (section) {
+            section.classList.add('collapsed');
+            const button = section.querySelector('.section-collapse-btn');
+            if (button) {
+                button.textContent = button.textContent.includes('▼') ? '▶' : '▼';
+            }
+        }
+    });
+}
+
+// Toggle section collapse
+function toggleSectionCollapse(sectionId) {
+    const section = document.querySelector(`[data-section="${sectionId}"]`);
+    const button = event.target;
+    
+    if (!section) return;
+    
+    const isCollapsed = section.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+        section.classList.remove('collapsed');
+        button.textContent = '▼';
+        collapsedSections.delete(sectionId);
+    } else {
+        section.classList.add('collapsed');
+        button.textContent = '▶';
+        collapsedSections.add(sectionId);
+    }
+    
+    saveUIState();
+}
+
+// Initialize panel resize functionality
+function initializePanelResize() {
+    // Add resize handles
+    addResizeHandle('left');
+    addResizeHandle('right');
+}
+
+function addResizeHandle(side) {
+    const panel = document.getElementById(`${side}Panel`);
+    if (!panel) return;
+    
+    const handle = document.createElement('div');
+    handle.className = `resize-handle resize-handle-${side}`;
+    handle.innerHTML = '⋮';
+    panel.appendChild(handle);
+    
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = side === 'left' ? leftPanelWidth : rightPanelWidth;
+        e.preventDefault();
+        
+        // Add visual feedback
+        document.body.style.cursor = 'col-resize';
+        handle.style.background = 'rgba(0, 245, 255, 0.3)';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = side === 'left' ? (e.clientX - startX) : (startX - e.clientX);
+        const newWidth = Math.max(200, Math.min(800, startWidth + deltaX));
+        
+        if (side === 'left') {
+            leftPanelWidth = newWidth;
+        } else {
+            rightPanelWidth = newWidth;
+        }
+        
+        applyPanelWidths();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            handle.style.background = '';
+            saveUIState();
+        }
+    });
 }
 
 // Admin Panel Functions
@@ -1956,6 +2555,42 @@ function refreshSecrets() { loadAdminData('secrets'); }
 function refreshAcl() { loadAdminData('acl'); }
 function refreshWebhooks() { loadAdminData('webhooks'); }
 
+// Hygiene management functions
+async function triggerHygieneCleanup() {
+    if (!confirm('🧹 Run hygiene cleanup?\n\nThis will remove expired breadcrumbs including:\n- Health checks older than 5 minutes\n- System pings older than 10 minutes\n- Agent thinking data older than 6 hours\n- Other expired temporary data\n\nProceed?')) {
+        return;
+    }
+    
+    try {
+        console.log('Triggering hygiene cleanup...');
+        
+        const response = await fetch('/api/admin/purge', {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            const totalCleaned = result.ttl_purged + result.health_checks_purged + result.expired_purged;
+            
+            alert(`✅ Hygiene cleanup completed!\n\nCleaned up:\n- TTL expired: ${result.ttl_purged}\n- Health checks: ${result.health_checks_purged}\n- Other expired: ${result.expired_purged}\n\nTotal: ${totalCleaned} breadcrumbs removed`);
+            
+            // Refresh the breadcrumbs view
+            await loadBreadcrumbs();
+            renderBreadcrumbs();
+            updateStats();
+            
+        } else {
+            const errorText = await response.text();
+            alert(`❌ Hygiene cleanup failed: ${response.status} ${errorText}`);
+        }
+        
+    } catch (error) {
+        console.error('Hygiene cleanup error:', error);
+        alert(`❌ Hygiene cleanup error: ${error.message}`);
+    }
+}
+
 // Admin action functions
 async function viewAgent(id) { 
     try {
@@ -2084,18 +2719,421 @@ document.getElementById('adminModal').addEventListener('click', function(event) 
     }
 });
 
+// ============ CHAT INTERFACE FUNCTIONS ============
+
+// Initialize breadcrumb templates
+function initializeBreadcrumbTemplates() {
+    breadcrumbTemplates.set('tool.request.v1', {
+        title: 'Tool Request Test',
+        context: {
+            tool: 'openrouter',
+            input: {
+                messages: [
+                    { role: 'user', content: 'Hello! Please respond with: TEST_SUCCESS' }
+                ],
+                model: 'google/gemini-2.5-flash',
+                temperature: 0.7,
+                max_tokens: 50
+            }
+        },
+        tags: ['tool:request']
+    });
+    
+    breadcrumbTemplates.set('agent.def.v1', {
+        title: 'Test Agent Definition',
+        context: {
+            agent_id: 'test-agent-' + Date.now(),
+            thinking_llm_tool: 'openrouter',
+            model: 'google/gemini-2.5-flash',
+            system_prompt: 'You are a helpful test agent.',
+            capabilities: ['reasoning', 'analysis'],
+            max_runs: 5
+        },
+        tags: ['agent:def', 'agent:temporary']
+    });
+    
+    breadcrumbTemplates.set('prompt.system.v1', {
+        title: 'Test System Prompt',
+        context: {
+            role: 'system',
+            content: 'You are a specialized AI assistant for testing purposes.',
+            parameters: {
+                temperature: 0.7,
+                max_tokens: 1000
+            },
+            category: 'testing'
+        },
+        tags: ['prompt:system', 'test']
+    });
+    
+    breadcrumbTemplates.set('ui.plan.v1', {
+        title: 'Test UI Plan',
+        context: {
+            actions: [
+                {
+                    type: 'create_instance',
+                    region: 'main',
+                    instance: {
+                        component_ref: 'TestCard',
+                        props: {
+                            title: 'Test Component',
+                            description: 'A test UI component'
+                        }
+                    }
+                }
+            ]
+        },
+        tags: ['ui:plan', 'test']
+    });
+}
+
+// Update workspace options dynamically
+function updateWorkspaceOptions() {
+    // Collect unique workspaces from existing breadcrumbs
+    const workspaces = new Set(['workspace:tools', 'workspace:agents', 'workspace:ui', 'workspace:test']);
+    
+    breadcrumbs.forEach(breadcrumb => {
+        breadcrumb.tags.forEach(tag => {
+            if (tag.startsWith('workspace:')) {
+                workspaces.add(tag);
+            }
+        });
+    });
+    
+    const workspaceSelect = document.getElementById('workspaceSelect');
+    if (workspaceSelect) {
+        const currentValue = workspaceSelect.value;
+        workspaceSelect.innerHTML = Array.from(workspaces).sort().map(ws => {
+            const icon = ws.includes('tools') ? '🛠️' : ws.includes('agents') ? '🤖' : ws.includes('ui') ? '🎨' : '🧪';
+            return `<option value="${ws}">${icon} ${ws}</option>`;
+        }).join('');
+        
+        // Restore selection if it still exists
+        if (Array.from(workspaces).includes(currentValue)) {
+            workspaceSelect.value = currentValue;
+        }
+    }
+}
+
+// Quick test functions
+async function sendEchoTest() {
+    const testData = {
+        schema_name: 'tool.request.v1',
+        title: 'Echo Test from Dashboard',
+        tags: [document.getElementById('workspaceSelect').value, 'tool:request', 'test:echo'],
+        context: {
+            tool: 'echo',
+            input: {
+                message: 'Dashboard echo test: ' + new Date().toLocaleTimeString()
+            }
+        }
+    };
+    
+    await sendBreadcrumb(testData);
+}
+
+async function sendLLMTest() {
+    const testData = {
+        schema_name: 'tool.request.v1',
+        title: 'LLM Test from Dashboard',
+        tags: [document.getElementById('workspaceSelect').value, 'tool:request', 'test:llm'],
+        context: {
+            tool: 'openrouter',
+            input: {
+                messages: [
+                    { role: 'user', content: 'Please respond with: DASHBOARD_LLM_SUCCESS' }
+                ],
+                model: 'google/gemini-2.5-flash',
+                temperature: 0.1,
+                max_tokens: 20
+            }
+        }
+    };
+    
+    await sendBreadcrumb(testData);
+}
+
+async function sendRandomTest() {
+    const testData = {
+        schema_name: 'tool.request.v1', 
+        title: 'Random Number Test',
+        tags: [document.getElementById('workspaceSelect').value, 'tool:request', 'test:random'],
+        context: {
+            tool: 'random',
+            input: {
+                min: 1,
+                max: 100,
+                count: 3
+            }
+        }
+    };
+    
+    await sendBreadcrumb(testData);
+}
+
+// Update breadcrumb template based on type selection
+function updateBreadcrumbTemplate() {
+    const selectedType = document.getElementById('breadcrumbType').value;
+    
+    if (selectedType === 'custom') {
+        // Clear for custom entry
+        document.getElementById('chatTitle').value = '';
+        document.getElementById('chatContext').value = '{}';
+        chatTags = [];
+        updateChatTagDisplay();
+        return;
+    }
+    
+    const template = breadcrumbTemplates.get(selectedType);
+    if (template) {
+        document.getElementById('chatTitle').value = template.title;
+        document.getElementById('chatContext').value = JSON.stringify(template.context, null, 2);
+        chatTags = [...template.tags];
+        updateChatTagDisplay();
+    }
+}
+
+// Chat tag input handling
+function handleChatTagInput(event) {
+    if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault();
+        const input = event.target;
+        const tag = input.value.trim();
+        if (tag && !chatTags.includes(tag)) {
+            chatTags.push(tag);
+            updateChatTagDisplay();
+            input.value = '';
+        }
+    } else if (event.key === 'Backspace' && event.target.value === '') {
+        if (chatTags.length > 0) {
+            chatTags.pop();
+            updateChatTagDisplay();
+        }
+    }
+}
+
+function focusChatTagInput() {
+    document.getElementById('chatTagInput').focus();
+}
+
+function updateChatTagDisplay() {
+    const container = document.getElementById('chatTags');
+    container.innerHTML = chatTags.map(tag => 
+        `<span class="tag-chip">
+            ${escapeHtml(tag)}
+            <span class="remove-tag" onclick="removeChatTag('${tag}')">×</span>
+        </span>`
+    ).join('');
+}
+
+function removeChatTag(tag) {
+    chatTags = chatTags.filter(t => t !== tag);
+    updateChatTagDisplay();
+}
+
+// Send custom breadcrumb from chat interface
+async function sendChatBreadcrumb() {
+    const type = document.getElementById('breadcrumbType').value;
+    const workspace = document.getElementById('workspaceSelect').value;
+    const title = document.getElementById('chatTitle').value.trim();
+    const contextText = document.getElementById('chatContext').value.trim();
+    
+    if (!title) {
+        alert('Please enter a title');
+        return;
+    }
+    
+    let context;
+    try {
+        context = contextText ? JSON.parse(contextText) : {};
+    } catch (e) {
+        alert('Invalid JSON in context field');
+        return;
+    }
+    
+    // Combine workspace with additional tags
+    const allTags = [workspace, ...chatTags];
+    
+    const breadcrumbData = {
+        schema_name: type === 'custom' ? undefined : type,
+        title: title,
+        context: context,
+        tags: allTags
+    };
+    
+    await sendBreadcrumb(breadcrumbData);
+}
+
+// Generic breadcrumb sender
+async function sendBreadcrumb(data) {
+    try {
+        const response = await fetch('/api/breadcrumbs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Breadcrumb sent:', result.id);
+            
+            // Add success event to log
+            addEventToLog({
+                type: 'breadcrumb.sent',
+                breadcrumb_id: result.id,
+                title: data.title,
+                schema_name: data.schema_name,
+                tags: data.tags,
+                timestamp: new Date().toISOString(),
+                source: 'dashboard_chat'
+            });
+            
+            // Optionally refresh breadcrumbs list
+            setTimeout(loadBreadcrumbs, 1000);
+        } else {
+            const errorText = await response.text();
+            alert(`Failed to send breadcrumb: ${response.status} ${errorText}`);
+        }
+    } catch (error) {
+        console.error('Error sending breadcrumb:', error);
+        alert('Error sending breadcrumb');
+    }
+}
+
+function clearChatForm() {
+    document.getElementById('chatTitle').value = '';
+    document.getElementById('chatContext').value = '{}';
+    chatTags = [];
+    updateChatTagDisplay();
+    document.getElementById('breadcrumbType').selectedIndex = 0;
+    updateBreadcrumbTemplate();
+}
+
+// Event filtering functions
+function toggleEventFilter(filterType) {
+    const button = document.getElementById('filter' + filterType.charAt(0).toUpperCase() + filterType.slice(1));
+    
+    if (filterType === 'all') {
+        eventFilters.clear();
+        eventFilters.add('all');
+        
+        // Update all button states
+        document.querySelectorAll('[id^="filter"]').forEach(btn => {
+            btn.classList.remove('btn-primary');
+        });
+        button.classList.add('btn-primary');
+    } else {
+        if (eventFilters.has('all')) {
+            eventFilters.clear();
+            document.getElementById('filterAll').classList.remove('btn-primary');
+        }
+        
+        if (eventFilters.has(filterType)) {
+            eventFilters.delete(filterType);
+            button.classList.remove('btn-primary');
+        } else {
+            eventFilters.add(filterType);
+            button.classList.add('btn-primary');
+        }
+        
+        // If no specific filters, default back to all
+        if (eventFilters.size === 0) {
+            eventFilters.add('all');
+            document.getElementById('filterAll').classList.add('btn-primary');
+        }
+    }
+    
+    // Re-render event log with new filters
+    renderEventLog();
+}
+
+// Enhanced event filtering in renderEventLog
+function shouldShowEvent(event) {
+    if (eventFilters.has('all')) {
+        return true;
+    }
+    
+    // Filter by event type patterns
+    const eventType = event.type || 'unknown';
+    const schema = event.schema_name || '';
+    const tags = event.tags || [];
+    
+    if (eventFilters.has('tool') && (
+        eventType.includes('tool') || 
+        schema.includes('tool.') ||
+        tags.some(tag => tag.includes('tool'))
+    )) {
+        return true;
+    }
+    
+    if (eventFilters.has('agent') && (
+        eventType.includes('agent') || 
+        schema.includes('agent.') ||
+        tags.some(tag => tag.includes('agent'))
+    )) {
+        return true;
+    }
+    
+    if (eventFilters.has('ui') && (
+        eventType.includes('ui') || 
+        schema.includes('ui.') ||
+        tags.some(tag => tag.includes('ui'))
+    )) {
+        return true;
+    }
+    
+    if (eventFilters.has('ping') && eventType === 'ping') {
+        return true;
+    }
+    
+    return false; // 🔧 Don't show unmatched events when specific filters are active
+}
+
+// Close modal on background click
+document.getElementById('adminModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        hideAdminPanel();
+    }
+});
+
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas element
     canvas = document.getElementById('canvas');
     canvasContainer = canvas.parentElement;
     
+    // 🎯 Load persistent UI state first
+    loadUIState();
+    
+    // Initialize resizable panels
+    initializePanelResize();
+    
+    // Initialize chat interface
+    initializeBreadcrumbTemplates();
+    updateBreadcrumbTemplate(); // Load default template
+    
     // Load initial data
-    loadBreadcrumbs();
+    loadBreadcrumbs().then(() => {
+        // Update workspace options after breadcrumbs are loaded
+        updateWorkspaceOptions();
+    });
     
-    // Connect to event stream
-    connectEventStream();
+    // Connect to event stream (async for direct RCRT connection)
+    connectEventStream().catch(console.error);
     
-    // Auto-refresh every 30 seconds
-    setInterval(loadBreadcrumbs, 30000);
+    // Smart auto-refresh: only refresh if user hasn't been active recently
+    setInterval(() => {
+        const timeSinceLastInteraction = Date.now() - lastUserInteraction;
+        const inactiveThreshold = 60000; // 1 minute of inactivity
+        
+        // Only auto-refresh if user is inactive (preserves UX during active use)
+        if (timeSinceLastInteraction > inactiveThreshold) {
+            console.log('Auto-refreshing after user inactivity');
+            loadBreadcrumbs();
+        } else {
+            console.log('Skipping auto-refresh - user is active');
+        }
+    }, 120000); // Check every 2 minutes
 });

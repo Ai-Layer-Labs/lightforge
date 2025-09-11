@@ -320,7 +320,33 @@ export const langchainBridges = {
   } as RCRTTool)
 };
 
-// Helper to register all available LangChain tools
+// Enhanced function to register all tools: LangChain + LLM tools
+export async function registerAllToolsWithLLM(
+  client: RcrtClientEnhanced,
+  workspace: string,
+  config: {
+    serpApiKey?: string;
+    enableUI?: boolean;
+    enableLLMTools?: boolean;
+  } = {}
+): Promise<RCRTToolWrapper[]> {
+  const wrappers: RCRTToolWrapper[] = [];
+
+  // 1. Register LangChain tools (existing)
+  const langchainWrappers = await registerAllLangChainTools(client, workspace, config);
+  wrappers.push(...langchainWrappers);
+
+  // 2. Register LLM tools if enabled
+  if (config.enableLLMTools !== false) {
+    const llmWrappers = await registerLLMTools(client, workspace, config);
+    wrappers.push(...llmWrappers);
+  }
+
+  console.log(`Registered ${wrappers.length} total tools (LangChain + LLM) for workspace: ${workspace}`);
+  return wrappers;
+}
+
+// Original LangChain tools registration (keep for backwards compatibility)
 export async function registerAllLangChainTools(
   client: RcrtClientEnhanced,
   workspace: string,
@@ -352,6 +378,48 @@ export async function registerAllLangChainTools(
   wrappers.push(browserWrapper);
 
   console.log(`Registered ${wrappers.length} LangChain tools for workspace: ${workspace}`);
-  
+  return wrappers;
+}
+
+// New: LLM tools registration
+export async function registerLLMTools(
+  client: RcrtClientEnhanced,
+  workspace: string,
+  config: { enableUI?: boolean } = {}
+): Promise<RCRTToolWrapper[]> {
+  const { OpenRouterTool, OllamaTool, OpenRouterModelsCatalog } = await import('./llm-tools/index.js');
+  const wrappers: RCRTToolWrapper[] = [];
+
+  try {
+    // 1. Initialize OpenRouter models catalog (stores real model data as breadcrumb)
+    console.log('[LLM Tools] Initializing OpenRouter models catalog...');
+    const modelsCatalog = new OpenRouterModelsCatalog(client, workspace);
+    await modelsCatalog.initializeModelsCatalog();
+
+    // 2. Register OpenRouter tool
+    console.log('[LLM Tools] Registering OpenRouter tool...');
+    const openRouterTool = new OpenRouterTool();
+    const openRouterWrapper = new RCRTToolWrapper(openRouterTool, client, workspace, { enableUI: config.enableUI });
+    await openRouterWrapper.start();
+    wrappers.push(openRouterWrapper);
+
+    // 3. Register Ollama tool (if available)
+    console.log('[LLM Tools] Registering Ollama tool...');
+    try {
+      const ollamaTool = new OllamaTool();
+      const ollamaWrapper = new RCRTToolWrapper(ollamaTool, client, workspace, { enableUI: config.enableUI });
+      await ollamaWrapper.start();
+      wrappers.push(ollamaWrapper);
+      console.log('[LLM Tools] ✅ Ollama tool registered successfully');
+    } catch (error) {
+      console.warn('[LLM Tools] ⚠️ Ollama not available, skipping:', error.message);
+    }
+
+    console.log(`[LLM Tools] ✅ Registered ${wrappers.length} LLM tools`);
+    
+  } catch (error) {
+    console.error('[LLM Tools] ❌ Failed to register LLM tools:', error);
+  }
+
   return wrappers;
 }

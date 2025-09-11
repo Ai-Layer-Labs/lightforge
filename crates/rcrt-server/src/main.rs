@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use axum::{routing::{get, post, put, delete}, Router, extract::{State, Query, FromRequestParts}, http::{request::Parts, header, StatusCode}, Json};
 use tracing_subscriber::{EnvFilter, fmt};
 use uuid::Uuid;
@@ -9,6 +10,8 @@ use sqlx::migrate::Migrator;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde_json::json;
 use chrono;
+
+mod hygiene;
 #[cfg(feature = "nats")]
 use nats;
 use reqwest::Client as HttpClient;
@@ -21,8 +24,6 @@ use std::sync::OnceLock as StdOnceLock;
 use std::sync::OnceLock;
 #[cfg(feature = "embed-onnx")]
 use ort::{session::Session, value::Value, inputs};
-#[cfg(feature = "embed-onnx")]
-use std::sync::Mutex;
 #[cfg(feature = "embed-onnx")]
 use tokenizers::Tokenizer;
 // no ndarray tensors needed in embed path
@@ -37,6 +38,7 @@ struct AppState {
     jwt_validation: Validation,
     #[cfg(feature = "nats")]
     nats_conn: Option<nats::Connection>,
+    hygiene_stats: Arc<Mutex<hygiene::HygieneStats>>,
 }
 
 #[tokio::main]
@@ -73,10 +75,40 @@ async fn main() -> Result<()> {
         Some(nats::connect(&nats_url).expect("failed to connect to NATS"))
     };
 
+    // Create shared hygiene stats
+    let hygiene_stats = Arc::new(Mutex::new(hygiene::HygieneStats::default()));
+    
     #[cfg(feature = "nats")]
-    let state = AppState { db, jwt_decoding_key, jwt_encoding_key, jwt_validation, nats_conn };
+    let state = AppState { 
+        db, 
+        jwt_decoding_key, 
+        jwt_encoding_key, 
+        jwt_validation, 
+        nats_conn,
+        hygiene_stats: hygiene_stats.clone()
+    };
     #[cfg(not(feature = "nats"))]
-    let state = AppState { db, jwt_decoding_key, jwt_encoding_key, jwt_validation };
+    let state = AppState { 
+        db, 
+        jwt_decoding_key, 
+        jwt_encoding_key, 
+        jwt_validation,
+        hygiene_stats: hygiene_stats.clone()
+    };
+
+    // Start hygiene runner for automatic cleanup
+    tracing::info!("Initializing hygiene system...");
+    let hygiene_config = hygiene::load_hygiene_config();
+    tracing::info!("Hygiene config loaded: enabled={}, interval={}s", hygiene_config.enabled, hygiene_config.run_interval_seconds);
+    
+    let hygiene_runner = hygiene::HygieneRunner::new(state.clone(), Some(hygiene_config));
+    tracing::info!("Hygiene runner created, starting background task...");
+    
+    let hygiene_handle = hygiene_runner.start();
+    tracing::info!("Hygiene runner started for automatic cleanup");
+    
+    // Don't drop the handle - store it to keep the task alive
+    let _hygiene_task = hygiene_handle;
 
     let app = Router::new()
         .route("/health", get(health))
@@ -112,6 +144,8 @@ async fn main() -> Result<()> {
         .route("/dlq", get(list_dlq))
         .route("/dlq/:id", delete(delete_dlq))
         .route("/dlq/:id/retry", post(retry_dlq))
+        .route("/hygiene/stats", get(get_hygiene_stats))
+        .route("/hygiene/run", post(trigger_hygiene_run))
         .with_state(state)
         .layer(axum::middleware::from_fn(http_metrics_middleware));
 
@@ -427,24 +461,33 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
     }
     // Try embedding before insert for atomicity if available
     let emb = embed_text(extract_text_for_embedding_struct(&req)).ok();
+    
+    // Apply automatic TTL policies for certain breadcrumb types
+    let mut breadcrumb_create = BreadcrumbCreate {
+        title: req.title,
+        context: req.context,
+        tags: req.tags.clone(),
+        schema_name: req.schema_name.clone(),
+        visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
+        sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
+        ttl: req.ttl,
+    };
+    
+    // Apply automatic TTL based on schema and tags
+    hygiene::apply_auto_ttl(&mut breadcrumb_create, req.schema_name.as_deref(), &req.tags);
+    
     let bc = state.db.create_breadcrumb_with_embedding_for(
         auth.owner_id,
         Some(auth.agent_id),
         Some(auth.agent_id),
-        BreadcrumbCreate {
-            title: req.title,
-            context: req.context,
-            tags: req.tags,
-            schema_name: req.schema_name,
-            visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
-            sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
-            ttl: req.ttl,
-        },
+        breadcrumb_create,
         emb
     ).await.map_err(internal_error)?;
     // Publish event (best-effort)
     #[cfg(feature = "nats")]
     if let Some(conn) = &state.nats_conn {
+        tracing::info!("🔧 NATS: Publishing breadcrumb events for {}", bc.id);
+        
         // Send both created and updated for immediate consumers that expect either
         let mut payload_base = json!({
             "breadcrumb_id": bc.id,
@@ -467,9 +510,22 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         let updated = updated_obj.to_string();
         let subj_created = format!("bc.{}.created", bc.id);
         let subj_updated = format!("bc.{}.updated", bc.id);
-        let _ = conn.publish(&subj_created, created.as_bytes());
-        let _ = conn.publish(&subj_updated, updated.as_bytes());
+        
+        tracing::info!("🔧 NATS: Publishing to {} and {}", subj_created, subj_updated);
+        
+        match conn.publish(&subj_created, created.as_bytes()) {
+            Ok(_) => tracing::info!("🔧 NATS: ✅ Published created event"),
+            Err(e) => tracing::error!("🔧 NATS: ❌ Failed to publish created event: {}", e)
+        }
+        
+        match conn.publish(&subj_updated, updated.as_bytes()) {
+            Ok(_) => tracing::info!("🔧 NATS: ✅ Published updated event"),
+            Err(e) => tracing::error!("🔧 NATS: ❌ Failed to publish updated event: {}", e)
+        }
+        
         fanout_events_and_webhooks(&state, auth.owner_id, &bc, &updated).await;
+    } else {
+        tracing::warn!("🔧 NATS: ❌ No NATS connection available - events will not be published!");
     }
     Ok(Json(CreateResp { id: bc.id }))
 }
@@ -503,7 +559,24 @@ struct UpdateReq {
 }
 
 async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, headers: axum::http::HeaderMap, axum::extract::Path(id): axum::extract::Path<Uuid>, Json(req): Json<UpdateReq>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("🔧 UPDATE_BREADCRUMB DEBUG: Starting update for breadcrumb {}", id);
+    tracing::info!("🔧 Agent: {}, Owner: {}", auth.agent_id, auth.owner_id);
+    
     let expected_version = headers.get(axum::http::header::IF_MATCH).and_then(|h| h.to_str().ok()).and_then(|s| s.trim_matches('"').parse::<i32>().ok());
+    tracing::info!("🔧 Expected version: {:?}", expected_version);
+    tracing::info!("🔧 Request payload: title={:?}, context_exists={}, tags={:?}", 
+        req.title, req.context.is_some(), req.tags);
+    
+    if let Some(context) = &req.context {
+        let context_preview = serde_json::to_string(context).unwrap_or_default();
+        let preview = if context_preview.len() > 200 { 
+            format!("{}...", &context_preview[..200]) 
+        } else { 
+            context_preview 
+        };
+        tracing::info!("🔧 Context payload preview: {}", preview);
+    }
+    
     let upd = rcrt_core::models::BreadcrumbUpdate {
         title: req.title,
         context: req.context,
@@ -513,9 +586,19 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
     };
-    let _bc = state.db.update_breadcrumb(auth.owner_id, auth.agent_id, id, expected_version, upd).await.map_err(|e| {
+    
+    tracing::info!("🔧 BreadcrumbUpdate created: context_is_some={}", upd.context.is_some());
+    
+    let bc = state.db.update_breadcrumb(auth.owner_id, auth.agent_id, id, expected_version, upd).await.map_err(|e| {
+        tracing::error!("🔧 Database update failed: {}", e);
         if e.to_string().contains("version_mismatch") { (StatusCode::PRECONDITION_FAILED, e.to_string()) } else { internal_error(e) }
     })?;
+    
+    tracing::info!("🔧 Database update succeeded: version={}, context_preview={}", 
+        bc.version, 
+        serde_json::to_string(&bc.context).unwrap_or_default().chars().take(100).collect::<String>()
+    );
+    
     Ok(Json(json!({"ok": true})))
 }
 
@@ -527,8 +610,30 @@ async fn delete_breadcrumb(State(state): State<AppState>, auth: AuthContext, axu
 
 async fn admin_purge(State(state): State<AppState>, auth: AuthContext) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if !auth.roles.iter().any(|r| r == "curator") { return Err((StatusCode::FORBIDDEN, "curator role required".into())); }
-    let purged = state.db.purge_expired_for_owner(auth.owner_id).await.map_err(internal_error)?;
-    Ok(Json(json!({"purged": purged})))
+    
+    tracing::info!("Admin purge triggered by agent: {}", auth.agent_id);
+    
+    // Run comprehensive cleanup
+    let ttl_purged = state.db.purge_expired_for_owner(auth.owner_id).await.map_err(internal_error)?;
+    
+    let health_checks_purged = hygiene::cleanup_health_checks(&state.db)
+        .await
+        .map_err(internal_error)?;
+    
+    let expired_purged = hygiene::cleanup_expired_breadcrumbs(&state.db)
+        .await
+        .map_err(internal_error)?;
+    
+    let total_purged = ttl_purged + (health_checks_purged as i64) + (expired_purged as i64);
+    
+    tracing::info!("Admin purge completed: {} breadcrumbs purged", total_purged);
+    
+    Ok(Json(json!({
+        "purged": total_purged,
+        "ttl_purged": ttl_purged,
+        "health_checks_purged": health_checks_purged,
+        "expired_purged": expired_purged
+    })))
 }
 
 async fn get_breadcrumb_history(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
@@ -1176,27 +1281,59 @@ async fn sse_stream(State(state): State<AppState>, auth: AuthContext) -> Result<
     use tokio::sync::mpsc;
     use chrono::Utc;
     use std::time::Duration;
-    if state.nats_conn.is_none() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+    if state.nats_conn.is_none() { 
+        tracing::error!("🔧 SSE: ❌ No NATS connection available for SSE stream!");
+        return Err(StatusCode::SERVICE_UNAVAILABLE); 
+    }
+    
     let conn = state.nats_conn.as_ref().unwrap().clone();
-    // Subscribe to all breadcrumb update events
-    let sub_bc = conn.subscribe("bc.*.updated").map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let sub_agent = conn.subscribe(&format!("agents.{}.events", auth.agent_id)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    tracing::info!("🔧 SSE: 📡 NEW SSE CONNECTION from agent {} (owner: {})", auth.agent_id, auth.owner_id);
+    
+    // Subscribe to all breadcrumb update events  
+    tracing::info!("🔧 SSE: Subscribing to NATS bc.*.updated...");
+    let sub_bc = conn.subscribe("bc.*.updated").map_err(|e| {
+        tracing::error!("🔧 SSE: ❌ Failed to subscribe to bc.*.updated: {}", e);
+        StatusCode::SERVICE_UNAVAILABLE
+    })?;
+    
+    tracing::info!("🔧 SSE: Subscribing to NATS agents.{}.events...", auth.agent_id);
+    let sub_agent = conn.subscribe(&format!("agents.{}.events", auth.agent_id)).map_err(|e| {
+        tracing::error!("🔧 SSE: ❌ Failed to subscribe to agent events: {}", e);
+        StatusCode::SERVICE_UNAVAILABLE
+    })?;
+    
     let (tx, rx) = mpsc::unbounded_channel::<String>();
+    tracing::info!("🔧 SSE: ✅ NATS subscriptions established, spawning bridge task...");
 
     // Spawn a bridge task
     let owner = auth.owner_id;
     let tx_bc = tx.clone();
     tokio::task::spawn_blocking(move || {
+        tracing::info!("🔧 SSE: Bridge task started, listening for NATS bc.*.updated events...");
         for msg in sub_bc.messages() {
             if let Ok(txt) = std::str::from_utf8(&msg.data) {
+                tracing::info!("🔧 SSE: 📡 NATS event received: {}", &txt[..std::cmp::min(100, txt.len())]);
+                
                 let pass = serde_json::from_str::<serde_json::Value>(txt)
                     .ok()
                     .and_then(|v| v.get("owner_id").cloned())
                     .and_then(|v| v.as_str().map(|s| s.to_string()))
                     .and_then(|s| Uuid::parse_str(&s).ok())
-                    .map(|oid| oid == owner)
+                    .map(|oid| {
+                        let matches = oid == owner;
+                        tracing::info!("🔧 SSE: Owner filter - event owner: {}, my owner: {}, matches: {}", oid, owner, matches);
+                        matches
+                    })
                     .unwrap_or(false);
-                if pass { let _ = tx_bc.send(txt.to_string()); }
+                
+                if pass { 
+                    tracing::info!("🔧 SSE: ✅ Owner filter passed, forwarding event to SSE client");
+                    let _ = tx_bc.send(txt.to_string()); 
+                } else {
+                    tracing::info!("🔧 SSE: ⏭️ Owner filter failed, skipping event");
+                }
+            } else {
+                tracing::warn!("🔧 SSE: ⚠️ Failed to decode NATS message as UTF-8");
             }
         }
     });
@@ -1229,5 +1366,59 @@ async fn sse_stream(State(state): State<AppState>, auth: AuthContext) -> Result<
 async fn sse_stream(_: State<AppState>, _: AuthContext) -> Result<axum::response::Sse<impl futures_core::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>>, StatusCode> {
     Err(StatusCode::SERVICE_UNAVAILABLE)
 }
+
+// Hygiene management endpoints
+async fn get_hygiene_stats(State(state): State<AppState>, auth: AuthContext) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // Only curators can view hygiene stats
+    if !auth.roles.iter().any(|r| r == "curator") { 
+        return Err((StatusCode::FORBIDDEN, "curator role required".into())); 
+    }
+    
+    let stats = match state.hygiene_stats.lock() {
+        Ok(stats) => stats.clone(),
+        Err(_) => hygiene::HygieneStats::default(),
+    };
+    
+    Ok(Json(json!({
+        "runs_completed": stats.runs_completed,
+        "total_breadcrumbs_purged": stats.total_breadcrumbs_purged,
+        "total_agents_cleaned": stats.total_agents_cleaned,
+        "last_run_duration_ms": stats.last_run_duration_ms,
+        "last_run_errors": stats.last_run_errors,
+        "hygiene_enabled": true,
+        "last_updated": chrono::Utc::now().to_rfc3339()
+    })))
+}
+
+async fn trigger_hygiene_run(State(state): State<AppState>, auth: AuthContext) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // Only curators can trigger manual hygiene runs
+    if !auth.roles.iter().any(|r| r == "curator") {
+        return Err((StatusCode::FORBIDDEN, "curator role required".into()));
+    }
+    
+    tracing::info!("Manual hygiene run triggered by agent: {}", auth.agent_id);
+    
+    // Use direct cleanup functions for immediate results
+    let health_checks_purged = hygiene::cleanup_health_checks(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    let expired_purged = hygiene::cleanup_expired_breadcrumbs(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    let total_cleaned = health_checks_purged + expired_purged;
+    
+    tracing::info!("Manual hygiene completed: {} breadcrumbs cleaned", total_cleaned);
+    
+    Ok(Json(json!({
+        "triggered": true,
+        "health_checks_purged": health_checks_purged,
+        "expired_breadcrumbs_purged": expired_purged,
+        "total_cleaned": total_cleaned,
+        "message": "Manual hygiene run completed successfully"
+    })))
+}
+
 
 

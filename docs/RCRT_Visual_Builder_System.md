@@ -142,7 +142,7 @@ A pure RCRT-based visual agent builder where everything - including UI component
             { "schema": "knowledge.base.v1" }
           ],
           "llm_config": {
-            "model": "openrouter/anthropic/claude-3.5-sonnet",
+            "model": "openrouter/google/gemini-2.5-flash",
             "temperature": 0.7
           }
         }
@@ -1341,7 +1341,7 @@ Every service node receives credentials as an input, making the flow:
           "type": "select",
           "dynamic": "based_on_provider",
           "options": [
-            "anthropic/claude-3.5-sonnet",
+            "google/gemini-2.5-flash",
             "openai/gpt-4o",
             "openai/gpt-4o-mini",
             "google/gemini-pro-1.5"
@@ -1628,7 +1628,7 @@ Every service node receives credentials as an input, making the flow:
         "type": "AgentNode",
         "position": { "x": 400, "y": 200 },
         "config": {
-          "model": "openrouter/anthropic/claude-3.5-sonnet",
+          "model": "openrouter/google/gemini-2.5-flash",
           "system_prompt": "You are a research agent...",
           "owned_tags": ["owned_by:researcher_001"]
         }
@@ -1764,7 +1764,7 @@ Every service node receives credentials as an input, making the flow:
   "tags": ["agent:def", "meta:agent", "builder"],
   "context": {
     "agent_id": "agent.builder",
-    "model": "openrouter/anthropic/claude-3.5-sonnet",
+    "model": "openrouter/google/gemini-2.5-flash",
     "system_prompt": "You build other agents by creating agent.def breadcrumbs...",
     "capabilities": {
       "can_spawn_agents": true,
@@ -2642,7 +2642,7 @@ RCRT_JWT_TOKEN=<token>
 
 # OpenRouter
 OPENROUTER_API_KEY=<your-key>
-OPENROUTER_DEFAULT_MODEL=anthropic/claude-3.5-sonnet
+OPENROUTER_DEFAULT_MODEL=google/gemini-2.5-flash
 
 # Builder Config
 BUILDER_WORKSPACE=workspace:builder
@@ -2740,7 +2740,7 @@ async function bootstrap() {
     schema_name: "agent.def.v1",
     context: {
       agent_id: "agent.builder",
-      model: "openrouter/anthropic/claude-3.5-sonnet",
+      model: "openrouter/google/gemini-2.5-flash",
       system_prompt: "You build other agents by creating agent.def breadcrumbs",
       capabilities: {
         can_spawn_agents: true,

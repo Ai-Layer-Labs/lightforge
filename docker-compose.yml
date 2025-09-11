@@ -34,7 +34,7 @@ services:
       DB_URL: postgres://postgres:postgres@db:5432/rcrt
       NATS_URL: nats://nats:4222
       OWNER_ID: 00000000-0000-0000-0000-000000000001
-      AUTH_MODE: disabled
+      AUTH_MODE: jwt
       AGENT_ID: 00000000-0000-0000-0000-0000000000aa
       JWT_PUBLIC_KEY_PEM: |
         -----BEGIN PUBLIC KEY-----
@@ -81,6 +81,12 @@ services:
       OPENROUTER_SITE_TITLE: ${OPENROUTER_SITE_TITLE:-}
       EMBED_MODEL: /app/models/model.onnx
       EMBED_TOKENIZER: /app/models/tokenizer.json
+      # Hygiene runner configuration
+      HYGIENE_ENABLED: "true"
+      HYGIENE_INTERVAL_SECONDS: "30"           # Run every 30 seconds (for testing)
+      HYGIENE_HEALTHCHECK_TTL_MINUTES: "5"     # Health checks expire in 5 minutes
+      HYGIENE_TEMP_DATA_TTL_HOURS: "24"        # Temporary data expires in 24 hours
+      HYGIENE_AGENT_IDLE_HOURS: "48"           # Idle agents cleaned after 48 hours
     ports:
       - "8081:8080"
 

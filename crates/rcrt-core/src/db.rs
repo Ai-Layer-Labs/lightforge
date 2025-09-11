@@ -416,6 +416,10 @@ impl Db {
     }
 
     pub async fn update_breadcrumb(&self, owner_id: Uuid, agent_id: Uuid, id: Uuid, expected_version: Option<i32>, u: BreadcrumbUpdate) -> Result<Breadcrumb> {
+        tracing::info!("🔧 DB: update_breadcrumb called for {} by agent {}", id, agent_id);
+        tracing::info!("🔧 DB: Update contains - title: {:?}, context: {}, tags: {:?}", 
+            u.title, u.context.is_some(), u.tags);
+        
         let mut conn = self.pool.acquire().await?;
         set_rls(&mut conn, owner_id, Some(agent_id)).await?;
         // Fetch current
@@ -425,7 +429,18 @@ impl Db {
         .bind(id)
         .fetch_one(&mut *conn)
         .await?;
-        if let Some(ev) = expected_version { if cur.version != ev { anyhow::bail!("version_mismatch"); } }
+        
+        tracing::info!("🔧 DB: Current breadcrumb version={}, context_preview={}", 
+            cur.version, 
+            serde_json::to_string(&cur.context).unwrap_or_default().chars().take(100).collect::<String>()
+        );
+        
+        if let Some(ev) = expected_version { 
+            if cur.version != ev { 
+                tracing::warn!("🔧 DB: Version mismatch! Expected: {}, Current: {}", ev, cur.version);
+                anyhow::bail!("version_mismatch"); 
+            } 
+        }
 
         let new_title = u.title.unwrap_or(cur.title);
         let new_context = u.context.unwrap_or(cur.context);
@@ -437,6 +452,11 @@ impl Db {
         let new_checksum = checksum_json(&new_context);
         let new_size = serde_json::to_vec(&new_context)?.len() as i32;
         let new_version = cur.version + 1;
+        
+        tracing::info!("🔧 DB: New values - version: {} -> {}, context_size: {} bytes, context_preview: {}", 
+            cur.version, new_version, new_size,
+            serde_json::to_string(&new_context).unwrap_or_default().chars().take(100).collect::<String>()
+        );
 
         let rec = sqlx::query_as::<_, DbBreadcrumb>(
             r#"update breadcrumbs set title=$2, context=$3, tags=$4, schema_name=$5,
@@ -458,6 +478,11 @@ impl Db {
         .bind(new_size)
         .fetch_one(&mut *conn)
         .await?;
+        
+        tracing::info!("🔧 DB: SQL UPDATE completed successfully! Returned version={}, context_preview={}", 
+            rec.version,
+            serde_json::to_string(&rec.context).unwrap_or_default().chars().take(100).collect::<String>()
+        );
 
         // Append history
         sqlx::query(r#"insert into breadcrumb_history (breadcrumb_id, version, context, updated_at, updated_by, checksum) values ($1,$2,$3, now(), $4, $5)"#)

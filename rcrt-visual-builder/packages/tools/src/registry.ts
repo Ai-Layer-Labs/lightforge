@@ -103,6 +103,35 @@ export class ToolRegistry {
     if (this.tools.has(tool.name)) {
       throw new Error(`Tool ${tool.name} is already registered`);
     }
+    
+    // Skip registration if tool already exists in loaded catalog
+    const existingTool = this.catalog.find(entry => entry.name === tool.name);
+    if (existingTool) {
+      console.log(`[ToolRegistry] ⏭️  Skipping ${tool.name} - already exists in loaded catalog`);
+      
+      // If we have a wrapper for this tool, return it; otherwise, this is a new session
+      // and we'll need to create the wrapper but not add to catalog again
+      if (this.tools.has(tool.name)) {
+        return this.tools.get(tool.name)!;
+      } else {
+        // Create wrapper but don't add to catalog (it's already there)
+        const wrapper = new RCRTToolWrapper(
+          tool, 
+          this.client, 
+          this.workspace, 
+          { enableUI: this.options.enableUI, applyClient: this.options.applyClient }
+        );
+        await wrapper.start();
+        this.tools.set(tool.name, wrapper);
+        
+        // Update the existing catalog entry status
+        existingTool.status = 'active';
+        existingTool.lastSeen = new Date().toISOString();
+        
+        console.log(`[ToolRegistry] ✅ Restored ${tool.name} from catalog (no catalog update needed)`);
+        return wrapper;
+      }
+    }
 
     // Ensure required secrets for this tool
     if (Array.isArray(tool.requiredSecrets) && tool.requiredSecrets.length > 0) {
@@ -140,7 +169,12 @@ export class ToolRegistry {
       lastSeen: new Date().toISOString()
     });
     
+    console.log(`[ToolRegistry] DEBUG: About to update catalog. Current catalog length: ${this.catalog.length}`);
+    console.log(`[ToolRegistry] DEBUG: Tools in catalog:`, this.catalog.map(t => ({ name: t.name, status: t.status })));
+    
     await this.updateCatalog();
+    
+    console.log(`[ToolRegistry] DEBUG: Catalog update completed. Catalog length: ${this.catalog.length}`);
     return wrapper;
   }
 
@@ -162,9 +196,9 @@ export class ToolRegistry {
     openaiApiKey?: string;
     enableCalculator?: boolean;
     enableWebBrowser?: boolean;
+    enableLLMTools?: boolean; // 🆕 NEW: Enable LLM tools
   } = {}): Promise<void> {
-    const { registerAllLangChainTools } = await import('./langchain.js');
-    const { langchainBridges } = await import('./langchain.js');
+    const { registerAllToolsWithLLM } = await import('./langchain.js');
     
     try {
       // Ensure required secrets for LangChain set
@@ -177,34 +211,56 @@ export class ToolRegistry {
         }
       }
 
-      const wrappers = await registerAllLangChainTools(this.client, this.workspace, {
+      // Use enhanced registration that includes LLM tools
+      const wrappers = await registerAllToolsWithLLM(this.client, this.workspace, {
         serpApiKey: serpKey,
-        enableUI: this.options.enableUI
+        enableUI: this.options.enableUI,
+        enableLLMTools: config.enableLLMTools !== false // Default to enabled
       });
       
-      // Add to our registry
+      // Add to our registry AND catalog (with duplicate check)
       for (const wrapper of wrappers) {
         const toolName = (wrapper as any).tool?.name;
-        if (toolName) {
-          this.tools.set(toolName, wrapper);
+        const tool = (wrapper as any).tool;
+        if (toolName && tool) {
+          // Check if tool already exists in loaded catalog
+          const existingTool = this.catalog.find(entry => entry.name === tool.name);
+          if (existingTool) {
+            console.log(`[ToolRegistry] ⏭️  Skipping ${tool.name} - already exists in loaded catalog`);
+            
+            // Just add to runtime registry and update status
+            this.tools.set(toolName, wrapper);
+            existingTool.status = 'active';
+            existingTool.lastSeen = new Date().toISOString();
+          } else {
+            // Add to both runtime registry and catalog  
+            this.tools.set(toolName, wrapper);
+            this.catalog.push({
+              name: tool.name,
+              description: tool.description || `${tool.category || 'Tool'}: ${tool.name}`,
+              category: tool.category || 'general',
+              version: tool.version || '1.0.0',
+              inputSchema: tool.inputSchema,
+              outputSchema: tool.outputSchema,
+              capabilities: {
+                async: true,
+                timeout: 30000,
+                retries: 0
+              },
+              status: 'active',
+              lastSeen: new Date().toISOString()
+            });
+            console.log(`[ToolRegistry] ✅ Added new ${tool.category || 'tool'} tool ${tool.name} to catalog`);
+          }
         }
       }
-      
-      // Also conditionally register Brave Search when the secret exists
-      const braveSec = await this.ensureSecrets(['BRAVE_SEARCH_API_KEY'], { toolName: 'brave_search' });
-      if (braveSec.BRAVE_SEARCH_API_KEY) {
-        const braveTool = langchainBridges.braveSearch();
-        const braveWrapper = new RCRTToolWrapper(braveTool, this.client, this.workspace, { enableUI: this.options.enableUI, applyClient: this.options.applyClient });
-        await braveWrapper.start();
-        this.tools.set('brave_search', braveWrapper);
-        wrappers.push(braveWrapper);
-      }
 
-      console.log(`[ToolRegistry] Registered ${wrappers.length} LangChain tools`);
+      console.log(`[ToolRegistry] Registered ${wrappers.length} tools (LangChain + LLM)`);
+      console.log(`[ToolRegistry] DEBUG: Total catalog now has ${this.catalog.length} tools`);
       await this.updateCatalog();
       
     } catch (error) {
-      console.error('[ToolRegistry] Failed to register LangChain tools:', error);
+      console.error('[ToolRegistry] Failed to register tools:', error);
     }
   }
 
@@ -222,26 +278,80 @@ export class ToolRegistry {
 
   private async initializeCatalog(): Promise<void> {
     try {
-      // Look for existing catalog breadcrumb
-      const existingCatalogs = await this.client.listBreadcrumbs({
-        tags: [this.workspace, 'tool:catalog'],
-        schema_name: 'tool.catalog.v1'
+      console.log(`[ToolRegistry] DEBUG: Searching for existing catalogs in ${this.workspace}...`);
+      
+      // Use the correct SDK method - searchBreadcrumbs
+      const allWorkspaceBreadcrumbs = await this.client.searchBreadcrumbs({
+        tag: this.workspace
       });
       
+      console.log(`[ToolRegistry] DEBUG: Found ${allWorkspaceBreadcrumbs.length} total breadcrumbs in ${this.workspace}`);
+      console.log(`[ToolRegistry] DEBUG: Sample breadcrumbs:`, allWorkspaceBreadcrumbs.slice(0, 3).map(b => ({ 
+        id: b.id, 
+        title: b.title, 
+        schema_name: b.schema_name,
+        tags: b.tags 
+      })));
+      
+      // Dead simple filter - just look for "tool:catalog" tag  
+      const existingCatalogs = allWorkspaceBreadcrumbs.filter(b => 
+        b.tags.includes('tool:catalog')
+      );
+      
+      console.log(`[ToolRegistry] Found ${existingCatalogs.length} existing catalog(s) for ${this.workspace}`);
+      
       if (existingCatalogs.length > 0) {
-        // Use the most recent catalog
-        const latest = existingCatalogs.sort((a, b) => 
+        console.log(`[ToolRegistry] DEBUG: Existing catalogs:`, existingCatalogs.map(c => ({
+          id: c.id,
+          title: c.title,
+          version: c.version,
+          updated_at: c.updated_at
+        })));
+      }
+      
+      if (existingCatalogs.length > 0) {
+        // Sort by most recent  
+        const sortedCatalogs = existingCatalogs.sort((a, b) => 
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        )[0];
+        );
         
+        // Use the most recent catalog
+        const latest = sortedCatalogs[0];
         this.catalogBreadcrumbId = latest.id;
-        console.log(`[ToolRegistry] Found existing catalog breadcrumb: ${this.catalogBreadcrumbId}`);
+        console.log(`[ToolRegistry] Using latest catalog: ${this.catalogBreadcrumbId} (v${latest.version})`);
+        
+        // If multiple catalogs found, this indicates a problem - log it but don't auto-delete
+        if (existingCatalogs.length > 1) {
+          console.error(`[ToolRegistry] PROBLEM: Found ${existingCatalogs.length} catalog duplicates! This indicates the single catalog implementation has a bug.`);
+          console.error(`[ToolRegistry] Duplicate catalogs:`, existingCatalogs.map(c => ({ id: c.id, version: c.version, updated_at: c.updated_at })));
+          console.error(`[ToolRegistry] Using most recent catalog but this needs investigation.`);
+        }
         
         // Load existing tools from catalog
-        const fullCatalog = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
-        if (fullCatalog.context?.tools) {
-          this.catalog = fullCatalog.context.tools;
-          console.log(`[ToolRegistry] Loaded ${this.catalog.length} tools from existing catalog`);
+        try {
+          console.log(`[ToolRegistry] DEBUG: Loading full catalog from ID: ${this.catalogBreadcrumbId}`);
+          const fullCatalog = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
+          
+          console.log(`[ToolRegistry] DEBUG: Full catalog loaded:`, {
+            id: fullCatalog.id,
+            title: fullCatalog.title,
+            context_exists: !!fullCatalog.context,
+            context_tools_exists: !!fullCatalog.context?.tools,
+            context_tools_length: fullCatalog.context?.tools?.length || 0,
+            context_sample: fullCatalog.context ? Object.keys(fullCatalog.context) : []
+          });
+          
+          if (fullCatalog.context?.tools) {
+            this.catalog = fullCatalog.context.tools;
+            console.log(`[ToolRegistry] ✅ Loaded ${this.catalog.length} tools from existing catalog`);
+          } else {
+            console.warn(`[ToolRegistry] ❌ Catalog has no tools array - context.tools is missing or empty`);
+            console.warn(`[ToolRegistry] Catalog context:`, fullCatalog.context);
+            this.catalog = [];
+          }
+        } catch (error) {
+          console.error(`[ToolRegistry] ❌ Failed to load catalog contents:`, error);
+          this.catalog = [];
         }
       } else {
         // Create initial empty catalog
@@ -294,7 +404,7 @@ export class ToolRegistry {
       // Get current version for optimistic concurrency control
       const current = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
       
-      await this.client.updateBreadcrumb(this.catalogBreadcrumbId, {
+      const updatePayload = {
         title: `${this.workspace} Tool Catalog`,
         context: {
           workspace: this.workspace,
@@ -303,11 +413,30 @@ export class ToolRegistry {
           activeTools: this.catalog.filter(t => t.status === 'active').length,
           lastUpdated: new Date().toISOString()
         }
-      }, {
-        ifMatch: current.version
+      };
+      
+      console.log(`[ToolRegistry] DEBUG: Updating catalog breadcrumb with payload:`, {
+        ...updatePayload,
+        context: {
+          ...updatePayload.context,
+          tools: updatePayload.context.tools.map(t => ({ name: t.name, status: t.status }))
+        }
       });
       
-      console.log(`[ToolRegistry] Updated catalog breadcrumb with ${this.catalog.length} tools`);
+      console.log(`[ToolRegistry] DEBUG: About to call updateBreadcrumb with version ${current.version}`);
+      
+      const updateResult = await this.client.updateBreadcrumb(
+        this.catalogBreadcrumbId, 
+        current.version,
+        updatePayload
+      );
+      
+      console.log(`[ToolRegistry] DEBUG: Update result:`, updateResult);
+      console.log(`[ToolRegistry] ✅ Updated catalog breadcrumb with ${this.catalog.length} tools`);
+      
+      // Verify the update by reading it back
+      const verification = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
+      console.log(`[ToolRegistry] DEBUG: Verification - catalog now has ${verification.context?.tools?.length || 0} tools in database`);
       
     } catch (error) {
       console.error('[ToolRegistry] Failed to update catalog:', error);

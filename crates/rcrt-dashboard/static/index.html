@@ -9,11 +9,12 @@
 <body>
     <div class="header">
         <div class="logo">RCRT Dashboard</div>
-            <div class="controls">
+                <div class="controls">
                 <div class="stats" id="stats">Loading...</div>
                 <button class="btn" onclick="refreshBreadcrumbs()">Refresh</button>
                 <button class="btn" onclick="resetView()">Reset View</button>
                 <button class="btn" onclick="resetNodePositions()">Reset Layout</button>
+                <button class="btn" onclick="triggerHygieneCleanup()">🧹 Cleanup</button>
                 <button class="btn" onclick="showAdminPanel()" id="adminBtn">Admin</button>
             </div>
     </div>
@@ -23,9 +24,13 @@
             <div class="panel-toggle" onclick="togglePanel()">◀</div>
             
             <!-- Filters Section -->
-            <div class="panel-section">
-                <h3>🔍 Filters</h3>
-                <div class="form-group">
+            <div class="panel-section" data-section="filters">
+                <h3 onclick="toggleSectionCollapse('filters')">
+                    🔍 Filters
+                    <button class="section-collapse-btn">▼</button>
+                </h3>
+                <div class="section-content">
+                    <div class="form-group">
                     <label for="searchInput">Search Title</label>
                     <input type="text" id="searchInput" class="form-input" placeholder="Search breadcrumbs..." 
                            oninput="applyFilters()">
@@ -56,12 +61,17 @@
                         🗑️ Delete All Filtered (<span id="deleteAllCount">0</span>)
                     </button>
                 </div>
+                </div>
             </div>
 
             <!-- CRUD Operations Section -->
-            <div class="panel-section">
-                <h3>➕ Create New</h3>
-                <div class="form-group">
+            <div class="panel-section" data-section="create">
+                <h3 onclick="toggleSectionCollapse('create')">
+                    ➕ Create New
+                    <button class="section-collapse-btn">▼</button>
+                </h3>
+                <div class="section-content">
+                    <div class="form-group">
                     <label for="newTitle">Title</label>
                     <input type="text" id="newTitle" class="form-input" placeholder="Breadcrumb title...">
                 </div>
@@ -80,6 +90,7 @@
                 <div class="btn-group">
                     <button class="btn-small btn-primary" onclick="createBreadcrumb()">Create</button>
                     <button class="btn-small" onclick="clearForm()">Clear</button>
+                </div>
                 </div>
             </div>
 
@@ -188,35 +199,121 @@
         <div class="right-panel" id="rightPanel">
             <div class="panel-toggle" onclick="toggleRightPanel()">▶</div>
             
-            <div class="event-stream">
-                <div class="stream-header">
+            <div class="chat-interface">
+                <div class="chat-header">
                     <div class="stream-status">
                         <div class="status-indicator" id="streamStatus"></div>
-                        <span id="streamStatusText">Connecting to stream...</span>
+                        <span id="streamStatusText">Connecting to RCRT...</span>
                     </div>
                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">
-                        NATS JetStream Events
+                        🧪 Test Chat & Event Monitor
                     </div>
                 </div>
                 
-                <div class="stream-controls">
-                    <button class="btn-small" onclick="clearEventLog()">Clear Log</button>
-                    <button class="btn-small" onclick="toggleAutoScroll()" id="autoScrollBtn">Auto-scroll: ON</button>
-                    <button class="btn-small" onclick="togglePingFilter()" id="pingFilterBtn">Hide Pings</button>
-                    <button class="btn-small" onclick="pauseStream()" id="pauseBtn">Pause</button>
-                </div>
-                <div class="stream-controls" style="margin-top: 0.5rem;">
-                    <button class="btn-small" onclick="testEvent()">Test Event</button>
-                    <button class="btn-small" onclick="reconnectStream()">Reconnect</button>
+                <!-- Quick Test Buttons -->
+                <div class="quick-test-section panel-section" data-section="quick-tests">
+                    <h4 style="color: #00f5ff; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleSectionCollapse('quick-tests')">
+                        🚀 Quick Tests
+                        <button class="section-collapse-btn">▼</button>
+                    </h4>
+                    <div class="section-content">
+                        <div class="btn-group" style="margin-bottom: 1rem;">
+                            <button class="btn-small btn-primary" onclick="sendEchoTest()">Echo Test</button>
+                            <button class="btn-small btn-primary" onclick="sendLLMTest()">LLM Test</button>
+                            <button class="btn-small btn-primary" onclick="sendRandomTest()">Random</button>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="event-list" id="eventList">
-                    <div class="event-item ping">
-                        <div class="event-header">
-                            <span class="event-type ping">System</span>
-                            <span class="event-time">Starting...</span>
+                <!-- Advanced Breadcrumb Creator -->
+                <div class="breadcrumb-creator panel-section" data-section="breadcrumb-creator">
+                    <h4 style="color: #00f5ff; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleSectionCollapse('breadcrumb-creator')">
+                        📋 Create Breadcrumb
+                        <button class="section-collapse-btn">▼</button>
+                    </h4>
+                    <div class="section-content">
+                    
+                    <div class="form-group" style="margin-bottom: 0.8rem;">
+                        <label>Type</label>
+                        <select id="breadcrumbType" class="form-input" onchange="updateBreadcrumbTemplate()" style="font-size: 0.8rem;">
+                            <option value="tool.request.v1">🛠️ Tool Request</option>
+                            <option value="agent.def.v1">🤖 Agent Definition</option>
+                            <option value="prompt.system.v1">💬 System Prompt</option>
+                            <option value="ui.plan.v1">🎨 UI Plan</option>
+                            <option value="custom">🔧 Custom</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0.8rem;">
+                        <label>Workspace</label>
+                        <select id="workspaceSelect" class="form-input" style="font-size: 0.8rem;">
+                            <option value="workspace:tools">🛠️ workspace:tools</option>
+                            <option value="workspace:agents">🤖 workspace:agents</option>
+                            <option value="workspace:ui">🎨 workspace:ui</option>
+                            <option value="workspace:test">🧪 workspace:test</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0.8rem;">
+                        <label>Title</label>
+                        <input type="text" id="chatTitle" class="form-input" placeholder="Test breadcrumb..." style="font-size: 0.8rem;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0.8rem;">
+                        <label>Context (JSON)</label>
+                        <textarea id="chatContext" class="form-textarea" placeholder='{"key": "value"}' style="min-height: 60px; font-size: 0.8rem;"></textarea>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0.8rem;">
+                        <label>Additional Tags</label>
+                        <div class="tag-input-container" onclick="focusChatTagInput()" style="min-height: 30px;">
+                            <div id="chatTags"></div>
+                            <input type="text" class="tag-input" id="chatTagInput" placeholder="test, debug..." 
+                                   onkeydown="handleChatTagInput(event)" style="font-size: 0.8rem;">
                         </div>
-                        <div class="event-details">Initializing event stream...</div>
+                    </div>
+                    
+                    <div class="btn-group" style="margin-bottom: 1rem;">
+                        <button class="btn-small btn-primary" onclick="sendChatBreadcrumb()">Send</button>
+                        <button class="btn-small" onclick="clearChatForm()">Clear</button>
+                    </div>
+                    </div>
+                </div>
+                
+                <!-- Event Stream Filters -->
+                <div class="stream-filters panel-section" data-section="event-filters">
+                    <h4 style="color: #00f5ff; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleSectionCollapse('event-filters')">
+                        🔍 Event Filters
+                        <button class="section-collapse-btn">▼</button>
+                    </h4>
+                    <div class="section-content">
+                        <div class="btn-group" style="margin-bottom: 1rem;">
+                            <button class="btn-small" onclick="toggleEventFilter('all')" id="filterAll">All</button>
+                            <button class="btn-small" onclick="toggleEventFilter('tool')" id="filterTool">🛠️ Tools</button>
+                            <button class="btn-small" onclick="toggleEventFilter('agent')" id="filterAgent">🤖 Agents</button>
+                            <button class="btn-small" onclick="toggleEventFilter('ui')" id="filterUI">🎨 UI</button>
+                            <button class="btn-small" onclick="toggleEventFilter('ping')" id="filterPing">📡 Pings</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Event Stream Display -->
+                <div class="event-stream" style="flex: 1;">
+                    <div class="stream-controls">
+                        <button class="btn-small" onclick="clearEventLog()">Clear</button>
+                        <button class="btn-small" onclick="toggleAutoScroll()" id="autoScrollBtn">Auto: ON</button>
+                        <button class="btn-small" onclick="pauseStream()" id="pauseBtn">Pause</button>
+                        <button class="btn-small" onclick="reconnectStream()">Reconnect</button>
+                    </div>
+                    
+                    <div class="event-list" id="eventList">
+                        <div class="event-item ping">
+                            <div class="event-header">
+                                <span class="event-type ping">System</span>
+                                <span class="event-time">Starting...</span>
+                            </div>
+                            <div class="event-details">Initializing event stream...</div>
+                        </div>
                     </div>
                 </div>
             </div>

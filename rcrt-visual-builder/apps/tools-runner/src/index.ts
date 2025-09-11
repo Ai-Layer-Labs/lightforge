@@ -7,7 +7,215 @@
 
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { createToolRegistry } from '@rcrt-builder/tools/registry';
+import { createToolRegistry, ToolRegistry } from '@rcrt-builder/tools/registry';
+
+// Track processing status to prevent legitimate RCRT duplicate events (created + updated)
+const processingStatus = new Map<string, 'processing' | 'completed'>();
+
+// 🎯 CLEAN CENTRALIZED SSE DISPATCHER
+// Single SSE connection that routes to individual tools (more efficient than 14 connections)
+async function startCentralizedSSEDispatcher(
+  client: RcrtClientEnhanced, 
+  registry: ToolRegistry, 
+  workspace: string, 
+  jwtToken: string
+): Promise<void> {
+  try {
+    console.log('📡 Starting centralized SSE dispatcher...');
+    console.log(`🔌 Connecting to SSE: ${client.baseUrl}/events/stream`);
+    
+    const response = await fetch(`${client.baseUrl}/events/stream`, {
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`SSE connection failed: ${response.status}`);
+    }
+    
+    console.log('✅ Centralized SSE dispatcher connected');
+    
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No SSE stream reader available');
+    }
+    
+    // Process SSE events and dispatch to appropriate tools
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = new TextDecoder().decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const eventData = JSON.parse(line.slice(6));
+            
+            // 🔧 DEBUG: Log all incoming events for diagnosis
+            if (eventData.type !== 'ping') {
+              console.log(`📡 SSE Event received:`, {
+                type: eventData.type,
+                schema_name: eventData.schema_name,
+                tags: eventData.tags,
+                breadcrumb_id: eventData.breadcrumb_id
+              });
+            }
+            
+            await dispatchEventToTool(eventData, client, registry, workspace);
+          } catch (error) {
+            console.warn('Failed to parse SSE event:', line, error);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Centralized SSE dispatcher error:', error);
+    // Retry connection after delay
+    setTimeout(() => startCentralizedSSEDispatcher(client, registry, workspace, jwtToken), 5000);
+  }
+}
+
+// Dispatch SSE events to appropriate tools
+async function dispatchEventToTool(
+  eventData: any, 
+  client: RcrtClientEnhanced, 
+  registry: ToolRegistry, 
+  workspace: string
+): Promise<void> {
+  // Only process tool.request.v1 breadcrumb events with deduplication
+  if (eventData.type === 'breadcrumb.updated' && 
+      eventData.schema_name === 'tool.request.v1' &&
+      eventData.tags?.includes('tool:request') &&
+      eventData.tags?.includes(workspace) &&
+      !eventData.tags?.includes('health:check')) {  // 🔧 FILTER OUT HEALTH CHECKS
+    
+    // 🔧 PROPER DEDUPLICATION: Prevent processing same request while in progress
+    const requestId = eventData.breadcrumb_id;
+    const currentStatus = processingStatus.get(requestId);
+    
+    if (currentStatus === 'processing') {
+      console.log(`⏭️ Request ${requestId} already being processed, skipping duplicate`);
+      return;
+    }
+    
+    if (currentStatus === 'completed') {
+      console.log(`⏭️ Request ${requestId} already completed, skipping duplicate`);
+      return;
+    }
+    
+    console.log(`🎯 Processing tool request: ${requestId}`);
+    processingStatus.set(requestId, 'processing'); // 🔧 Mark as processing
+    
+    // 🧹 Periodic cleanup of old processing entries to allow legitimate updates
+    if (processingStatus.size > 100) {
+      console.log(`🧹 Cleaning up ${processingStatus.size} processing entries...`);
+      processingStatus.clear(); // Simple cleanup - real systems could use TTL
+    }
+    
+    try {
+      // Get full breadcrumb details
+      const breadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
+      const toolName = breadcrumb.context?.tool;
+      const toolInput = breadcrumb.context?.input;
+      
+      // 🔧 DEBUG: Log the input being passed to tools
+      console.log(`🔍 Tool input debugging:`, {
+        toolName,
+        toolInput: JSON.stringify(toolInput, null, 2),
+        hasMessages: toolInput?.messages ? 'YES' : 'NO',
+        inputType: typeof toolInput,
+        inputKeys: toolInput ? Object.keys(toolInput) : []
+      });
+      
+      if (!toolName || !toolInput) {
+        console.warn('❌ Invalid tool request - missing tool or input');
+        return;
+      }
+      
+      // Check if we have this tool
+      const tools = registry.listTools();
+      if (!tools.includes(toolName)) {
+        console.warn(`❌ Unknown tool: ${toolName}. Available: ${tools.join(', ')}`);
+        return;
+      }
+      
+      console.log(`🛠️  Executing tool: ${toolName}`);
+      
+      // Execute the tool via registry
+      const startTime = Date.now();
+      const toolWrapper = registry.getTool(toolName);
+      
+      if (!toolWrapper) {
+        throw new Error(`Tool wrapper not found: ${toolName}`);
+      }
+      
+      // Access underlying tool and execute
+      const underlyingTool = (toolWrapper as any).tool;
+      if (!underlyingTool || typeof underlyingTool.execute !== 'function') {
+        throw new Error(`Tool ${toolName} does not have execute method`);
+      }
+      
+      // Execute tool with proper context
+      const result = await underlyingTool.execute(toolInput, {
+        rcrtClient: client,
+        agentId: breadcrumb.created_by || 'tools-runner',
+        workspace: workspace,
+        metadata: { requestId: breadcrumb.id }
+      });
+      
+      const executionTime = Date.now() - startTime;
+      
+      // Create tool.response.v1 breadcrumb
+      await client.createBreadcrumb({
+        schema_name: 'tool.response.v1',
+        title: `Response: ${toolName}`,
+        tags: [workspace, 'tool:response'],
+        context: {
+          request_id: breadcrumb.id,
+          tool: toolName,
+          status: 'success',
+          output: result,
+          execution_time_ms: executionTime,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      console.log(`✅ Tool ${toolName} executed successfully in ${executionTime}ms`);
+      
+      // 🔧 Mark as completed after successful execution
+      processingStatus.set(requestId, 'completed');
+      
+    } catch (error) {
+      console.error(`❌ Tool execution failed:`, error);
+      
+      // 🔧 Mark as completed even after error to prevent retries
+      processingStatus.set(requestId, 'completed');
+      
+      try {
+        await client.createBreadcrumb({
+          schema_name: 'tool.response.v1',
+          title: `Error: ${eventData.context?.tool || 'unknown'}`,
+          tags: [workspace, 'tool:response'],
+          context: {
+            request_id: eventData.breadcrumb_id,
+            tool: eventData.context?.tool || 'unknown',
+            status: 'error',
+            error: String(error),
+            execution_time_ms: 0,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (responseError) {
+        console.error('Failed to create error response:', responseError);
+      }
+    }
+  }
+}
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +261,7 @@ async function main() {
     // Create RCRT client (supports JWT in docker mode via RCRT_JWT or tokenEndpoint)
     let client: RcrtClientEnhanced;
     let applyClient: RcrtClientEnhanced | undefined;
+    let jwtToken: string | undefined; // Store JWT for centralized SSE dispatcher
     if (config.deploymentMode === 'docker') {
       if (config.rcrtAuthMode === 'jwt') {
         let token = config.rcrtJwt;
@@ -86,6 +295,7 @@ async function main() {
           console.warn('RCRT_AUTH_MODE=jwt but no RCRT_JWT or tokenEndpoint provided; continuing without auth');
           client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'disabled');
         } else {
+        jwtToken = token; // Store for centralized SSE dispatcher
         client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', token, {
           tokenEndpoint: config.tokenEndpoint,
           autoRefresh: true
@@ -174,10 +384,17 @@ async function main() {
     // Keep alive
     console.log('🚀 Tools runner is ready and listening for requests');
     console.log(`📡 Workspace: ${config.workspace}`);
-    console.log('💡 Send tool.request.v1 breadcrumbs to trigger tool execution');
+    console.log('💡 Centralized SSE dispatcher routes requests to individual tools');
     
-    // Prevent process exit
-    await new Promise(() => {});
+    // Start centralized SSE dispatcher
+    if (jwtToken) {
+      console.log('🎯 Starting centralized SSE dispatcher...');
+      await startCentralizedSSEDispatcher(client, registry, config.workspace, jwtToken);
+    } else {
+      console.warn('⚠️  No JWT token available for SSE - tools will not receive requests');
+      // Prevent process exit
+      await new Promise(() => {});
+    }
     
   } catch (error) {
     console.error('❌ Failed to start tools runner:', error);

@@ -14,6 +14,29 @@ pub async fn health() -> &'static str {
     "ok"
 }
 
+pub async fn get_jwt_token(State(state): State<AppState>) -> Result<Json<serde_json::Value>, StatusCode> {
+    match &state.jwt_token {
+        Some(token) => {
+            // 🔧 NETWORK FIX: Convert Docker internal URL to browser-accessible URL
+            let browser_rcrt_url = if state.rcrt_base_url.contains("rcrt:8080") {
+                // Dashboard runs in Docker, browser on host - use external port mapping
+                "http://localhost:8081".to_string()
+            } else {
+                // Use the configured URL as-is
+                state.rcrt_base_url.clone()
+            };
+            
+            Ok(Json(serde_json::json!({
+                "token": token,
+                "rcrt_base_url": browser_rcrt_url
+            })))
+        },
+        None => {
+            Err(StatusCode::UNAUTHORIZED)
+        }
+    }
+}
+
 pub async fn get_breadcrumbs(State(state): State<AppState>) -> Result<Json<Vec<Breadcrumb>>, StatusCode> {
     let mut request = state.http_client
         .get(&format!("{}/breadcrumbs", state.rcrt_base_url));
