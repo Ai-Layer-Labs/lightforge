@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RCRT Dashboard</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div class="header">
@@ -14,6 +16,7 @@
                 <button class="btn" onclick="refreshBreadcrumbs()">Refresh</button>
                 <button class="btn" onclick="resetView()">Reset View</button>
                 <button class="btn" onclick="resetNodePositions()">Reset Layout</button>
+                <button class="btn" onclick="toggle3DView()" id="toggle3DBtn">🎲 3D View</button>
                 <button class="btn" onclick="triggerHygieneCleanup()">🧹 Cleanup</button>
                 <button class="btn" onclick="showAdminPanel()" id="adminBtn">Admin</button>
             </div>
@@ -193,6 +196,10 @@
                     <div class="spinner"></div>
                     Loading breadcrumbs...
                 </div>
+            </div>
+            <!-- 🎲 3D Canvas (initially hidden) -->
+            <div class="canvas-3d" id="canvas3D" style="display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0;">
+                <!-- Three.js will render here -->
             </div>
         </div>
         
