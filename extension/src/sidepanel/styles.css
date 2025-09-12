@@ -1,0 +1,12 @@
+@import '../popup/styles.css';
+
+/* Override popup-container overflow for sidepanel */
+.sidepanel .popup-container {
+  overflow: visible !important;
+}
+
+/* Ensure sessions list can scroll */
+.sidepanel .sessions-list {
+  overflow-y: auto !important;
+  max-height: 30rem !important;
+}

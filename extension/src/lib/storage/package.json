@@ -1,0 +1,29 @@
+{
+  "name": "@thinkos/unified-storage-client",
+  "version": "1.0.0",
+  "description": "TypeScript client for ThinkOS Unified Storage API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest"
+  },
+  "keywords": [
+    "storage",
+    "api",
+    "client",
+    "thinkos"
+  ],
+  "author": "ThinkOS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "dependencies": {
+    "node-fetch": "^3.0.0"
+  }
+}

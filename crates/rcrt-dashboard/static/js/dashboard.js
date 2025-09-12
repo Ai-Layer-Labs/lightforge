@@ -63,10 +63,6 @@ let nodeObjects3D = new Map(); // Map breadcrumb ID → Three.js object
 let agentObjects3D = new Map();
 let toolObjects3D = new Map();
 
-// Track new cards for glow effects
-let newCardTimestamps = new Map(); // cardId → timestamp when added
-let initialCardSet = new Set(); // Cards that were present when 3D view first loaded
-
 // Pan functionality - only when not dragging a node
 canvasContainer.addEventListener('mousedown', (e) => {
     // Track user interaction
@@ -1908,16 +1904,6 @@ async function connectEventStream() {
                     return;
                 }
                 
-                // Check if this is a breadcrumb event that should trigger glow effects
-                if (data.type && (data.type.includes('breadcrumb') || data.type === 'tool.response.v1')) {
-                    // Reset tracking for new glow effects on real breadcrumb events
-                    if (is3DMode) {
-                        console.log('🌟 SSE breadcrumb event - resetting glow tracking for new items');
-                        // Don't clear initialCardSet, just allow new items to glow
-                        newCardTimestamps.clear();
-                    }
-                }
-                
                 addEventToLog(data);
             } catch (e) {
                 console.error('Failed to parse event data:', e, 'Raw data:', event.data);
@@ -2297,8 +2283,8 @@ function init3DScene() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a0a); // Dark background
     
-    // Camera setup with optimal viewing angle
-    camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 2000);
+    // Camera setup with extended zoom range and render distance
+    camera = new THREE.PerspectiveCamera(75, width / height, 1, 15000); // Much larger render distance
     camera.position.set(300, 200, 400); // Positioned to see all clusters
     
     // Renderer setup
@@ -2315,8 +2301,8 @@ function init3DScene() {
         controls.enableZoom = true;
         controls.autoRotate = false;
         controls.autoRotateSpeed = 0.5;
-        controls.minDistance = 100;
-        controls.maxDistance = 1500;
+        controls.minDistance = 50; // Allow closer zoom
+        controls.maxDistance = 8000; // Allow much further zoom out
         
         // Set target to center of semantic space
         controls.target.set(0, 0, 0);
@@ -2422,9 +2408,6 @@ function calculateSemanticPositions(items, type) {
 function render3DView() {
     if (!scene) return;
     
-    // Track what cards were already present (for glow effect logic)
-    const wasFirstLoad = initialCardSet.size === 0;
-    
     // Clear previous objects
     nodeObjects3D.clear();
     agentObjects3D.clear();
@@ -2468,40 +2451,25 @@ function render3DView() {
     // 📋 Render breadcrumbs in 3D semantic space
     const breadcrumbPositions = calculateSemanticPositions(toRender, 'breadcrumb');
     breadcrumbPositions.forEach(({ item, position, cluster }) => {
-        const mesh = create3DBreadcrumbNode(item, position, cluster, wasFirstLoad);
+        const mesh = create3DBreadcrumbNode(item, position, cluster);
         scene.add(mesh);
         nodeObjects3D.set(item.id, mesh);
-        
-        // Track initial cards on first load
-        if (wasFirstLoad) {
-            initialCardSet.add(item.id);
-        }
     });
     
     // 🤖 Render agents in 3D space
     const agentPositions = calculateSemanticPositions(agents, 'agent');
     agentPositions.forEach(({ item, position, cluster }) => {
-        const mesh = create3DAgentNode(item, position, cluster, wasFirstLoad);
+        const mesh = create3DAgentNode(item, position, cluster);
         scene.add(mesh);
         agentObjects3D.set(item.id, mesh);
-        
-        // Track initial cards on first load
-        if (wasFirstLoad) {
-            initialCardSet.add(item.id);
-        }
     });
     
     // 🛠️ Render tools in 3D space
     const toolPositions3D = calculateSemanticPositions(availableTools, 'tool');
     toolPositions3D.forEach(({ item, position, cluster }) => {
-        const mesh = create3DToolNode(item, position, cluster, wasFirstLoad);
+        const mesh = create3DToolNode(item, position, cluster);
         scene.add(mesh);
         toolObjects3D.set(item.id, mesh);
-        
-        // Track initial cards on first load  
-        if (wasFirstLoad) {
-            initialCardSet.add(item.id);
-        }
     });
     
     // Add cluster labels and effects
@@ -2515,7 +2483,7 @@ function render3DView() {
 }
 
 // Create beautiful 3D breadcrumb cards (rectangular like 2D)
-function create3DBreadcrumbNode(breadcrumb, position, cluster, isFirstLoad) {
+function create3DBreadcrumbNode(breadcrumb, position, cluster) {
     // Create container group for card only
     const nodeGroup = new THREE.Group();
     
@@ -2532,16 +2500,11 @@ function create3DBreadcrumbNode(breadcrumb, position, cluster, isFirstLoad) {
         infoCard: infoCard
     };
     
-    // Only mark as new if it's truly new (not part of initial load)
-    if (!isFirstLoad && !initialCardSet.has(breadcrumb.id)) {
-        markCardAsNew(breadcrumb.id, 'breadcrumb', nodeGroup);
-    }
-    
     return nodeGroup;
 }
 
 // Create beautiful 3D agent cards (circular like 2D)
-function create3DAgentNode(agent, position, cluster, isFirstLoad) {
+function create3DAgentNode(agent, position, cluster) {
     // Create container group for card only
     const nodeGroup = new THREE.Group();
     
@@ -2558,16 +2521,11 @@ function create3DAgentNode(agent, position, cluster, isFirstLoad) {
         infoCard: infoCard
     };
     
-    // Only mark as new if it's truly new (not part of initial load)
-    if (!isFirstLoad && !initialCardSet.has(agent.id)) {
-        markCardAsNew(agent.id, 'agent', nodeGroup);
-    }
-    
     return nodeGroup;
 }
 
 // Create beautiful 3D tool cards (rectangular like 2D but with tool styling)
-function create3DToolNode(tool, position, cluster, isFirstLoad) {
+function create3DToolNode(tool, position, cluster) {
     // Create container group for card only
     const nodeGroup = new THREE.Group();
     
@@ -2584,11 +2542,6 @@ function create3DToolNode(tool, position, cluster, isFirstLoad) {
         infoCard: infoCard
     };
     
-    // Only mark as new if it's truly new (not part of initial load)
-    if (!isFirstLoad && !initialCardSet.has(tool.id)) {
-        markCardAsNew(tool.id, 'tool', nodeGroup);
-    }
-    
     return nodeGroup;
 }
 
@@ -2603,205 +2556,6 @@ function getClusterColor(cluster) {
         misc: 0x888888      // Gray for misc content
     };
     return clusterColors[cluster] || 0x888888;
-}
-
-// Mark card as new for glow effect (ONLY if truly new since session start)
-function markCardAsNew(cardId, cardType, nodeGroup) {
-    // Skip if this was part of the initial load
-    if (initialCardSet.has(cardId)) {
-        console.log(`⏭️ Skipping glow for initial card: ${cardId.substring(0, 8)}`);
-        return;
-    }
-    
-    // Skip if we've already seen this card
-    if (newCardTimestamps.has(cardId)) {
-        return;
-    }
-    
-    const currentTime = Date.now();
-    newCardTimestamps.set(cardId, currentTime);
-    
-    // Add glow effect to the node group with safety checks
-    if (nodeGroup && nodeGroup.userData && nodeGroup.userData.infoCard) {
-        const infoCard = nodeGroup.userData.infoCard;
-        
-        // Initialize userData if it doesn't exist
-        if (!infoCard.userData) {
-            infoCard.userData = {};
-        }
-        
-        infoCard.userData.isNewCard = true;
-        infoCard.userData.glowStartTime = currentTime;
-        infoCard.userData.originalScale = {
-            x: infoCard.scale.x,
-            y: infoCard.scale.y
-        };
-        
-        // Create beautiful particle glow system
-        try {
-            const particleGlow = createParticleGlowSystem(cardType, nodeGroup.userData.cluster, nodeGroup.position);
-            scene.add(particleGlow);
-            nodeGroup.userData.particleGlow = particleGlow;
-        } catch (e) {
-            console.warn('Error creating particle glow:', e);
-        }
-        
-        console.log(`✨ Marking ${cardType} card as NEW with particle glow: ${cardId.substring(0, 8)}`);
-    }
-}
-
-// Reset new card tracking for genuinely new items (called from SSE events)
-function resetNewCardTracking() {
-    // Clear tracking so that updated breadcrumbs get glow effect
-    newCardTimestamps.clear();
-    console.log('🔄 Reset new card tracking for fresh glow effects');
-}
-
-// Create beautiful sparkling particle glow system inspired by https://tympanus.net/codrops/2019/01/17/interactive-particles-with-three-js/
-function createParticleGlowSystem(cardType, cluster, cardPosition) {
-    const clusterColor = new THREE.Color(getClusterColor(cluster));
-    const particleCount = cardType === 'agent' ? 80 : 60; // Fewer, more elegant particles
-    
-    // Create particle geometry
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
-    const velocities = new Float32Array(particleCount * 3);
-    const twinklePhases = new Float32Array(particleCount); // For individual twinkling
-    
-    // Create sparkle distribution around the card
-    for (let i = 0; i < particleCount; i++) {
-        let x, y, z;
-        
-        if (cardType === 'agent') {
-            // Beautiful circular sparkle halo for agents (Fibonacci spiral distribution)
-            const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle
-            const angle = i * goldenAngle;
-            const radius = Math.sqrt(i / particleCount) * 25 + 15; // Fibonacci spiral
-            x = Math.cos(angle) * radius;
-            y = Math.sin(angle) * radius;
-            z = (Math.random() - 0.5) * 6; // Shallow depth
-        } else {
-            // Elegant rectangular sparkle constellation
-            const aspectRatio = cardType === 'tool' ? 1.0 : 1.6; // Different ratios for tools vs breadcrumbs
-            const u = Math.random();
-            const v = Math.random();
-            // Use smoother distribution
-            x = (u - 0.5) * 35 * aspectRatio;
-            y = (v - 0.5) * 25;
-            z = (Math.random() - 0.5) * 8; // Shallow depth
-        }
-        
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
-        
-        // Pure cluster colors with subtle brightness variation
-        const brightness = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
-        colors[i * 3] = clusterColor.r * brightness;
-        colors[i * 3 + 1] = clusterColor.g * brightness;
-        colors[i * 3 + 2] = clusterColor.b * brightness;
-        
-        // Varied sparkle sizes for organic look
-        sizes[i] = 0.3 + Math.random() * 0.8; // 0.3 - 1.1 (very small sparkles)
-        
-        // Gentle drift velocities
-        velocities[i * 3] = (Math.random() - 0.5) * 0.2;
-        velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.2;
-        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
-        
-        // Random twinkle phase for each particle
-        twinklePhases[i] = Math.random() * Math.PI * 2;
-    }
-    
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
-    
-    // Create sparkle texture for point sprites
-    const sparkleTexture = createSparkleTexture();
-    
-    // Beautiful sparkle material with point sprites
-    const material = new THREE.PointsMaterial({
-        size: 3.0, // Base sparkle size
-        map: sparkleTexture,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending, // Additive blending for glow
-        depthWrite: false,
-        sizeAttenuation: true,
-        alphaTest: 0.05 // Very low alpha test for subtle sparkles
-    });
-    
-    const particles = new THREE.Points(geometry, material);
-    particles.userData = {
-        isParticleGlow: true,
-        cardType: cardType,
-        cluster: cluster,
-        creationTime: Date.now(),
-        originalPositions: positions.slice(), // Copy for animation
-        velocities: velocities,
-        twinklePhases: twinklePhases,
-        originalSizes: sizes.slice() // Store original sizes for twinkling
-    };
-    
-    // Position the particle system at the card location
-    particles.position.copy(cardPosition);
-    particles.renderOrder = -5; // Behind cards but in front of connections
-    
-    return particles;
-}
-
-// Create sparkle texture for point sprites
-function createSparkleTexture() {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 32;
-    canvas.height = 32;
-    
-    const centerX = 16;
-    const centerY = 16;
-    
-    // Create radial gradient for sparkle effect
-    const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, 16);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)'); // Bright center
-    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)'); // Still bright
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)'); // Fade out
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)'); // Transparent edge
-    
-    // Draw sparkle
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.arc(centerX, centerY, 16, 0, Math.PI * 2);
-    context.fill();
-    
-    // Add sparkle star effect
-    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    context.beginPath();
-    
-    // Draw star shape
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const length = i % 2 === 0 ? 12 : 6; // Alternate long and short rays
-        const x = centerX + Math.cos(angle) * length;
-        const y = centerY + Math.sin(angle) * length;
-        
-        if (i === 0) {
-            context.moveTo(x, y);
-        } else {
-            context.lineTo(x, y);
-        }
-    }
-    context.closePath();
-    context.fill();
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    return texture;
 }
 
 // Create beautiful 3D breadcrumb cards matching 2D design exactly
@@ -2905,21 +2659,16 @@ function create3DBreadcrumbCard(breadcrumb, cluster) {
     const idText = `ID: ${breadcrumb.id?.substring(0, 8) || 'Unknown'}`;
     context.fillText(idText, 200, 180);
     
-    // Create sprite with glow-capable material
+    // Create sprite
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ 
         map: texture,
-        transparent: true,
-        opacity: 1.0, // Will be animated for glow effect
-        blending: THREE.NormalBlending
+        transparent: true
     });
     
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(48, 30, 1);
     sprite.renderOrder = 999;
-    
-    // Initialize userData for glow effects
-    sprite.userData = { cardType: 'breadcrumb' };
     
     return sprite;
 }
@@ -2973,21 +2722,16 @@ function create3DAgentCard(agent, cluster) {
     const roles = (agent.roles || []).join(', ').substring(0, 15);
     context.fillText(roles, centerX, centerY + 35);
     
-    // Create sprite with glow-capable material
+    // Create sprite
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ 
         map: texture,
-        transparent: true,
-        opacity: 1.0, // Will be animated for glow effect
-        blending: THREE.NormalBlending
+        transparent: true
     });
     
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(18, 18, 1);
     sprite.renderOrder = 999;
-    
-    // Initialize userData for glow effects
-    sprite.userData = { cardType: 'agent' };
     
     return sprite;
 }
@@ -3063,21 +2807,16 @@ function create3DToolCard(tool, cluster) {
         context.fillText(tool.category.substring(0, 10), 60, 95);
     }
     
-    // Create sprite with glow-capable material
+    // Create sprite
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ 
         map: texture,
-        transparent: true,
-        opacity: 1.0, // Will be animated for glow effect
-        blending: THREE.NormalBlending
+        transparent: true
     });
     
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(18, 18, 1);
     sprite.renderOrder = 999;
-    
-    // Initialize userData for glow effects
-    sprite.userData = { cardType: 'tool' };
     
     return sprite;
 }
@@ -3359,173 +3098,6 @@ function create3DConnectionLine(startPos, endPos, type, data) {
     return line;
 }
 
-// Apply glow effects to new cards for 30 seconds
-function applyNewCardGlowEffects() {
-    // Don't apply effects if 3D scene isn't ready
-    if (!scene || !is3DMode) return;
-    
-    const currentTime = Date.now();
-    const GLOW_DURATION = 30000; // 30 seconds
-    
-    // Process all cards that might have glow effects
-    [...nodeObjects3D.values(), ...agentObjects3D.values(), ...toolObjects3D.values()].forEach(nodeGroup => {
-        // Safety checks
-        if (!nodeGroup || !nodeGroup.userData || !nodeGroup.userData.infoCard) return;
-        
-        const infoCard = nodeGroup.userData.infoCard;
-        if (!infoCard || !infoCard.userData || !infoCard.userData.isNewCard) return;
-        
-        const glowStartTime = infoCard.userData.glowStartTime;
-        if (!glowStartTime) {
-            // Initialize glow start time if missing
-            infoCard.userData.glowStartTime = currentTime;
-            return;
-        }
-        
-        const elapsed = currentTime - glowStartTime;
-        
-        // Remove glow effect after 30 seconds
-        if (elapsed > GLOW_DURATION) {
-            infoCard.userData.isNewCard = false;
-            // Reset to original scale
-            if (infoCard.userData.originalScale) {
-                infoCard.scale.set(
-                    infoCard.userData.originalScale.x,
-                    infoCard.userData.originalScale.y,
-                    1
-                );
-            }
-            // Remove particle glow system safely
-            if (nodeGroup.userData.particleGlow) {
-                try {
-                    scene.remove(nodeGroup.userData.particleGlow);
-                    if (nodeGroup.userData.particleGlow.geometry) {
-                        nodeGroup.userData.particleGlow.geometry.dispose();
-                    }
-                    if (nodeGroup.userData.particleGlow.material) {
-                        nodeGroup.userData.particleGlow.material.dispose();
-                    }
-                    delete nodeGroup.userData.particleGlow;
-                    console.log('🧹 Cleaned up particle glow system');
-                } catch (e) {
-                    console.warn('Error disposing particle glow:', e);
-                    delete nodeGroup.userData.particleGlow;
-                }
-            }
-            
-            // Reset card material to original state
-            if (infoCard.material) {
-                infoCard.material.opacity = 1.0;
-                if (infoCard.material.color) {
-                    infoCard.material.color.setHex(0xffffff); // Reset to white
-                }
-            }
-            // Remove from tracking
-            const cardId = nodeGroup.userData.data.id;
-            newCardTimestamps.delete(cardId);
-            return;
-        }
-        
-        // Calculate glow intensity (strongest at start, fades over time)
-        const intensity = 1 - (elapsed / GLOW_DURATION);
-        const pulseSpeed = 2; // Gentle pulses per second
-        const pulsePhase = (currentTime * 0.001 * pulseSpeed * 2 * Math.PI) % (2 * Math.PI);
-        const pulse = Math.sin(pulsePhase) * 0.5 + 0.5; // 0 to 1
-        
-        // Apply subtle card glow effect
-        const originalScale = infoCard.userData.originalScale;
-        
-        // Safety check for originalScale
-        if (!originalScale || typeof originalScale.x === 'undefined') {
-            // Set default scale if not available
-            infoCard.userData.originalScale = { x: infoCard.scale.x, y: infoCard.scale.y };
-            console.log('⚠️ Fixed missing originalScale for glow effect');
-            return;
-        }
-        
-        // Very subtle card brightness pulse (no scale change)
-        // Add gentle glow to card material
-        if (infoCard.material) {
-            const baseOpacity = 1.0;
-            const brightnessPulse = 1.0 + (pulse * intensity * 0.15); // Subtle brightness increase
-            infoCard.material.opacity = baseOpacity;
-            
-            // Add subtle color brightening effect
-            if (infoCard.material.color) {
-                const originalColor = new THREE.Color(getClusterColor(cluster));
-                const brightColor = originalColor.clone().multiplyScalar(brightnessPulse);
-                // Subtle color tint toward cluster color
-                infoCard.material.color.lerp(brightColor, intensity * 0.1);
-            }
-        }
-        
-        // Animate particle glow system
-        if (nodeGroup.userData.particleGlow) {
-            animateParticleGlow(nodeGroup.userData.particleGlow, pulse, intensity, currentTime);
-        }
-    });
-}
-
-// Animate particle glow system with beautiful sparkling effects
-function animateParticleGlow(particleSystem, pulse, intensity, currentTime) {
-    if (!particleSystem || !particleSystem.geometry) return;
-    
-    const positions = particleSystem.geometry.attributes.position.array;
-    const sizes = particleSystem.geometry.attributes.size.array;
-    const originalPositions = particleSystem.userData.originalPositions;
-    const originalSizes = particleSystem.userData.originalSizes;
-    const velocities = particleSystem.userData.velocities;
-    const twinklePhases = particleSystem.userData.twinklePhases;
-    const particleCount = positions.length / 3;
-    const time = currentTime * 0.001; // Convert to seconds
-    
-    // Animate each particle with subtle sparkle movement
-    for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        const originalX = originalPositions[i3];
-        const originalY = originalPositions[i3 + 1];
-        const originalZ = originalPositions[i3 + 2];
-        
-        // Extremely subtle sparkle twinkle
-        const phase = i * 0.3; // Different phase for each sparkle
-        const sparkleX = Math.sin(time * 0.3 + phase) * 0.3 * intensity; // Much gentler
-        const sparkleY = Math.cos(time * 0.2 + phase) * 0.3 * intensity; // Much gentler
-        const sparkleZ = Math.sin(time * 0.4 + phase) * 0.2 * intensity; // Much gentler
-        
-        // Very gentle drift movement
-        const drift = time * 0.05; // Slower drift
-        const driftX = velocities[i3] * drift;
-        const driftY = velocities[i3 + 1] * drift;
-        const driftZ = velocities[i3 + 2] * drift;
-        
-        // Barely perceptible expansion pulse
-        const expansionFactor = 1 + (pulse * intensity * 0.02); // Only 2% expansion
-        
-        // Apply gentle animated position
-        positions[i3] = (originalX + sparkleX + driftX) * expansionFactor;
-        positions[i3 + 1] = (originalY + sparkleY + driftY) * expansionFactor;
-        positions[i3 + 2] = (originalZ + sparkleZ + driftZ) * expansionFactor;
-        
-        // Individual particle twinkling effect
-        const twinklePhase = twinklePhases[i];
-        const twinkle = Math.sin(time * 4 + twinklePhase) * 0.5 + 0.5; // 0 to 1
-        const twinkleSize = originalSizes[i] * (0.5 + twinkle * 0.8 * intensity); // Size varies with twinkle
-        sizes[i] = twinkleSize;
-    }
-    
-    // Update particle system
-    particleSystem.geometry.attributes.position.needsUpdate = true;
-    particleSystem.geometry.attributes.size.needsUpdate = true;
-    
-    // Very subtle opacity sparkle effect
-    const baseOpacity = 0.4;
-    const sparkleOpacity = baseOpacity + (pulse * intensity * 0.15); // Gentle opacity pulse
-    particleSystem.material.opacity = sparkleOpacity;
-    
-    // Almost imperceptible rotation for organic feel
-    particleSystem.rotation.z += 0.001 * intensity;
-}
-
 // Add cluster labels to 3D scene
 function addClusterLabels() {
     const clusterCenters = {
@@ -3629,7 +3201,7 @@ function addParticleEffects() {
 
 // Animation loop for 3D scene
 function animate3D() {
-    if (!is3DMode || !renderer || !scene || !camera) return;
+    if (!is3DMode || !renderer) return;
     
     requestAnimationFrame(animate3D);
     
@@ -3637,12 +3209,7 @@ function animate3D() {
         controls.update();
     }
     
-    // Apply glow effects to new cards
-    try {
-        applyNewCardGlowEffects();
-    } catch (e) {
-        console.warn('Error in glow effects:', e);
-    }
+    // No animations - keep cards stable for reading
     
     renderer.render(scene, camera);
 }
@@ -3664,10 +3231,6 @@ function cleanup3DScene() {
     nodeObjects3D.clear();
     agentObjects3D.clear();
     toolObjects3D.clear();
-    
-    // Clear new card tracking when switching modes
-    newCardTimestamps.clear();
-    initialCardSet.clear();
     
     console.log('🎲 3D scene cleaned up');
 }
@@ -4508,19 +4071,8 @@ async function sendBreadcrumb(data) {
                 source: 'dashboard_chat'
             });
             
-            // Reset glow tracking and refresh breadcrumbs list
-            if (is3DMode) {
-                resetNewCardTracking();
-            }
-            
-            setTimeout(() => {
-                loadBreadcrumbs().then(() => {
-                    // Re-render 3D view if in 3D mode
-                    if (is3DMode) {
-                        render3DView();
-                    }
-                });
-            }, 1000);
+            // Optionally refresh breadcrumbs list
+            setTimeout(loadBreadcrumbs, 1000);
         } else {
             const errorText = await response.text();
             alert(`Failed to send breadcrumb: ${response.status} ${errorText}`);
@@ -4667,18 +4219,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Only auto-refresh if user is inactive (preserves UX during active use)
         if (timeSinceLastInteraction > inactiveThreshold) {
             console.log('Auto-refreshing after user inactivity');
-            
-            // Reset glow tracking for auto-refresh
-            if (is3DMode) {
-                resetNewCardTracking();
-            }
-            
-            loadBreadcrumbs().then(() => {
-                // Re-render 3D view if in 3D mode
-                if (is3DMode) {
-                    render3DView();
-                }
-            });
+            loadBreadcrumbs();
         } else {
             console.log('Skipping auto-refresh - user is active');
         }

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThinkOS Agent - Development</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0d0d0d 0%, #0A0D21 100%);
+    }
+    
+    #root {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    
+    /* Force all containers to be full-size */
+    .popup-container,
+    .popup-container > * {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+    }
+    
+    /* Override any fixed dimensions */
+    [class*="w-["], [class*="h-["] {
+      width: auto !important;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/dev.tsx"></script>
+</body>
+</html>
