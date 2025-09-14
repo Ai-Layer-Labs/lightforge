@@ -1,0 +1,72 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist/types",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    
+    // DOM and Web APIs
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
+    
+    // Path mapping for clean imports
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["modules/*"],
+      "@state": ["modules/state.js"],
+      "@api": ["modules/api-client.js"],
+      "@canvas": ["modules/canvas-engine.js"],
+      "@3d": ["modules/3d-engine.js"],
+      "@ui": ["modules/ui-manager.js"],
+      "@crud": ["modules/crud-manager.js"],
+      "@admin": ["modules/admin-manager.js"],
+      "@chat": ["modules/chat-manager.js"],
+      "@events": ["modules/event-stream.js"],
+      "@renderer": ["modules/node-renderer.js"]
+    },
+    
+    // Strict type checking options
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    
+    // Additional checks
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true
+  },
+  
+  "include": [
+    "dashboard-main.js",
+    "modules/**/*.js",
+    "types/**/*.d.ts"
+  ],
+  
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dashboard.js",
+    "webpack.config.js"
+  ],
+  
+  "ts-node": {
+    "esm": true
+  }
+}
