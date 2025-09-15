@@ -845,9 +845,23 @@ export class ThreeDEngine {
         });
         
         // Create connection lines between secrets and tools that use them
-        this.render3DSecretConnections();
+        await this.render3DSecretConnections();
         
         console.log('✅ 3D connections rendered');
+        
+        // Log 3D connection updates for debugging
+        const connectionLines = this.scene.children.filter(child => child.userData.isConnectionLine);
+        if (connectionLines.length > 0) {
+            console.log(`🔗 3D: Updated ${connectionLines.length} connection lines`);
+            
+            // Count different connection types for debugging
+            const connectionTypes = {};
+            connectionLines.forEach(line => {
+                const type = line.userData.type || 'unknown';
+                connectionTypes[type] = (connectionTypes[type] || 0) + 1;
+            });
+            console.log('🔗 3D: Connection types:', connectionTypes);
+        }
     }
     
     async render3DSecretConnections() {

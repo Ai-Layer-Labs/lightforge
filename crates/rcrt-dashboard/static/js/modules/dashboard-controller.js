@@ -277,20 +277,25 @@ export class DashboardController {
         const endTime = Date.now();
         console.log(`✅ Created ${dashboardState.connections.length} total connection lines in ${endTime - startTime}ms`);
         
-        // Flash the connection lines briefly to show they've been updated
+        // Subtle visual feedback for connection updates (less distracting)
         if (dashboardState.connections.length > 0) {
-            dashboardState.connections.forEach(conn => {
-                if (conn.line) {
-                    const originalOpacity = conn.line.style.opacity || '1';
-                    conn.line.style.opacity = '1';
-                    conn.line.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
-                    
-                    setTimeout(() => {
-                        conn.line.style.opacity = originalOpacity;
-                        conn.line.style.boxShadow = 'none';
-                    }, 500);
-                }
-            });
+            console.log(`🔗 2D: Connection lines updated - ${dashboardState.connections.length} active connections`);
+            
+            // Optional: Very subtle flash for new connections only
+            const newConnections = dashboardState.connections.filter(conn => !conn.line.dataset.flashed);
+            if (newConnections.length > 0) {
+                newConnections.forEach(conn => {
+                    if (conn.line) {
+                        conn.line.dataset.flashed = 'true';
+                        const originalOpacity = conn.line.style.opacity || '0.7';
+                        conn.line.style.opacity = '0.9';
+                        
+                        setTimeout(() => {
+                            conn.line.style.opacity = originalOpacity;
+                        }, 300);
+                    }
+                });
+            }
         }
     }
     
