@@ -47,6 +47,7 @@ declare -A REQUIRED_AGENTS=(
     ["00000000-0000-0000-0000-0000000000aa"]="RCRT Server"
     ["00000000-0000-0000-0000-0000000000bb"]="Tools Runner"  
     ["00000000-0000-0000-0000-000000000ddd"]="Dashboard"
+    ["00000000-0000-0000-0000-000000000AAA"]="Agent Runner"
 )
 
 # Check and register each required agent
