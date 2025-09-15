@@ -30,6 +30,13 @@ services:
         condition: service_healthy
       nats:
         condition: service_started
+    # Health check disabled for distroless image - dashboard has retry logic
+    # healthcheck:
+    #   test: ["CMD", "/bin/sh", "-c", "timeout 5 bash -c '</dev/tcp/localhost/8080' && echo 'Port is open'"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 30s
     environment:
       DB_URL: postgres://postgres:postgres@db:5432/rcrt
       NATS_URL: nats://nats:4222
@@ -171,5 +178,11 @@ services:
       RUST_LOG: info
     ports:
       - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 

@@ -270,6 +270,105 @@ export class NodeRenderer {
         return category === 'llm' ? '🤖' : '🛠️';
     }
     
+    // ============ SECRET NODES ============
+    
+    createSecretNode(secret, index, onSelectCallback) {
+        const node = document.createElement('div');
+        node.className = 'secret-node';
+        
+        // Check if we have a custom position for this secret
+        let x, y;
+        const nodeWidth = 120;
+        const nodeHeight = 80;
+        
+        if (dashboardState.customSecretPositions.has(secret.id)) {
+            // Use saved custom position
+            const saved = dashboardState.customSecretPositions.get(secret.id);
+            x = saved.x - 60; // Convert from center back to top-left
+            y = saved.y - 40;
+            console.log(`Using saved position for secret ${secret.name}: center at ${saved.x}, ${saved.y}`);
+        } else {
+            // Use default grid position (place secrets on the left side)
+            const cols = 2;
+            const startX = 50; // Place secrets to the left
+            const startY = 300;
+            x = startX + (index % cols) * (nodeWidth + 20);
+            y = startY + Math.floor(index / cols) * (nodeHeight + 20);
+        }
+        
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        
+        // Store position for connections (center coordinates)
+        dashboardState.secretPositions.push({
+            id: secret.id,
+            name: secret.name,
+            x: x + 60, // Center of rectangle
+            y: y + 40, // Center of rectangle
+            width: nodeWidth,
+            height: nodeHeight
+        });
+        
+        // Get secret-specific icon based on name/scope
+        const icon = this.getSecretIcon(secret.name, secret.scope_type);
+        
+        node.innerHTML = `
+            <div class="secret-icon">${icon}</div>
+            <div class="secret-name">${this.escapeHtml(secret.name)}</div>
+            <div class="secret-scope">${secret.scope_type}</div>
+        `;
+        
+        // Make secret node draggable and clickable
+        this.makeSecretInteractive(node, secret, index, onSelectCallback);
+        
+        return node;
+    }
+    
+    makeSecretInteractive(node, secret, index, onSelectCallback) {
+        let secretMouseDown = false;
+        
+        node.addEventListener('mousedown', (e) => {
+            secretMouseDown = true;
+            setTimeout(() => {
+                if (secretMouseDown) {
+                    dashboardState.setState('isDraggingNode', true);
+                    dashboardState.setState('draggedNode', node);
+                    dashboardState.setState('draggedNodeType', 'secret');
+                    dashboardState.setState('draggedNodeIndex', index);
+                    e.stopPropagation();
+                }
+            }, 150); // 150ms delay to distinguish click from drag
+        });
+        
+        node.addEventListener('mouseup', (e) => {
+            if (!dashboardState.isDraggingNode && secretMouseDown) {
+                // This was a click, not a drag
+                onSelectCallback(secret);
+            }
+            secretMouseDown = false;
+        });
+        
+        // Prevent text selection during drag
+        node.addEventListener('dragstart', (e) => e.preventDefault());
+    }
+    
+    getSecretIcon(secretName, scopeType) {
+        // Icons based on common secret names
+        if (secretName.toLowerCase().includes('api_key') || secretName.toLowerCase().includes('apikey')) return '🔑';
+        if (secretName.toLowerCase().includes('token')) return '🎫';
+        if (secretName.toLowerCase().includes('password') || secretName.toLowerCase().includes('pwd')) return '🔒';
+        if (secretName.toLowerCase().includes('openrouter')) return '🧠';
+        if (secretName.toLowerCase().includes('db') || secretName.toLowerCase().includes('database')) return '🗄️';
+        if (secretName.toLowerCase().includes('webhook')) return '🔗';
+        
+        // Icons based on scope type
+        if (scopeType === 'global') return '🌐';
+        if (scopeType === 'agent') return '🤖';
+        if (scopeType === 'workspace') return '🏢';
+        
+        return '🔐'; // Default secret icon
+    }
+    
     // ============ SELECTION AND HIGHLIGHTING ============
     
     highlightBreadcrumbNode(breadcrumbId) {

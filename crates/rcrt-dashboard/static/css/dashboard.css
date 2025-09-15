@@ -913,11 +913,67 @@ body {
     margin-top: 0.1rem;
 }
 
+/* ============ SECRET NODES ============ */
+
+.secret-node {
+    position: absolute;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(255, 165, 0, 0.1) 100%);
+    border: 2px solid rgba(255, 107, 107, 0.4);
+    border-radius: 12px;
+    width: 120px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.secret-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.25);
+    border-color: #ff6b6b;
+}
+
+.secret-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.2rem;
+}
+
+.secret-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 0.1rem;
+}
+
+.secret-scope {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+}
+
 /* Tool connection styling (different from agent connections) */
 .connection-line.tool-connection {
     background: linear-gradient(90deg, rgba(0, 255, 136, 0.4), rgba(0, 245, 255, 0.4));
     height: 2px;
-    opacity: 0.6;
+}
+
+/* Secret connection styling */
+.connection-line.secret-connection {
+    background: linear-gradient(90deg, rgba(255, 107, 107, 0.3), rgba(255, 165, 0, 0.3));
+    height: 1px;
+    z-index: 5;
+    opacity: 0.7;
+}
+
+.connection-line.secret-connection:hover {
+    height: 2px;
+    opacity: 0.9;
+    background: linear-gradient(90deg, rgba(255, 107, 107, 0.6), rgba(255, 165, 0, 0.6));
 }
 
 .connection-line.tool-connection:hover {

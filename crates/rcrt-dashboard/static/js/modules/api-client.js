@@ -9,7 +9,7 @@ export class ApiClient {
     }
     
     /**
-     * Generic fetch wrapper with error handling
+     * Generic fetch wrapper with error handling and timeout
      */
     async request(url, options = {}) {
         const config = {
@@ -20,8 +20,19 @@ export class ApiClient {
             ...options
         };
         
+        // Add timeout to prevent hanging requests
+        const timeoutMs = options.timeout || 30000; // 30 second default timeout
+        const controller = new AbortController();
+        config.signal = controller.signal;
+        
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, timeoutMs);
+        
         try {
+            console.log(`🌐 API Request: ${url}`);
             const response = await fetch(this.baseUrl + url, config);
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -30,12 +41,21 @@ export class ApiClient {
             // Handle empty responses
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
-                return await response.json();
+                const data = await response.json();
+                console.log(`✅ API Success: ${url} (${Array.isArray(data) ? data.length + ' items' : 'object'})`);
+                return data;
             }
             
-            return await response.text();
+            const text = await response.text();
+            console.log(`✅ API Success: ${url} (text response)`);
+            return text;
         } catch (error) {
-            console.error(`API request failed: ${url}`, error);
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                console.error(`⏰ API Timeout: ${url} (${timeoutMs}ms)`);
+                throw new Error(`Request timeout: ${url}`);
+            }
+            console.error(`❌ API Failed: ${url}`, error);
             throw error;
         }
     }
@@ -178,6 +198,60 @@ export class ApiClient {
      */
     async loadAdminEntities(entityType) {
         return await this.request(`/api/${entityType}`);
+    }
+    
+    // ============ SECRETS OPERATIONS ============
+    
+    /**
+     * Load all secrets
+     */
+    async loadSecrets() {
+        return await this.request('/api/secrets');
+    }
+    
+    /**
+     * Create new secret
+     * @param {object} secretData - Secret data
+     */
+    async createSecret(secretData) {
+        return await this.request('/api/secrets', {
+            method: 'POST',
+            body: JSON.stringify(secretData)
+        });
+    }
+    
+    /**
+     * Update existing secret
+     * @param {string} id - Secret ID
+     * @param {object} secretData - Updated data
+     */
+    async updateSecret(id, secretData) {
+        return await this.request(`/api/secrets/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(secretData)
+        });
+    }
+    
+    /**
+     * Delete secret
+     * @param {string} id - Secret ID
+     */
+    async deleteSecret(id) {
+        return await this.request(`/api/secrets/${id}`, {
+            method: 'DELETE'
+        });
+    }
+    
+    /**
+     * Decrypt secret value (requires curator role)
+     * @param {string} id - Secret ID
+     * @param {string} reason - Reason for decryption (for audit)
+     */
+    async decryptSecret(id, reason = '') {
+        return await this.request(`/api/secrets/${id}/decrypt`, {
+            method: 'POST',
+            body: JSON.stringify({ reason })
+        });
     }
     
     // ============ TOOLS OPERATIONS ============

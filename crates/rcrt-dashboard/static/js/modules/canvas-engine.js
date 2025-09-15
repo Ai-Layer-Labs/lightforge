@@ -35,8 +35,12 @@ export class CanvasEngine {
         // Don't start canvas pan if clicking on a node
         if (e.target.classList.contains('breadcrumb-node') || 
             e.target.classList.contains('agent-node') || 
+            e.target.classList.contains('tool-node') || 
+            e.target.classList.contains('secret-node') || 
             e.target.closest('.breadcrumb-node') || 
-            e.target.closest('.agent-node')) {
+            e.target.closest('.agent-node') || 
+            e.target.closest('.tool-node') || 
+            e.target.closest('.secret-node')) {
             return;
         }
         
@@ -72,8 +76,20 @@ export class CanvasEngine {
         const canvasY = ((mouseY - canvasTop) - dashboardState.canvasOffset.y) / dashboardState.scale;
         
         // Position the node so it appears under the cursor
-        const nodeX = canvasX - (dashboardState.draggedNodeType === 'agent' ? 50 : 150);
-        const nodeY = canvasY - (dashboardState.draggedNodeType === 'agent' ? 50 : 100);
+        let nodeX, nodeY;
+        if (dashboardState.draggedNodeType === 'agent') {
+            nodeX = canvasX - 50;  // Agent nodes are 100x100, center at 50,50
+            nodeY = canvasY - 50;
+        } else if (dashboardState.draggedNodeType === 'tool') {
+            nodeX = canvasX - 50;  // Tool nodes are 100x100, center at 50,50
+            nodeY = canvasY - 50;
+        } else if (dashboardState.draggedNodeType === 'secret') {
+            nodeX = canvasX - 60;  // Secret nodes are 120x80, center at 60,40
+            nodeY = canvasY - 40;
+        } else {
+            nodeX = canvasX - 150; // Breadcrumb nodes are 320x200, center at 160,100
+            nodeY = canvasY - 100;
+        }
         
         // Update DOM position
         dashboardState.draggedNode.style.left = `${nodeX}px`;
@@ -112,6 +128,14 @@ export class CanvasEngine {
             
             // Save custom position for persistence (center coordinates)
             dashboardState.customToolPositions.set(toolId, { x: canvasX, y: canvasY });
+            
+        } else if (dashboardState.draggedNodeType === 'secret' && dashboardState.secretPositions[draggedNodeIndex]) {
+            const secretId = dashboardState.secretPositions[draggedNodeIndex].id;
+            dashboardState.secretPositions[draggedNodeIndex].x = canvasX;
+            dashboardState.secretPositions[draggedNodeIndex].y = canvasY;
+            
+            // Save custom position for persistence (center coordinates)
+            dashboardState.customSecretPositions.set(secretId, { x: canvasX, y: canvasY });
         }
     }
     
@@ -164,7 +188,7 @@ export class CanvasEngine {
     }
     
     updateCanvasSize() {
-        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions];
+        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
         if (allPositions.length === 0) return;
         
         // Calculate bounding box of all nodes
@@ -193,7 +217,7 @@ export class CanvasEngine {
     }
     
     centerViewOnContent() {
-        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions];
+        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
         if (allPositions.length === 0) return;
         
         const containerWidth = this.canvasContainer.clientWidth;
@@ -231,6 +255,7 @@ export class CanvasEngine {
             dashboardState.customNodePositions.clear();
             dashboardState.customAgentPositions.clear();
             dashboardState.customToolPositions.clear();
+            dashboardState.customSecretPositions.clear();
             // Trigger re-render - this would be handled by the main controller
             dashboardState.notify('positionsReset', true);
         }
@@ -250,6 +275,22 @@ export class CanvasEngine {
                     if (toolPos && breadcrumbIndex >= 0 && dashboardState.nodePositions[breadcrumbIndex]) {
                         const breadcrumbPos = dashboardState.nodePositions[breadcrumbIndex];
                         this.updateConnectionLine(conn.line, toolPos, breadcrumbPos);
+                    }
+                } else if (conn.type === 'secret-usage') {
+                    // Secret → tool connection
+                    const secretPos = dashboardState.secretPositions.find(pos => pos.id === conn.secret);
+                    const toolPos = dashboardState.toolPositions.find(pos => pos.id === conn.tool);
+                    
+                    if (secretPos && toolPos) {
+                        this.updateConnectionLine(conn.line, secretPos, toolPos);
+                    }
+                } else if (conn.type === 'secret-access') {
+                    // Secret → agent connection
+                    const secretPos = dashboardState.secretPositions.find(pos => pos.id === conn.secret);
+                    const agentPos = dashboardState.agentPositions.find(pos => pos.id === conn.agent);
+                    
+                    if (secretPos && agentPos) {
+                        this.updateConnectionLine(conn.line, secretPos, agentPos);
                     }
                 } else {
                     // Agent subscription connection
@@ -327,6 +368,32 @@ export class CanvasEngine {
         return line;
     }
     
+    createSecretConnectionLine(secretPos, targetPos, secret, target) {
+        const line = document.createElement('div');
+        line.className = 'connection-line secret-connection';
+        
+        // Calculate line position and length
+        const deltaX = targetPos.x - secretPos.x;
+        const deltaY = targetPos.y - secretPos.y;
+        const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX);
+        
+        // Position line at secret center
+        line.style.left = `${secretPos.x}px`;
+        line.style.top = `${secretPos.y}px`;
+        line.style.width = `${length}px`;
+        line.style.transform = `rotate(${angle}rad)`;
+        
+        // Add tooltip with secret usage details
+        if (target) {
+            line.title = `🔐 ${secret.name} → 🛠️ ${target.name}`;
+        } else {
+            line.title = `🔐 ${secret.name} → 🤖 Agent Access`;
+        }
+        
+        return line;
+    }
+    
     // ============ UTILITY FUNCTIONS ============
     
     clear() {
@@ -334,6 +401,7 @@ export class CanvasEngine {
         dashboardState.setState('nodePositions', []);
         dashboardState.setState('agentPositions', []);
         dashboardState.setState('toolPositions', []);
+        dashboardState.setState('secretPositions', []);
         dashboardState.setState('connections', []);
     }
     

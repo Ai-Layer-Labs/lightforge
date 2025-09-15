@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCRT Dashboard - Debug</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            background: #1a1a2e; 
+            color: #fff; 
+            padding: 20px; 
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+        }
+        .success { background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; }
+        .error { background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; }
+        .loading { background: rgba(255, 165, 0, 0.1); border: 1px solid #ffa500; }
+    </style>
+</head>
+<body>
+    <h1>🔧 RCRT Dashboard Debug Page</h1>
+    <p>This page tests the dashboard API endpoints to identify loading issues.</p>
+    
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(test, status, message, data = null) {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            div.innerHTML = `
+                <strong>${test}:</strong> ${message}
+                ${data ? `<br><small>Data: ${JSON.stringify(data).substring(0, 200)}...</small>` : ''}
+            `;
+            results.appendChild(div);
+        }
+        
+        async function runTests() {
+            addResult('Starting Tests', 'loading', 'Running diagnostic tests...');
+            
+            // Test 1: Health endpoint
+            try {
+                const response = await fetch('/health');
+                const text = await response.text();
+                addResult('Health Check', 'success', `Response: ${text}`);
+            } catch (error) {
+                addResult('Health Check', 'error', `Failed: ${error.message}`);
+                return; // Stop if health fails
+            }
+            
+            // Test 2: JWT Token
+            try {
+                const response = await fetch('/api/auth/token');
+                const data = await response.json();
+                addResult('JWT Token', 'success', 'Token obtained successfully');
+            } catch (error) {
+                addResult('JWT Token', 'error', `Failed: ${error.message}`);
+            }
+            
+            // Test 3: Breadcrumbs
+            try {
+                addResult('Breadcrumbs', 'loading', 'Loading breadcrumbs...');
+                const response = await fetch('/api/breadcrumbs');
+                const data = await response.json();
+                addResult('Breadcrumbs', 'success', `Loaded ${data.length} breadcrumbs`, data.slice(0, 2));
+            } catch (error) {
+                addResult('Breadcrumbs', 'error', `Failed: ${error.message}`);
+            }
+            
+            // Test 4: Agents
+            try {
+                addResult('Agents', 'loading', 'Loading agents...');
+                const response = await fetch('/api/agents');
+                const data = await response.json();
+                addResult('Agents', 'success', `Loaded ${data.length} agents`, data);
+            } catch (error) {
+                addResult('Agents', 'error', `Failed: ${error.message}`);
+            }
+            
+            // Test 5: Secrets
+            try {
+                addResult('Secrets', 'loading', 'Loading secrets...');
+                const response = await fetch('/api/secrets');
+                const data = await response.json();
+                addResult('Secrets', 'success', `Loaded ${data.length} secrets`, data);
+            } catch (error) {
+                addResult('Secrets', 'error', `Failed: ${error.message}`);
+            }
+            
+            // Test 6: Main dashboard static files
+            try {
+                addResult('Static Files', 'loading', 'Testing main JS file...');
+                const response = await fetch('/static/js/dashboard-main.js');
+                if (response.ok) {
+                    addResult('Static Files', 'success', 'Main JS file loads successfully');
+                } else {
+                    addResult('Static Files', 'error', `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                addResult('Static Files', 'error', `Failed: ${error.message}`);
+            }
+            
+            addResult('Tests Complete', 'success', 'All diagnostic tests finished. Check results above.');
+        }
+        
+        // Run tests when page loads
+        runTests();
+        
+        // Add refresh button
+        setTimeout(() => {
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '🔄 Run Tests Again';
+            refreshBtn.style.cssText = 'padding: 10px 20px; background: #00f5ff; color: #000; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;';
+            refreshBtn.onclick = () => {
+                results.innerHTML = '';
+                runTests();
+            };
+            document.body.appendChild(refreshBtn);
+        }, 1000);
+    </script>
+</body>
+</html>

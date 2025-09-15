@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Lines Debug</title>
+    <style>
+        body { font-family: monospace; background: #1a1a2e; color: #fff; padding: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #444; border-radius: 5px; }
+        .success { color: #00ff88; }
+        .error { color: #ff6b6b; }
+        .warning { color: #ffa500; }
+    </style>
+</head>
+<body>
+    <h1>🔗 Connection Lines Debug</h1>
+    
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        async function debugConnections() {
+            log('🔍 Starting connection debug...');
+            
+            try {
+                // Load all data
+                log('📡 Loading breadcrumbs...');
+                const breadcrumbs = await fetch('/api/breadcrumbs').then(r => r.json());
+                log(`✅ Loaded ${breadcrumbs.length} breadcrumbs`, 'success');
+                
+                log('🔐 Loading secrets...');
+                const secrets = await fetch('/api/secrets').then(r => r.json());
+                log(`✅ Loaded ${secrets.length} secrets`, 'success');
+                
+                // Find tool configurations
+                const toolConfigs = breadcrumbs.filter(b => 
+                    b.tags?.includes('tool:config') && 
+                    b.title?.includes('openrouter')
+                );
+                log(`🛠️ Found ${toolConfigs.length} OpenRouter tool configs`, 'success');
+                
+                // Debug each tool config
+                for (const config of toolConfigs) {
+                    log(`\n🔧 Analyzing config: ${config.title}`);
+                    
+                    // Get full context
+                    const fullConfig = await fetch(`/api/breadcrumbs/${config.id}`).then(r => r.json());
+                    log(`   Context: ${JSON.stringify(fullConfig.context)}`);
+                    
+                    if (fullConfig.context?.secret_id) {
+                        // Find the secret
+                        const secret = secrets.find(s => s.id === fullConfig.context.secret_id);
+                        if (secret) {
+                            log(`   ✅ Secret found: ${secret.name}`, 'success');
+                            log(`   🎯 Should draw line: ${secret.name} → openrouter tool`, 'success');
+                        } else {
+                            log(`   ❌ Secret not found: ${fullConfig.context.secret_id}`, 'error');
+                        }
+                    } else {
+                        log(`   ⚠️ No secret_id in context`, 'warning');
+                    }
+                }
+                
+                // Check if secrets and tools would have positions
+                log(`\n📍 Position Analysis:`);
+                log(`   Secrets would be positioned: ${secrets.length > 0 ? 'YES' : 'NO'}`);
+                log(`   Tools would be positioned: Tool catalog exists: ${breadcrumbs.some(b => b.tags?.includes('tool:catalog'))}`);
+                
+                if (secrets.length > 0 && toolConfigs.length > 0) {
+                    log(`\n🎯 CONNECTION SHOULD BE VISIBLE!`, 'success');
+                    log(`   Problem likely in frontend rendering logic`, 'warning');
+                } else {
+                    log(`\n❌ Missing data for connections`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        debugConnections();
+    </script>
+</body>
+</html>

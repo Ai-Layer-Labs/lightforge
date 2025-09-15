@@ -4,6 +4,7 @@
  */
 
 import { dashboardState } from './state.js';
+import { apiClient } from './api-client.js';
 
 export class ThreeDEngine {
     constructor() {
@@ -15,6 +16,7 @@ export class ThreeDEngine {
         this.nodeObjects3D = new Map();
         this.agentObjects3D = new Map();
         this.toolObjects3D = new Map();
+        this.secretObjects3D = new Map();
         
         this.init();
     }
@@ -28,16 +30,60 @@ export class ThreeDEngine {
         dashboardState.nodeObjects3D = this.nodeObjects3D;
         dashboardState.agentObjects3D = this.agentObjects3D;
         dashboardState.toolObjects3D = this.toolObjects3D;
+        dashboardState.secretObjects3D = this.secretObjects3D;
         
         // Set up global functions for HTML compatibility
         window.toggle3DView = () => this.toggle3DView();
         
+        // Set up state listeners for real-time updates
+        this.setupStateListeners();
+        
         console.log('🎲 3D Engine initialized');
+    }
+    
+    setupStateListeners() {
+        // Listen for data changes to update 3D view in real-time
+        dashboardState.subscribe('breadcrumbs', () => {
+            if (dashboardState.is3DMode && this.scene) {
+                console.log('🎲 3D: Updating view due to breadcrumbs change');
+                this.render3DViewAsync();
+            }
+        });
+        
+        dashboardState.subscribe('agents', () => {
+            if (dashboardState.is3DMode && this.scene) {
+                console.log('🎲 3D: Updating view due to agents change');
+                this.render3DViewAsync();
+            }
+        });
+        
+        dashboardState.subscribe('availableTools', () => {
+            if (dashboardState.is3DMode && this.scene) {
+                console.log('🎲 3D: Updating view due to tools change');
+                this.render3DViewAsync();
+            }
+        });
+        
+        dashboardState.subscribe('secrets', () => {
+            if (dashboardState.is3DMode && this.scene) {
+                console.log('🎲 3D: Updating view due to secrets change');
+                this.render3DViewAsync();
+            }
+        });
+        
+        console.log('🎲 3D Engine state listeners set up');
+    }
+    
+    // Async wrapper for state listeners
+    render3DViewAsync() {
+        this.render3DView().catch(error => {
+            console.error('Error updating 3D view:', error);
+        });
     }
     
     // ============ 3D VIEW MANAGEMENT ============
     
-    toggle3DView() {
+    async toggle3DView() {
         const btn = document.getElementById('toggle3DBtn');
         const canvas2D = document.getElementById('canvas');
         const canvas3D = document.getElementById('canvas3D');
@@ -52,7 +98,7 @@ export class ThreeDEngine {
             
             // Initialize 3D scene
             this.init3DScene();
-            this.render3DView();
+            await this.render3DView();
             
             // Add 3D interaction after scene is ready
             setTimeout(() => this.add3DInteraction(), 100);
@@ -208,13 +254,14 @@ export class ThreeDEngine {
     
     // ============ 3D SCENE RENDERING ============
     
-    render3DView() {
+    async render3DView() {
         if (!this.scene) return;
         
         // Clear previous objects
         this.nodeObjects3D.clear();
         this.agentObjects3D.clear();
         this.toolObjects3D.clear();
+        this.secretObjects3D.clear();
         
         // Clear scene
         while(this.scene.children.length > 0) {
@@ -251,12 +298,20 @@ export class ThreeDEngine {
             this.toolObjects3D.set(item.id, mesh);
         });
         
+        // Render secrets in 3D space
+        const secretPositions3D = this.calculateSemanticPositions(dashboardState.secrets, 'secret');
+        secretPositions3D.forEach(({ item, position, cluster }) => {
+            const mesh = this.create3DSecretNode(item, position, cluster);
+            this.scene.add(mesh);
+            this.secretObjects3D.set(item.id, mesh);
+        });
+        
         // Add cluster labels and effects
         this.addClusterLabels();
         this.addParticleEffects();
         
         // Add 3D connection lines
-        this.render3DConnections();
+        await this.render3DConnections();
         
         console.log('🎲 3D semantic view rendered with semantic clustering');
     }
@@ -344,6 +399,25 @@ export class ThreeDEngine {
             data: tool, 
             cluster: cluster,
             originalColor: 0x00ff88,
+            infoCard: infoCard
+        };
+        
+        return nodeGroup;
+    }
+    
+    create3DSecretNode(secret, position, cluster) {
+        const nodeGroup = new THREE.Group();
+        
+        // Create styled secret card (rectangular with secret-specific design)
+        const infoCard = this.create3DSecretCard(secret, cluster);
+        nodeGroup.add(infoCard);
+        
+        nodeGroup.position.set(position[0], position[1], position[2]);
+        nodeGroup.userData = { 
+            type: 'secret', 
+            data: secret, 
+            cluster: cluster,
+            originalColor: 0xff6b6b,
             infoCard: infoCard
         };
         
@@ -624,9 +698,96 @@ export class ThreeDEngine {
         return sprite;
     }
     
+    create3DSecretCard(secret, cluster) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 140;
+        canvas.height = 100;
+        
+        // Rounded rectangle helper function
+        function roundRect(x, y, width, height, radius) {
+            context.beginPath();
+            context.moveTo(x + radius, y);
+            context.lineTo(x + width - radius, y);
+            context.quadraticCurveTo(x + width, y, x + width, y + radius);
+            context.lineTo(x + width, y + height - radius);
+            context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            context.lineTo(x + radius, y + height);
+            context.quadraticCurveTo(x, y + height, x, y + height - radius);
+            context.lineTo(x, y + radius);
+            context.quadraticCurveTo(x, y, x + radius, y);
+            context.closePath();
+        }
+        
+        // Secret background gradient (red/orange like 2D version)
+        const gradient = context.createLinearGradient(0, 0, 140, 100);
+        gradient.addColorStop(0, 'rgba(255, 107, 107, 0.1)');
+        gradient.addColorStop(1, 'rgba(255, 165, 0, 0.1)');
+        
+        roundRect(0, 0, 140, 100, 12);
+        context.fillStyle = gradient;
+        context.fill();
+        
+        // Secret border
+        context.strokeStyle = 'rgba(255, 107, 107, 0.4)';
+        context.lineWidth = 2;
+        context.stroke();
+        
+        // Secret icon (centered)
+        const getSecretIcon = (name, scopeType) => {
+            if (name.toLowerCase().includes('api_key') || name.toLowerCase().includes('apikey')) return '🔑';
+            if (name.toLowerCase().includes('token')) return '🎫';
+            if (name.toLowerCase().includes('password') || name.toLowerCase().includes('pwd')) return '🔒';
+            if (name.toLowerCase().includes('openrouter')) return '🧠';
+            if (name.toLowerCase().includes('db') || name.toLowerCase().includes('database')) return '🗄️';
+            if (name.toLowerCase().includes('webhook')) return '🔗';
+            
+            // Icons based on scope type
+            if (scopeType === 'global') return '🌐';
+            if (scopeType === 'agent') return '🤖';
+            if (scopeType === 'workspace') return '🏢';
+            
+            return '🔐'; // Default secret icon
+        };
+        
+        context.font = '20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        context.fillStyle = '#ffffff';
+        context.textAlign = 'center';
+        context.fillText(getSecretIcon(secret.name, secret.scope_type), 70, 35);
+        
+        // Secret name
+        context.font = 'bold 9px -apple-system';
+        context.fillStyle = '#ffffff';
+        const secretName = (secret.name || 'Secret').substring(0, 15);
+        context.fillText(secretName, 70, 55);
+        
+        // Scope type
+        context.font = '8px -apple-system';
+        context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        context.fillText(secret.scope_type?.toUpperCase() || 'UNKNOWN', 70, 70);
+        
+        // Security indicator
+        context.font = '7px -apple-system';
+        context.fillStyle = 'rgba(255, 107, 107, 0.8)';
+        context.fillText('🔐 ENCRYPTED', 70, 85);
+        
+        // Create sprite
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true
+        });
+        
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(20, 14, 1); // Slightly wider than tools
+        sprite.renderOrder = 999;
+        
+        return sprite;
+    }
+    
     // ============ 3D CONNECTIONS ============
     
-    render3DConnections() {
+    async render3DConnections() {
         console.log('🔗 Rendering 3D connections...');
         
         // Clear existing connection lines
@@ -683,7 +844,48 @@ export class ThreeDEngine {
             });
         });
         
+        // Create connection lines between secrets and tools that use them
+        this.render3DSecretConnections();
+        
         console.log('✅ 3D connections rendered');
+    }
+    
+    async render3DSecretConnections() {
+        // Look for tool configurations that reference secrets
+        const toolConfigBreadcrumbs = dashboardState.breadcrumbs.filter(b => 
+            b.tags?.includes('tool:config')
+        );
+        
+        // Get full context for each tool config to check for secret_id
+        for (const breadcrumb of toolConfigBreadcrumbs) {
+            try {
+                const fullBreadcrumb = await apiClient.loadBreadcrumbDetails(breadcrumb.id);
+                if (fullBreadcrumb.context?.secret_id) {
+                    const secretId = fullBreadcrumb.context.secret_id;
+                    const toolName = fullBreadcrumb.context.tool_name;
+                    
+                    // Find secret and tool objects in 3D space
+                    const secretObj = this.secretObjects3D.get(secretId);
+                    const tool = dashboardState.availableTools.find(t => t.name === toolName);
+                    const toolObj = tool ? this.toolObjects3D.get(tool.id) : null;
+                    
+                    if (secretObj && toolObj) {
+                        console.log(`🔗 Creating 3D secret connection: ${fullBreadcrumb.context.secret_name} → ${toolName}`);
+                        
+                        // Create 3D line between secret and tool
+                        const line = this.create3DConnectionLine(
+                            secretObj.position, 
+                            toolObj.position, 
+                            'secret', 
+                            { secret_name: fullBreadcrumb.context.secret_name, tool_name: toolName }
+                        );
+                        this.scene.add(line);
+                    }
+                }
+            } catch (error) {
+                console.warn(`Failed to load context for ${breadcrumb.title}:`, error);
+            }
+        }
     }
     
     create3DConnectionLine(startPos, endPos, type, data) {
@@ -711,6 +913,14 @@ export class ThreeDEngine {
                 color: 0x00ff88,
                 transparent: true,
                 opacity: 0.2,
+                linewidth: 1
+            });
+        } else if (type === 'secret') {
+            // Red/orange lines for secret connections - subtle like other connections
+            material = new THREE.LineBasicMaterial({
+                color: 0xff6b6b,
+                transparent: true,
+                opacity: 0.25,
                 linewidth: 1
             });
         }
@@ -879,7 +1089,7 @@ export class ThreeDEngine {
             raycaster.setFromCamera(mouse, this.camera);
             
             // Check for intersections with all objects (recursive to catch child meshes)
-            const allGroups = [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values()];
+            const allGroups = [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()];
             const intersects = raycaster.intersectObjects(allGroups, true); // true = recursive
             
             if (intersects.length > 0) {
@@ -908,7 +1118,7 @@ export class ThreeDEngine {
     
     highlight3DObject(object) {
         // Reset all cards to normal state
-        [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values()].forEach(nodeGroup => {
+        [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()].forEach(nodeGroup => {
             const userData = nodeGroup.userData;
             if (userData.infoCard) {
                 userData.infoCard.scale.set(
@@ -962,6 +1172,7 @@ export class ThreeDEngine {
         this.nodeObjects3D.clear();
         this.agentObjects3D.clear();
         this.toolObjects3D.clear();
+        this.secretObjects3D.clear();
         
         // Update state
         dashboardState.is3DMode = false;

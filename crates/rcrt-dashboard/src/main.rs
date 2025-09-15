@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use axum::{
-    routing::get,
+    routing::{get, post, put},
     Router,
 };
 use tower_http::{services::ServeDir, cors::CorsLayer};
@@ -18,6 +18,7 @@ use models::AppState;
 use handlers::*;
 use admin_handlers::*;
 use sse_handlers::*;
+use auth::AuthManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -40,17 +41,50 @@ async fn main() -> Result<()> {
 
     let http_client = reqwest::Client::new();
     
-    // Get JWT token for API access
-    let jwt_token = match auth::get_jwt_token(&http_client, &rcrt_base_url, owner_id, agent_id).await {
-        Ok(token) => {
-            tracing::info!("Successfully obtained JWT token");
-            Some(token)
-        },
-        Err(e) => {
-            tracing::warn!("Failed to get JWT token: {}, using disabled auth mode if available", e);
-            None
+    // Create AuthManager for robust JWT handling
+    let auth_manager = AuthManager::new(
+        http_client.clone(),
+        rcrt_base_url.clone(),
+        owner_id,
+        agent_id,
+    );
+    
+    // Start background token renewal task
+    auth_manager.start_token_renewal_task();
+    
+    // Wait for RCRT service to be healthy before starting the server
+    tracing::info!("Waiting for RCRT service to become healthy...");
+    let mut health_check_attempts = 0;
+    const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 30; // 5 minutes with 10s intervals
+    
+    while health_check_attempts < MAX_HEALTH_CHECK_ATTEMPTS {
+        if auth_manager.check_service_health().await {
+            tracing::info!("RCRT service is healthy, proceeding with startup");
+            break;
         }
-    };
+        
+        health_check_attempts += 1;
+        tracing::info!(
+            "RCRT service not yet healthy (attempt {}/{}), waiting 10 seconds...",
+            health_check_attempts,
+            MAX_HEALTH_CHECK_ATTEMPTS
+        );
+        
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    }
+    
+    if health_check_attempts >= MAX_HEALTH_CHECK_ATTEMPTS {
+        tracing::warn!("RCRT service did not become healthy within timeout, starting anyway with resilient mode");
+    }
+    
+    // Try to get initial JWT token (non-blocking)
+    tracing::info!("Attempting to acquire initial JWT token...");
+    let jwt_token = auth_manager.get_valid_token().await;
+    
+    match &jwt_token {
+        Some(_) => tracing::info!("Successfully obtained initial JWT token"),
+        None => tracing::warn!("Could not obtain initial JWT token, will retry in background"),
+    }
 
     let state = AppState {
         http_client,
@@ -58,6 +92,7 @@ async fn main() -> Result<()> {
         owner_id,
         agent_id,
         jwt_token,
+        auth_manager,
     };
 
     let app = Router::new()
@@ -70,7 +105,9 @@ async fn main() -> Result<()> {
         .route("/api/agents/:id", get(get_agent))
         .route("/api/tenants", get(get_tenants))
         .route("/api/tenants/:id", get(get_tenant))
-        .route("/api/secrets", get(get_secrets))
+        .route("/api/secrets", get(handlers::get_secrets).post(create_secret))
+        .route("/api/secrets/:id", put(update_secret).delete(delete_secret))
+        .route("/api/secrets/:id/decrypt", post(decrypt_secret))
         .route("/api/acl", get(get_acl))
         .route("/api/agents/:id/webhooks", get(get_agent_webhooks))
         .route("/api/subscriptions", get(get_subscriptions))

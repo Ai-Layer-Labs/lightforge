@@ -44,43 +44,66 @@ async fn proxy_request(
     method: &str, 
     body: Option<&serde_json::Value>
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let url = format!("{}/{}", state.rcrt_base_url, endpoint);
-    
-    let mut request = match method {
-        "GET" => state.http_client.get(&url),
-        "POST" => state.http_client.post(&url),
-        "PUT" => state.http_client.put(&url),
-        "PATCH" => state.http_client.patch(&url),
-        "DELETE" => state.http_client.delete(&url),
-        _ => return Err(StatusCode::METHOD_NOT_ALLOWED),
-    };
-    
-    if let Some(token) = &state.jwt_token {
-        request = request.header("Authorization", format!("Bearer {}", token));
-    }
-    
-    if let Some(json_body) = body {
-        request = request.json(json_body);
-    }
-    
-    match request.send().await {
-        Ok(response) => {
-            if response.status().is_success() {
-                match response.json::<serde_json::Value>().await {
-                    Ok(data) => Ok(Json(data)),
-                    Err(e) => {
-                        tracing::error!("Failed to parse {} response: {}", endpoint, e);
-                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+    let max_retries = 3;
+    let mut retry_count = 0;
+
+    while retry_count < max_retries {
+        let token = state.auth_manager.get_valid_token().await;
+        
+        let mut request = match method {
+            "GET" => state.http_client.get(&format!("{}/{}", state.rcrt_base_url, endpoint)),
+            "POST" => state.http_client.post(&format!("{}/{}", state.rcrt_base_url, endpoint)),
+            "PUT" => state.http_client.put(&format!("{}/{}", state.rcrt_base_url, endpoint)),
+            "PATCH" => state.http_client.patch(&format!("{}/{}", state.rcrt_base_url, endpoint)),
+            "DELETE" => state.http_client.delete(&format!("{}/{}", state.rcrt_base_url, endpoint)),
+            _ => return Err(StatusCode::METHOD_NOT_ALLOWED),
+        };
+        
+        if let Some(token) = token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+        
+        if let Some(json_body) = body {
+            request = request.json(json_body);
+        }
+        
+        match request.send().await {
+            Ok(response) => {
+                let status = response.status();
+                if status.is_success() {
+                    match response.json::<serde_json::Value>().await {
+                        Ok(data) => return Ok(Json(data)),
+                        Err(e) => {
+                            tracing::error!("Failed to parse {} response: {}", endpoint, e);
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                        }
                     }
+                } else if status == reqwest::StatusCode::UNAUTHORIZED && retry_count < max_retries - 1 {
+                    // Token might be expired, force refresh and retry
+                    tracing::warn!("Got 401 for {}, forcing token refresh and retrying", endpoint);
+                    retry_count += 1;
+                    continue;
+                } else {
+                    tracing::error!("RCRT API {} returned status: {}", endpoint, status);
+                    return Err(match status.as_u16() {
+                        401 => StatusCode::UNAUTHORIZED,
+                        403 => StatusCode::FORBIDDEN,
+                        404 => StatusCode::NOT_FOUND,
+                        _ => StatusCode::BAD_GATEWAY,
+                    });
                 }
-            } else {
-                tracing::error!("RCRT API {} returned status: {}", endpoint, response.status());
-                Err(StatusCode::BAD_GATEWAY)
+            },
+            Err(e) => {
+                tracing::error!("Failed to proxy {}: {}", endpoint, e);
+                if retry_count < max_retries - 1 {
+                    retry_count += 1;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100 * (1 << retry_count))).await;
+                    continue;
+                }
+                return Err(StatusCode::SERVICE_UNAVAILABLE);
             }
-        },
-        Err(e) => {
-            tracing::error!("Failed to proxy {}: {}", endpoint, e);
-            Err(StatusCode::SERVICE_UNAVAILABLE)
         }
     }
+
+    Err(StatusCode::SERVICE_UNAVAILABLE)
 }

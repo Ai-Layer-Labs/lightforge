@@ -6,6 +6,7 @@
 import { dashboardController } from './modules/dashboard-controller.js';
 import { dashboardState } from './modules/state.js';
 import { apiClient } from './modules/api-client.js';
+import { secretsManager } from './modules/secrets-manager.js';
 
 // ============ MAIN INITIALIZATION ============
 
@@ -166,11 +167,11 @@ class DashboardApplication {
         
         // 3D View toggle - only this one stays lazy loaded
         window.toggle3DView = () => {
-            this.load3DModule().then(threeDModule => {
-                threeDModule.toggle3DView();
+            this.load3DModule().then(async (threeDModule) => {
+                await threeDModule.toggle3DView();
             }).catch(error => {
                 console.error('Failed to load 3D module:', error);
-                alert('Failed to load 3D visualization');
+                alert('Failed to load 3D visualization: ' + error.message);
             });
         };
         
@@ -204,6 +205,9 @@ class DashboardApplication {
         
         // Admin functions - available immediately (modules loaded on startup)
         this.setupAdminWrappers();
+        
+        // Secrets management functions - available immediately
+        this.setupSecretsWrappers();
         
         console.log('🌐 Global wrapper functions set up for HTML compatibility');
     }
@@ -295,6 +299,30 @@ class DashboardApplication {
         window.deleteSubscription = (id) => this.adminModule?.deleteSubscription(id);
         window.showCreateSubscription = () => this.adminModule?.showCreateSubscription();
         window.subscribeToThisBreadcrumb = () => this.adminModule?.subscribeToThisBreadcrumb();
+    }
+    
+    setupSecretsWrappers() {
+        // Make secrets manager available globally
+        window.secretsManager = secretsManager;
+        
+        // Secrets CRUD operations
+        window.createNewSecret = () => secretsManager.createNewSecret();
+        window.updateSecret = () => secretsManager.updateSecret();
+        window.deleteSecret = () => secretsManager.deleteSecret();
+        window.decryptSecret = () => secretsManager.decryptSecret();
+        
+        // Secret form management
+        window.clearSecretForm = () => secretsManager.clearSecretForm();
+        window.enterSecretEditMode = () => secretsManager.enterSecretEditMode();
+        window.cancelSecretEdit = () => secretsManager.cancelSecretEdit();
+        window.deselectSecret = () => secretsManager.deselectSecret();
+        
+        // Tool configuration functions
+        window.enterToolConfigMode = () => secretsManager.enterToolConfigMode();
+        window.saveToolConfiguration = () => secretsManager.saveToolConfiguration();
+        window.cancelToolConfig = () => secretsManager.cancelToolConfig();
+        window.testTool = () => secretsManager.testTool();
+        window.deselectTool = () => secretsManager.deselectTool();
     }
     
     showRecentBreadcrumbs() {

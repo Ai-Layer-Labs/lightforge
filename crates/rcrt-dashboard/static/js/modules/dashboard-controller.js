@@ -44,10 +44,11 @@ export class DashboardController {
     
     setupStateListeners() {
         // Listen for data changes to trigger re-renders
-        dashboardState.subscribe('breadcrumbs', () => this.renderContent());
-        dashboardState.subscribe('agents', () => this.renderContent());
-        dashboardState.subscribe('availableTools', () => this.renderContent());
-        dashboardState.subscribe('filteredBreadcrumbs', () => this.renderContent());
+        dashboardState.subscribe('breadcrumbs', () => this.renderContentAsync());
+        dashboardState.subscribe('agents', () => this.renderContentAsync());
+        dashboardState.subscribe('availableTools', () => this.renderContentAsync());
+        dashboardState.subscribe('secrets', () => this.renderContentAsync());
+        dashboardState.subscribe('filteredBreadcrumbs', () => this.renderContentAsync());
         
         // Listen for selections to update UI
         dashboardState.subscribe('selectedBreadcrumb', (breadcrumb) => {
@@ -59,7 +60,14 @@ export class DashboardController {
         
         // Listen for position resets
         dashboardState.subscribe('positionsReset', () => {
-            this.renderContent();
+            this.renderContentAsync();
+        });
+    }
+    
+    // Async wrapper for state listeners
+    renderContentAsync() {
+        this.renderContent().catch(error => {
+            console.error('Error in renderContent:', error);
         });
     }
     
@@ -67,23 +75,71 @@ export class DashboardController {
         try {
             this.showLoading('Loading breadcrumbs...');
             
-            // Load breadcrumbs first
+            // Load breadcrumbs first (most important for UI)
             const breadcrumbs = await apiClient.loadBreadcrumbs();
             dashboardState.setState('breadcrumbs', breadcrumbs);
             
-            // Only load agents and subscriptions on first load
+            // Render breadcrumbs immediately for faster perceived performance
+            this.renderBreadcrumbsOnly();
+            this.updateStats();
+            
+            // Load other data in background on first load
             if (!dashboardState.dataLoaded) {
-                await this.loadAgentsAndSubscriptions();
+                this.showLoading('Loading agents and tools...');
+                
+                // Load agents, subscriptions, tools, and secrets in parallel for better performance
+                const [agents, subscriptions, tools, secrets] = await Promise.all([
+                    apiClient.loadAgents().catch(e => { console.warn('Failed to load agents:', e); return []; }),
+                    apiClient.loadSubscriptions().catch(e => { console.warn('Failed to load subscriptions:', e); return []; }),
+                    apiClient.loadAvailableTools(breadcrumbs).catch(e => { console.warn('Failed to load tools:', e); return []; }),
+                    apiClient.loadSecrets().catch(e => { console.warn('Failed to load secrets:', e); return []; })
+                ]);
+                
+                // Update state with loaded data
+                dashboardState.setState('agents', agents);
+                dashboardState.setState('subscriptions', subscriptions);
+                dashboardState.setState('availableTools', tools);
+                dashboardState.setState('secrets', secrets);
+                
+                console.log('Loaded additional data:', { agents: agents.length, subscriptions: subscriptions.length, tools: tools.length, secrets: secrets.length });
+                
+                // Update secrets manager
+                if (window.secretsManager) {
+                    window.secretsManager.updateSecretsCount();
+                    window.secretsManager.renderSecretsList();
+                }
+                
                 dashboardState.setState('dataLoaded', true);
             }
             
-            this.renderContent();
+            // Final render with all data
+            await this.renderContent();
             this.updateStats();
             
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.canvasEngine.showError(`Failed to load data: ${error.message}`);
         }
+    }
+    
+    renderBreadcrumbsOnly() {
+        // Quick render of just breadcrumbs for faster initial display
+        this.canvasEngine.clear();
+        
+        const toRender = dashboardState.filteredBreadcrumbs.length > 0 ? 
+            dashboardState.filteredBreadcrumbs : dashboardState.breadcrumbs;
+        
+        toRender.forEach((breadcrumb, index) => {
+            const node = this.nodeRenderer.createBreadcrumbNode(
+                breadcrumb, 
+                index, 
+                (id) => this.selectBreadcrumbForDetails(id)
+            );
+            this.canvas.appendChild(node);
+        });
+        
+        this.canvasEngine.updateCanvasSize();
+        this.updateBreadcrumbList();
     }
     
     async loadAgentsAndSubscriptions() {
@@ -103,6 +159,7 @@ export class DashboardController {
             dashboardState.setState('availableTools', tools);
             console.log('Loaded tools:', tools.length);
             
+            
         } catch (error) {
             console.error('Failed to load agents/subscriptions:', error);
             // Continue without agent visualization if this fails
@@ -112,7 +169,27 @@ export class DashboardController {
         }
     }
     
-    renderContent() {
+    async loadSecrets() {
+        try {
+            // Load secrets
+            const secrets = await apiClient.loadSecrets();
+            dashboardState.setState('secrets', secrets);
+            console.log('Loaded secrets:', secrets.length);
+            
+            // Update secrets manager
+            if (window.secretsManager) {
+                window.secretsManager.updateSecretsCount();
+                window.secretsManager.renderSecretsList();
+            }
+            
+        } catch (error) {
+            console.error('Failed to load secrets:', error);
+            // Continue without secrets if this fails
+            dashboardState.setState('secrets', []);
+        }
+    }
+    
+    async renderContent() {
         this.canvasEngine.clear();
         
         const toRender = dashboardState.filteredBreadcrumbs.length > 0 ? 
@@ -148,8 +225,18 @@ export class DashboardController {
             this.canvas.appendChild(node);
         });
         
+        // Render secret nodes
+        dashboardState.secrets.forEach((secret, index) => {
+            const node = this.nodeRenderer.createSecretNode(
+                secret, 
+                index, 
+                (secret) => this.selectSecretForDetails(secret)
+            );
+            this.canvas.appendChild(node);
+        });
+        
         // Render connection lines
-        this.renderConnections();
+        await this.renderConnections();
         
         // Update canvas size to fit all nodes
         this.canvasEngine.updateCanvasSize();
@@ -166,7 +253,8 @@ export class DashboardController {
         this.updateAvailableTags();
     }
     
-    renderConnections() {
+    async renderConnections() {
+        const startTime = Date.now();
         console.log('🔗 Rendering connections...');
         
         // Remove old connection lines
@@ -183,7 +271,27 @@ export class DashboardController {
         // Create tool creation connections
         this.renderToolConnections();
         
-        console.log(`✅ Created ${dashboardState.connections.length} total connection lines`);
+        // Create secret usage connections
+        await this.renderSecretConnections();
+        
+        const endTime = Date.now();
+        console.log(`✅ Created ${dashboardState.connections.length} total connection lines in ${endTime - startTime}ms`);
+        
+        // Flash the connection lines briefly to show they've been updated
+        if (dashboardState.connections.length > 0) {
+            dashboardState.connections.forEach(conn => {
+                if (conn.line) {
+                    const originalOpacity = conn.line.style.opacity || '1';
+                    conn.line.style.opacity = '1';
+                    conn.line.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+                    
+                    setTimeout(() => {
+                        conn.line.style.opacity = originalOpacity;
+                        conn.line.style.boxShadow = 'none';
+                    }, 500);
+                }
+            });
+        }
     }
     
     renderAgentConnections() {
@@ -261,6 +369,88 @@ export class DashboardController {
         });
     }
     
+    async renderSecretConnections() {
+        // Look for tool configurations that reference secrets
+        const toolConfigBreadcrumbs = dashboardState.breadcrumbs.filter(b => 
+            b.tags?.includes('tool:config')
+        );
+        
+        console.log(`🔐 Found ${toolConfigBreadcrumbs.length} tool config breadcrumbs`);
+        
+        // Get full context for each tool config to check for secret_id
+        const toolConfigs = [];
+        for (const breadcrumb of toolConfigBreadcrumbs) {
+            try {
+                const fullBreadcrumb = await apiClient.loadBreadcrumbDetails(breadcrumb.id);
+                if (fullBreadcrumb.context?.secret_id) {
+                    toolConfigs.push(fullBreadcrumb);
+                    console.log(`🔐 Tool config with secret: ${fullBreadcrumb.context.tool_name} → ${fullBreadcrumb.context.secret_name}`);
+                }
+            } catch (error) {
+                console.warn(`Failed to load context for ${breadcrumb.title}:`, error);
+            }
+        }
+        
+        toolConfigs.forEach((configBreadcrumb) => {
+            console.log(`🔐 Processing tool config:`, configBreadcrumb.context.tool_name);
+            
+            // Find the secret being referenced
+            const secretId = configBreadcrumb.context.secret_id;
+            const secret = dashboardState.secrets.find(s => s.id === secretId);
+            const secretPos = dashboardState.secretPositions.find(pos => pos.id === secretId);
+            
+            if (!secret || !secretPos) {
+                console.log(`❌ Secret not found:`, secretId);
+                return;
+            }
+            
+            // Find the tool that uses this secret
+            const toolName = configBreadcrumb.context.tool_name;
+            const tool = dashboardState.availableTools.find(t => t.name === toolName);
+            const toolPos = dashboardState.toolPositions.find(pos => pos.name === toolName);
+            
+            if (!tool || !toolPos) {
+                console.log(`❌ Tool not found:`, toolName);
+                return;
+            }
+            
+            console.log(`🔗 Creating secret connection: ${secret.name} → ${tool.name}`);
+            
+            // Create connection line from secret to tool
+            const line = this.canvasEngine.createSecretConnectionLine(secretPos, toolPos, secret, tool);
+            this.canvas.appendChild(line);
+            
+            dashboardState.connections.push({
+                secret: secret.id,
+                tool: tool.id,
+                line: line,
+                type: 'secret-usage'
+            });
+        });
+        
+        // Also show connections from secrets to agents that have access to them
+        dashboardState.secrets.forEach((secret) => {
+            if (secret.scope_type === 'agent' && secret.scope_id) {
+                const agentPos = dashboardState.agentPositions.find(pos => pos.id === secret.scope_id);
+                const secretPos = dashboardState.secretPositions.find(pos => pos.id === secret.id);
+                
+                if (agentPos && secretPos) {
+                    console.log(`🔗 Creating agent secret connection: ${secret.name} → Agent`);
+                    
+                    const line = this.canvasEngine.createSecretConnectionLine(secretPos, agentPos, secret, null);
+                    this.canvas.appendChild(line);
+                    
+                    dashboardState.connections.push({
+                        secret: secret.id,
+                        agent: secret.scope_id,
+                        line: line,
+                        type: 'secret-access'
+                    });
+                }
+            }
+        });
+    }
+    
     findMatchingBreadcrumbs(selector) {
         const toCheck = dashboardState.filteredBreadcrumbs.length > 0 ? 
             dashboardState.filteredBreadcrumbs : dashboardState.breadcrumbs;
@@ -322,9 +512,14 @@ export class DashboardController {
     }
     
     viewToolDetails(tool) {
-        const toolBreadcrumbs = this.findToolCreatedBreadcrumbs(tool.name);
-        
-        const details = `
+        // Use the secrets manager to handle tool selection
+        if (window.secretsManager) {
+            window.secretsManager.selectTool(tool);
+        } else {
+            // Fallback to simple alert
+            const toolBreadcrumbs = this.findToolCreatedBreadcrumbs(tool.name);
+            
+            const details = `
 Tool Details:
 
 🛠️ Name: ${tool.name}
@@ -341,9 +536,20 @@ ${toolBreadcrumbs.slice(0, 5).map(b => `• ${b.title.substring(0, 50)}${b.title
 ${toolBreadcrumbs.length > 5 ? `\n... and ${toolBreadcrumbs.length - 5} more` : ''}
 
 🎯 This tool ${tool.status === 'active' ? 'is ready to process requests' : 'is not currently active'}.
-        `.trim();
-        
-        alert(details);
+            `.trim();
+            
+            alert(details);
+        }
+    }
+    
+    selectSecretForDetails(secret) {
+        // Use the secrets manager to handle secret selection
+        if (window.secretsManager) {
+            window.secretsManager.selectSecret(secret);
+        } else {
+            // Fallback to simple alert
+            alert(`Secret: ${secret.name}\nScope: ${secret.scope_type}\nCreated: ${new Date(secret.created_at).toLocaleString()}`);
+        }
     }
     
     displayBreadcrumbDetails(details) {

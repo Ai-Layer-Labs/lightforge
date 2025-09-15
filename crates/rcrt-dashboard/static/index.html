@@ -188,6 +188,111 @@
                     <!-- Agent items will be populated here -->
                 </div>
             </div>
+
+            <!-- Selected Secret Details & Edit -->
+            <div class="panel-section" id="selectedSecretSection" style="display: none;">
+                <h3>🔐 Selected Secret</h3>
+                <div class="breadcrumb-details" id="secretDetails">
+                    <!-- Secret details will be populated here -->
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="enterSecretEditMode()">Edit</button>
+                    <button class="btn-small btn-danger" onclick="deleteSecret()">Delete</button>
+                    <button class="btn-small btn-warning" onclick="decryptSecret()">🔓 Decrypt</button>
+                    <button class="btn-small" onclick="deselectSecret()">Deselect</button>
+                </div>
+            </div>
+
+            <!-- Secret Edit Section -->
+            <div class="panel-section" id="editSecretSection" style="display: none;">
+                <h3>✏️ Edit Secret</h3>
+                <div class="form-group">
+                    <label for="editSecretName">Name</label>
+                    <input type="text" id="editSecretName" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="editSecretScope">Scope</label>
+                    <input type="text" id="editSecretScope" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="editSecretValue">Value</label>
+                    <input type="password" id="editSecretValue" class="form-input" placeholder="Enter new value...">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="updateSecret()">Update</button>
+                    <button class="btn-small" onclick="cancelSecretEdit()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Selected Tool Details & Edit -->
+            <div class="panel-section" id="selectedToolSection" style="display: none;">
+                <h3>🛠️ Selected Tool</h3>
+                <div class="breadcrumb-details" id="toolDetails">
+                    <!-- Tool details will be populated here -->
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="enterToolConfigMode()">Configure</button>
+                    <button class="btn-small" onclick="testTool()">🧪 Test</button>
+                    <button class="btn-small" onclick="deselectTool()">Deselect</button>
+                </div>
+            </div>
+
+            <!-- Tool Configuration Section -->
+            <div class="panel-section" id="configToolSection" style="display: none;">
+                <h3>⚙️ Configure Tool</h3>
+                <div class="form-group">
+                    <label for="configToolName">Tool Name</label>
+                    <input type="text" id="configToolName" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="configToolApiKey">API Key Secret</label>
+                    <select id="configToolApiKey" class="form-input">
+                        <option value="">Select a secret...</option>
+                        <!-- Secret options will be populated here -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="configToolEndpoint">Endpoint (optional)</label>
+                    <input type="text" id="configToolEndpoint" class="form-input" placeholder="Custom endpoint URL...">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-small btn-primary" onclick="saveToolConfiguration()">Save Config</button>
+                    <button class="btn-small" onclick="cancelToolConfig()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Secrets Management Section -->
+            <div class="panel-section" data-section="secrets">
+                <h3 onclick="toggleSectionCollapse('secrets')">
+                    🔐 Secrets (<span id="secretCount">0</span>)
+                    <button class="section-collapse-btn">▼</button>
+                </h3>
+                <div class="section-content">
+                    <div class="form-group">
+                        <label for="newSecretName">Name</label>
+                        <input type="text" id="newSecretName" class="form-input" placeholder="OPENROUTER_API_KEY">
+                    </div>
+                    <div class="form-group">
+                        <label for="newSecretScope">Scope</label>
+                        <select id="newSecretScope" class="form-input">
+                            <option value="global">Global</option>
+                            <option value="workspace">Workspace</option>
+                            <option value="agent">Agent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newSecretValue">Value</label>
+                        <input type="password" id="newSecretValue" class="form-input" placeholder="Enter secret value...">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-small btn-primary" onclick="createNewSecret()">Create Secret</button>
+                        <button class="btn-small" onclick="clearSecretForm()">Clear</button>
+                    </div>
+                    <div class="breadcrumb-list" id="secretList">
+                        <!-- Secret items will be populated here -->
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="canvas-container">

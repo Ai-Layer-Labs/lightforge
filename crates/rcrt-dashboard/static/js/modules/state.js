@@ -11,6 +11,7 @@ export class DashboardState {
         this.agents = [];
         this.subscriptions = [];
         this.availableTools = [];
+        this.secrets = [];
         this.connections = [];
         
         // UI state
@@ -18,14 +19,18 @@ export class DashboardState {
         this.selectedBreadcrumbDetails = null;
         this.selectedAgent = null;
         this.selectedAgentDetails = null;
+        this.selectedSecret = null;
+        this.selectedTool = null;
         
         // Canvas state
         this.nodePositions = [];
         this.agentPositions = [];
         this.toolPositions = [];
+        this.secretPositions = [];
         this.customNodePositions = new Map();
         this.customAgentPositions = new Map();
         this.customToolPositions = new Map();
+        this.customSecretPositions = new Map();
         
         // Interaction state
         this.isDragging = false;
@@ -69,6 +74,7 @@ export class DashboardState {
         this.nodeObjects3D = new Map();
         this.agentObjects3D = new Map();
         this.toolObjects3D = new Map();
+        this.secretObjects3D = new Map();
         
         // UI layout
         this.leftPanelWidth = 350;

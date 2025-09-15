@@ -64,6 +64,8 @@ pub struct UpdateBreadcrumbRequest {
     pub ttl: Option<DateTime<Utc>>,
 }
 
+use crate::auth::AuthManager;
+
 #[derive(Clone)]
 pub struct AppState {
     pub http_client: reqwest::Client,
@@ -73,4 +75,5 @@ pub struct AppState {
     #[allow(dead_code)] // May be used by future features  
     pub agent_id: Uuid,
     pub jwt_token: Option<String>,
+    pub auth_manager: AuthManager,
 }
