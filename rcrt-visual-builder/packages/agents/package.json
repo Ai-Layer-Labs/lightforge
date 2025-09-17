@@ -1,0 +1,27 @@
+{
+  "name": "@rcrt-builder/agents",
+  "version": "1.0.0",
+  "description": "RCRT Agent execution framework",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "echo 'No build needed - using JS directly'",
+    "dev": "echo 'No build needed - using JS directly'",
+    "clean": "echo 'No build needed - using JS directly'"
+  },
+  "dependencies": {
+    "@rcrt-builder/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "tsup": "^8.0.0"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    }
+  }
+}

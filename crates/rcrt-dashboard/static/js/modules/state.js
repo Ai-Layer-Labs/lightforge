@@ -9,6 +9,7 @@ export class DashboardState {
         this.breadcrumbs = [];
         this.filteredBreadcrumbs = [];
         this.agents = [];
+        this.agentDefinitions = [];
         this.subscriptions = [];
         this.availableTools = [];
         this.secrets = [];
@@ -19,16 +20,19 @@ export class DashboardState {
         this.selectedBreadcrumbDetails = null;
         this.selectedAgent = null;
         this.selectedAgentDetails = null;
+        this.selectedAgentDefinition = null;
         this.selectedSecret = null;
         this.selectedTool = null;
         
         // Canvas state
         this.nodePositions = [];
         this.agentPositions = [];
+        this.agentDefinitionPositions = [];
         this.toolPositions = [];
         this.secretPositions = [];
         this.customNodePositions = new Map();
         this.customAgentPositions = new Map();
+        this.customAgentDefinitionPositions = new Map();
         this.customToolPositions = new Map();
         this.customSecretPositions = new Map();
         

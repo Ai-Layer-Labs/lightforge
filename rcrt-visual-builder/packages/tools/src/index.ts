@@ -252,6 +252,9 @@ export function createTool(
   };
 }
 
+// Import file tools
+import { FileStorageTool, AgentLoaderTool } from './file-tools/index.js';
+
 // Built-in simple tools
 export const builtinTools = {
   // Agent Helper tool for system guidance
@@ -422,5 +425,11 @@ export const builtinTools = {
       );
       return { numbers };
     }
-  )
+  ),
+
+  // File Storage Tool
+  'file-storage': new FileStorageTool(),
+
+  // Agent Loader Tool  
+  'agent-loader': new AgentLoaderTool()
 };

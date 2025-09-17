@@ -19,14 +19,14 @@ COPY packages/heroui-breadcrumbs/package.json ./packages/heroui-breadcrumbs/
 COPY apps/builder/package.json ./apps/builder/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY packages ./packages
 COPY apps/builder ./apps/builder
 
 # Link workspace and per-package bins after sources are present
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build packages (skip DTS for speed/compat)
 ENV TSUP_DTS=false

@@ -7,6 +7,7 @@ import { dashboardController } from './modules/dashboard-controller.js';
 import { dashboardState } from './modules/state.js';
 import { apiClient } from './modules/api-client.js';
 import { secretsManager } from './modules/secrets-manager.js';
+import { superAgentChat } from './modules/super-agent-chat.js';
 
 // ============ MAIN INITIALIZATION ============
 
@@ -209,8 +210,13 @@ class DashboardApplication {
         // Secrets management functions - available immediately
         this.setupSecretsWrappers();
         
+        // Super agent chat functions - available immediately
+        this.setupSuperAgentChatWrappers();
+        
+        
         console.log('🌐 Global wrapper functions set up for HTML compatibility');
     }
+    
     
     setupCrudWrappers() {
         // Breadcrumb CRUD operations - modules already loaded
@@ -323,6 +329,22 @@ class DashboardApplication {
         window.cancelToolConfig = () => secretsManager.cancelToolConfig();
         window.testTool = () => secretsManager.testTool();
         window.deselectTool = () => secretsManager.deselectTool();
+    }
+    
+    setupSuperAgentChatWrappers() {
+        // Make super agent chat manager available globally
+        window.superAgentChat = superAgentChat;
+        
+        // Chat interface functions
+        window.sendChatMessage = () => superAgentChat.sendMessage();
+        window.toggleChatInterface = () => superAgentChat.toggleChatInterface();
+        window.clearChatHistory = () => superAgentChat.clearChatHistory();
+        window.handleChatInput = (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                superAgentChat.sendMessage();
+            }
+        };
     }
     
     showRecentBreadcrumbs() {

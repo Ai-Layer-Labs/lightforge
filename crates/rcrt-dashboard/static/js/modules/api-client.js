@@ -124,6 +124,90 @@ export class ApiClient {
     }
     
     /**
+     * Load agent definitions from breadcrumbs
+     */
+    async loadAgentDefinitions() {
+        const breadcrumbs = await this.request('/api/breadcrumbs');
+        const agentDefBreadcrumbs = breadcrumbs.filter(b => 
+            b.tags && b.tags.includes('agent:definition')
+        );
+        
+        // Fetch full context for each agent definition
+        const agentDefinitions = [];
+        for (const breadcrumb of agentDefBreadcrumbs) {
+            try {
+                const fullContext = await this.request(`/api/breadcrumbs/${breadcrumb.id}`);
+                agentDefinitions.push(fullContext);
+            } catch (error) {
+                console.warn(`Failed to load context for agent definition ${breadcrumb.id}:`, error);
+                // Include the breadcrumb without context as fallback
+                agentDefinitions.push(breadcrumb);
+            }
+        }
+        
+        return agentDefinitions;
+    }
+    
+    /**
+     * Create a new agent definition
+     */
+    async createAgentDefinition(agentDef) {
+        return await this.request('/api/breadcrumbs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: agentDef.title,
+                tags: ['agent:definition', 'workspace:agents', `agent:${agentDef.agent_name}`],
+                context: {
+                    schema_name: 'agent.definition.v1',
+                    agent_name: agentDef.agent_name,
+                    agent_entity_id: agentDef.agent_entity_id,
+                    category: agentDef.category || 'general',
+                    description: agentDef.description,
+                    execution: agentDef.execution || { type: 'javascript', code: '// Agent code here' },
+                    subscriptions: agentDef.subscriptions || [],
+                    triggers: agentDef.triggers || [],
+                    version: '1.0.0'
+                }
+            })
+        });
+    }
+    
+    /**
+     * Update an agent definition
+     */
+    async updateAgentDefinition(id, agentDef) {
+        return await this.request(`/api/breadcrumbs/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: agentDef.title,
+                tags: ['agent:definition', 'workspace:agents', `agent:${agentDef.agent_name}`],
+                context: {
+                    schema_name: 'agent.definition.v1',
+                    agent_name: agentDef.agent_name,
+                    agent_entity_id: agentDef.agent_entity_id,
+                    category: agentDef.category || 'general',
+                    description: agentDef.description,
+                    execution: agentDef.execution,
+                    subscriptions: agentDef.subscriptions || [],
+                    triggers: agentDef.triggers || [],
+                    version: agentDef.version || '1.0.0'
+                }
+            })
+        });
+    }
+    
+    /**
+     * Delete an agent definition
+     */
+    async deleteAgentDefinition(id) {
+        return await this.request(`/api/breadcrumbs/${id}`, {
+            method: 'DELETE'
+        });
+    }
+    
+    /**
      * Update agent roles
      * @param {string} id - Agent ID
      * @param {array} roles - New roles array

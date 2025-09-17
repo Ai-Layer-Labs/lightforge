@@ -35,10 +35,12 @@ export class CanvasEngine {
         // Don't start canvas pan if clicking on a node
         if (e.target.classList.contains('breadcrumb-node') || 
             e.target.classList.contains('agent-node') || 
+            e.target.classList.contains('agent-definition-node') || 
             e.target.classList.contains('tool-node') || 
             e.target.classList.contains('secret-node') || 
             e.target.closest('.breadcrumb-node') || 
             e.target.closest('.agent-node') || 
+            e.target.closest('.agent-definition-node') || 
             e.target.closest('.tool-node') || 
             e.target.closest('.secret-node')) {
             return;
@@ -121,6 +123,14 @@ export class CanvasEngine {
             // Save custom position for persistence (center coordinates)
             dashboardState.customAgentPositions.set(agentId, { x: canvasX, y: canvasY });
             
+        } else if (dashboardState.draggedNodeType === 'agentDefinition' && dashboardState.agentDefinitionPositions[draggedNodeIndex]) {
+            const agentDefId = dashboardState.agentDefinitionPositions[draggedNodeIndex].id;
+            dashboardState.agentDefinitionPositions[draggedNodeIndex].x = canvasX;
+            dashboardState.agentDefinitionPositions[draggedNodeIndex].y = canvasY;
+            
+            // Save custom position for persistence (center coordinates)
+            dashboardState.customAgentDefinitionPositions.set(agentDefId, { x: canvasX, y: canvasY });
+            
         } else if (dashboardState.draggedNodeType === 'tool' && dashboardState.toolPositions[draggedNodeIndex]) {
             const toolId = dashboardState.toolPositions[draggedNodeIndex].id;
             dashboardState.toolPositions[draggedNodeIndex].x = canvasX;
@@ -188,7 +198,7 @@ export class CanvasEngine {
     }
     
     updateCanvasSize() {
-        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
+        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.agentDefinitionPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
         if (allPositions.length === 0) return;
         
         // Calculate bounding box of all nodes
@@ -217,7 +227,7 @@ export class CanvasEngine {
     }
     
     centerViewOnContent() {
-        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
+        const allPositions = [...dashboardState.nodePositions, ...dashboardState.agentPositions, ...dashboardState.agentDefinitionPositions, ...dashboardState.toolPositions, ...dashboardState.secretPositions];
         if (allPositions.length === 0) return;
         
         const containerWidth = this.canvasContainer.clientWidth;
@@ -254,6 +264,7 @@ export class CanvasEngine {
             console.log('Resetting all node positions');
             dashboardState.customNodePositions.clear();
             dashboardState.customAgentPositions.clear();
+            dashboardState.customAgentDefinitionPositions.clear();
             dashboardState.customToolPositions.clear();
             dashboardState.customSecretPositions.clear();
             // Trigger re-render - this would be handled by the main controller
@@ -291,6 +302,14 @@ export class CanvasEngine {
                     
                     if (secretPos && agentPos) {
                         this.updateConnectionLine(conn.line, secretPos, agentPos);
+                    }
+                } else if (conn.type === 'agent-definition') {
+                    // Agent entity → agent definition connection
+                    const agentPos = dashboardState.agentPositions.find(pos => pos.id === conn.from);
+                    const defPos = dashboardState.agentDefinitionPositions.find(pos => pos.id === conn.to);
+                    
+                    if (agentPos && defPos) {
+                        this.updateConnectionLine(conn.line, agentPos, defPos);
                     }
                 } else {
                     // Agent subscription connection
@@ -394,12 +413,43 @@ export class CanvasEngine {
         return line;
     }
     
+    createAgentDefinitionConnectionLine(agentPos, defPos, agentId, agentDef) {
+        const line = document.createElement('div');
+        line.className = 'connection-line agent-definition-connection';
+        
+        // Calculate line position and rotation
+        const deltaX = defPos.x - agentPos.x;
+        const deltaY = defPos.y - agentPos.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        
+        // Position line at agent center
+        line.style.left = `${agentPos.x}px`;
+        line.style.top = `${agentPos.y}px`;
+        line.style.width = `${distance}px`;
+        line.style.height = '2px';
+        line.style.transformOrigin = '0 50%';
+        line.style.transform = `rotate(${angle}deg)`;
+        line.style.background = 'linear-gradient(90deg, rgba(255, 165, 0, 0.6) 0%, rgba(138, 43, 226, 0.6) 100%)';
+        line.style.position = 'absolute';
+        line.style.zIndex = '5';
+        line.style.opacity = '0.7';
+        line.style.pointerEvents = 'none';
+        
+        // Add tooltip
+        const agentName = agentDef.context?.agent_name || 'unknown';
+        line.title = `Agent Entity ${agentId.substring(30)} → Definition: ${agentName}`;
+        
+        return line;
+    }
+    
     // ============ UTILITY FUNCTIONS ============
     
     clear() {
         this.canvas.innerHTML = '';
         dashboardState.setState('nodePositions', []);
         dashboardState.setState('agentPositions', []);
+        dashboardState.setState('agentDefinitionPositions', []);
         dashboardState.setState('toolPositions', []);
         dashboardState.setState('secretPositions', []);
         dashboardState.setState('connections', []);

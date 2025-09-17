@@ -312,8 +312,13 @@ export class RcrtClientEnhanced {
 
   async searchBreadcrumbs(params: SearchParams | Selector): Promise<Breadcrumb[]> {
     // Map selector → simple tag filter only (API supports only 'tag')
+    console.log('🔍 SDK searchBreadcrumbs called with:', params, typeof params);
     const queryParams = new URLSearchParams();
-    const isSelector = (p: any): p is Selector => 'any_tags' in p || 'all_tags' in p;
+    const isSelector = (p: any): p is Selector => {
+      console.log('🔍 Checking if selector:', p, typeof p, p && typeof p === 'object');
+      if (!p || typeof p !== 'object') return false;
+      return 'any_tags' in p || 'all_tags' in p;
+    };
 
     if (isSelector(params)) {
       const tagFromAny = params.any_tags?.find(t => typeof t === 'string');

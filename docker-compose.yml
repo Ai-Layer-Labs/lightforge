@@ -165,6 +165,19 @@ services:
       ENABLE_TOOL_UI: "false"
       DEPLOYMENT_MODE: docker
 
+  agent-runner:
+    build:
+      context: ./rcrt-visual-builder
+      dockerfile: apps/agent-runner/Dockerfile
+    depends_on:
+      - rcrt
+    environment:
+      RCRT_BASE_URL: http://rcrt:8080
+      WORKSPACE: workspace:agents
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AGENT_ID: 00000000-0000-0000-0000-000000000AAA
+      DEPLOYMENT_MODE: docker
+
   dashboard:
     build:
       context: .

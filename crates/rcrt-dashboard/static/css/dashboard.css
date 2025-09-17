@@ -857,6 +857,74 @@ body {
     margin-top: 0.2rem;
 }
 
+/* 🧠 Agent Definition node styling */
+.agent-definition-node {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    border: 2px solid rgba(138, 43, 226, 0.4);
+    border-radius: 15px;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.agent-definition-node:hover {
+    border-color: rgba(138, 43, 226, 0.8);
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.2) 0%, rgba(75, 0, 130, 0.2) 100%);
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(138, 43, 226, 0.25);
+}
+
+.agent-def-icon {
+    font-size: 28px;
+    margin-bottom: 4px;
+}
+
+.agent-def-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 2px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-def-description {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-bottom: 4px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-def-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.agent-def-triggers,
+.agent-def-subscriptions {
+    font-size: 8px;
+    color: rgba(138, 43, 226, 0.8);
+    text-align: center;
+}
+
 /* 🛠️ Tool node styling */
 .tool-node {
     position: absolute;
@@ -974,6 +1042,295 @@ body {
     height: 2px;
     opacity: 0.9;
     background: linear-gradient(90deg, rgba(255, 107, 107, 0.6), rgba(255, 165, 0, 0.6));
+}
+
+/* Agent-Definition connection styling */
+.connection-line.agent-definition-connection {
+    background: linear-gradient(90deg, rgba(255, 165, 0, 0.6) 0%, rgba(138, 43, 226, 0.6) 100%);
+    height: 2px;
+    z-index: 5;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.connection-line.agent-definition-connection:hover {
+    opacity: 1 !important;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(255, 165, 0, 0.8) 0%, rgba(138, 43, 226, 0.8) 100%);
+}
+
+/* Dynamic Panel Styling */
+#dynamicSelectionPanel {
+    border-left: 3px solid rgba(138, 43, 226, 0.6);
+    background: rgba(138, 43, 226, 0.05);
+    border-radius: 8px;
+    margin: 0.5rem 0;
+}
+
+#dynamicSelectionPanel h3 {
+    color: rgba(138, 43, 226, 0.9);
+    border-bottom: 1px solid rgba(138, 43, 226, 0.3);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    background: rgba(138, 43, 226, 0.1);
+    margin: -1rem -1rem 1rem -1rem;
+    padding: 1rem;
+    border-radius: 8px 8px 0 0;
+}
+
+.detail-item {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-item strong {
+    color: rgba(255, 255, 255, 0.8);
+    display: inline-block;
+    min-width: 100px;
+}
+
+.code-viewer {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #00ff88;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #00ff88, #00cc66);
+    color: #000;
+    font-weight: bold;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #00cc66, #00aa55);
+    transform: translateY(-1px);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #00f5ff, #0099cc);
+    color: #000;
+    font-weight: bold;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #0099cc, #007799);
+    transform: translateY(-1px);
+}
+
+
+/* ============ CHAT INTERFACE ============ */
+
+.chat-interface-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 350px; /* After left panel */
+    right: 350px; /* Before right panel */
+    height: 280px;
+    min-height: 120px;
+    max-height: 600px;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(0, 245, 255, 0.3);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    box-shadow: 0 -4px 20px rgba(0, 245, 255, 0.1);
+    resize: vertical;
+    overflow: hidden;
+}
+
+.chat-interface-bottom.collapsed {
+    height: 40px;
+}
+
+.chat-header-bottom {
+    background: rgba(0, 245, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 40px;
+    cursor: ns-resize;
+}
+
+.chat-header-bottom:hover {
+    background: rgba(0, 245, 255, 0.15);
+}
+
+.chat-resize-handle {
+    position: absolute;
+    top: -5px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    cursor: ns-resize;
+    background: transparent;
+}
+
+.chat-resize-handle:hover {
+    background: rgba(0, 245, 255, 0.2);
+}
+
+.chat-title {
+    font-weight: 600;
+    color: #00f5ff;
+}
+
+.chat-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chat-message {
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+}
+
+.chat-message.agent {
+    align-self: flex-start;
+}
+
+.chat-message.system {
+    align-self: center;
+    max-width: 90%;
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+}
+
+.message-sender {
+    font-weight: 600;
+}
+
+.message-sender.user {
+    color: #00f5ff;
+}
+
+.message-sender.agent {
+    color: #00ff88;
+}
+
+.message-time {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+}
+
+.message-content {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.8rem;
+    border-radius: 8px;
+    border-left: 3px solid rgba(0, 245, 255, 0.5);
+    line-height: 1.4;
+}
+
+.chat-message.user .message-content {
+    background: rgba(0, 245, 255, 0.1);
+    border-left-color: #00f5ff;
+}
+
+.chat-message.agent .message-content {
+    background: rgba(0, 255, 136, 0.1);
+    border-left-color: #00ff88;
+}
+
+.chat-message.system .message-content {
+    background: rgba(255, 165, 0, 0.1);
+    border-left-color: #ffa500;
+    text-align: center;
+    font-style: italic;
+}
+
+.chat-input-area {
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.chat-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    padding: 0.8rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: #00f5ff;
+    box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
+}
+
+.chat-send-btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+/* Adjust main container to account for chat interface */
+.main-container {
+    height: calc(100vh - 80px); /* Just account for header */
+    padding-bottom: 290px; /* Space for chat interface */
+}
+
+.main-container.chat-collapsed {
+    padding-bottom: 50px; /* Space for collapsed chat */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+    .chat-interface-bottom {
+        left: 20px;
+        right: 20px;
+    }
+}
+
+/* Make chat interface more prominent */
+.chat-interface-bottom {
+    border: 2px solid rgba(0, 245, 255, 0.4);
+    box-shadow: 0 -6px 30px rgba(0, 245, 255, 0.15);
+}
+
+.chat-interface-bottom:hover {
+    border-color: rgba(0, 245, 255, 0.6);
+    box-shadow: 0 -8px 40px rgba(0, 245, 255, 0.2);
 }
 
 .connection-line.tool-connection:hover {

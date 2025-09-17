@@ -15,6 +15,7 @@ export class ThreeDEngine {
         
         this.nodeObjects3D = new Map();
         this.agentObjects3D = new Map();
+        this.agentDefinitionObjects3D = new Map();
         this.toolObjects3D = new Map();
         this.secretObjects3D = new Map();
         
@@ -29,6 +30,7 @@ export class ThreeDEngine {
         dashboardState.controls = this.controls;
         dashboardState.nodeObjects3D = this.nodeObjects3D;
         dashboardState.agentObjects3D = this.agentObjects3D;
+        dashboardState.agentDefinitionObjects3D = this.agentDefinitionObjects3D;
         dashboardState.toolObjects3D = this.toolObjects3D;
         dashboardState.secretObjects3D = this.secretObjects3D;
         
@@ -53,6 +55,13 @@ export class ThreeDEngine {
         dashboardState.subscribe('agents', () => {
             if (dashboardState.is3DMode && this.scene) {
                 console.log('🎲 3D: Updating view due to agents change');
+                this.render3DViewAsync();
+            }
+        });
+        
+        dashboardState.subscribe('agentDefinitions', () => {
+            if (dashboardState.is3DMode && this.scene) {
+                console.log('🎲 3D: Updating view due to agent definitions change');
                 this.render3DViewAsync();
             }
         });
@@ -260,6 +269,7 @@ export class ThreeDEngine {
         // Clear previous objects
         this.nodeObjects3D.clear();
         this.agentObjects3D.clear();
+        this.agentDefinitionObjects3D.clear();
         this.toolObjects3D.clear();
         this.secretObjects3D.clear();
         
@@ -288,6 +298,14 @@ export class ThreeDEngine {
             const mesh = this.create3DAgentNode(item, position, cluster);
             this.scene.add(mesh);
             this.agentObjects3D.set(item.id, mesh);
+        });
+        
+        // Render agent definitions in 3D space
+        const agentDefPositions = this.calculateSemanticPositions(dashboardState.agentDefinitions, 'agentDefinition');
+        agentDefPositions.forEach(({ item, position, cluster }) => {
+            const mesh = this.create3DAgentDefinitionNode(item, position, cluster);
+            this.scene.add(mesh);
+            this.agentDefinitionObjects3D.set(item.id, mesh);
         });
         
         // Render tools in 3D space
@@ -380,6 +398,25 @@ export class ThreeDEngine {
             data: agent, 
             cluster: cluster,
             originalColor: 0xffa500,
+            infoCard: infoCard
+        };
+        
+        return nodeGroup;
+    }
+    
+    create3DAgentDefinitionNode(agentDef, position, cluster) {
+        const nodeGroup = new THREE.Group();
+        
+        // Create styled agent definition card (rectangular with purple theme)
+        const infoCard = this.create3DAgentDefinitionCard(agentDef, cluster);
+        nodeGroup.add(infoCard);
+        
+        nodeGroup.position.set(position[0], position[1], position[2]);
+        nodeGroup.userData = { 
+            type: 'agentDefinition', 
+            data: agentDef, 
+            cluster: cluster,
+            originalColor: 0x8a2be2, // Purple color
             infoCard: infoCard
         };
         
@@ -609,6 +646,81 @@ export class ThreeDEngine {
         
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(18, 18, 1);
+        sprite.renderOrder = 999;
+        
+        return sprite;
+    }
+    
+    create3DAgentDefinitionCard(agentDef, cluster) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 140;
+        canvas.height = 140;
+        
+        // Rounded rectangle helper function
+        function roundRect(x, y, width, height, radius) {
+            context.beginPath();
+            context.moveTo(x + radius, y);
+            context.lineTo(x + width - radius, y);
+            context.quadraticCurveTo(x + width, y, x + width, y + radius);
+            context.lineTo(x + width, y + height - radius);
+            context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            context.lineTo(x + radius, y + height);
+            context.quadraticCurveTo(x, y + height, x, y + height - radius);
+            context.lineTo(x, y + radius);
+            context.quadraticCurveTo(x, y, x + radius, y);
+            context.closePath();
+        }
+        
+        // Purple gradient background (matching 2D style)
+        const gradient = context.createLinearGradient(0, 0, 140, 140);
+        gradient.addColorStop(0, 'rgba(138, 43, 226, 0.1)');
+        gradient.addColorStop(1, 'rgba(75, 0, 130, 0.1)');
+        
+        roundRect(5, 5, 130, 130, 15);
+        context.fillStyle = gradient;
+        context.fill();
+        
+        // Border
+        context.strokeStyle = 'rgba(138, 43, 226, 0.4)';
+        context.lineWidth = 2;
+        context.stroke();
+        
+        // Brain icon (centered)
+        context.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        context.fillStyle = '#ffffff';
+        context.textAlign = 'center';
+        context.fillText('🧠', 70, 50);
+        
+        // Agent name
+        context.font = 'bold 11px -apple-system';
+        context.fillStyle = '#ffffff';
+        const agentName = agentDef.context?.agent_name || 'unknown';
+        context.fillText(agentName, 70, 70);
+        
+        // Description (truncated)
+        context.font = '9px -apple-system';
+        context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        const description = (agentDef.context?.description || 'No description').substring(0, 20);
+        context.fillText(description, 70, 85);
+        
+        // Stats
+        context.font = '8px -apple-system';
+        context.fillStyle = 'rgba(138, 43, 226, 0.8)';
+        const triggerCount = agentDef.context?.triggers?.length || 0;
+        const subscriptionCount = agentDef.context?.subscriptions?.length || 0;
+        context.fillText(`⚡ ${triggerCount} triggers`, 70, 105);
+        context.fillText(`📡 ${subscriptionCount} subs`, 70, 120);
+        
+        // Create sprite
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true,
+            opacity: 0.9
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(20, 20, 1); // Match other node sizes
         sprite.renderOrder = 999;
         
         return sprite;
@@ -1103,7 +1215,7 @@ export class ThreeDEngine {
             raycaster.setFromCamera(mouse, this.camera);
             
             // Check for intersections with all objects (recursive to catch child meshes)
-            const allGroups = [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()];
+            const allGroups = [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.agentDefinitionObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()];
             const intersects = raycaster.intersectObjects(allGroups, true); // true = recursive
             
             if (intersects.length > 0) {
@@ -1120,6 +1232,8 @@ export class ThreeDEngine {
                     window.dashboard?.selectBreadcrumbForDetails(userData.data.id);
                 } else if (userData.type === 'agent') {
                     window.dashboard?.selectAgentForDetails(userData.data);
+                } else if (userData.type === 'agentDefinition') {
+                    window.dashboard?.selectAgentDefinitionForDetails(userData.data);
                 } else if (userData.type === 'tool') {
                     console.log('Tool clicked:', userData.data);
                 }
@@ -1132,7 +1246,7 @@ export class ThreeDEngine {
     
     highlight3DObject(object) {
         // Reset all cards to normal state
-        [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()].forEach(nodeGroup => {
+        [...this.nodeObjects3D.values(), ...this.agentObjects3D.values(), ...this.agentDefinitionObjects3D.values(), ...this.toolObjects3D.values(), ...this.secretObjects3D.values()].forEach(nodeGroup => {
             const userData = nodeGroup.userData;
             if (userData.infoCard) {
                 userData.infoCard.scale.set(
@@ -1185,6 +1299,7 @@ export class ThreeDEngine {
         this.controls = null;
         this.nodeObjects3D.clear();
         this.agentObjects3D.clear();
+        this.agentDefinitionObjects3D.clear();
         this.toolObjects3D.clear();
         this.secretObjects3D.clear();
         

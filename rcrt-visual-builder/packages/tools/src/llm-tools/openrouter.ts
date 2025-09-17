@@ -18,11 +18,14 @@ export class OpenRouterTool extends SimpleLLMTool {
       throw new Error(validation);
     }
     
-    // Get API key from RCRT secrets
-    const apiKey = await this.getSecret('OPENROUTER_API_KEY', context);
+    // Load tool configuration from breadcrumb
+    const config = await this.loadToolConfiguration(context);
     
-    // Choose model (specific OpenRouter format like "google/gemini-2.5-flash")
-    const model = input.model || 'google/gemini-2.5-flash';
+    // Get API key from configured secret
+    const apiKey = await this.getConfiguredSecret(config.apiKey, context);
+    
+    // Choose model from config or input
+    const model = input.model || config.defaultModel || 'google/gemini-2.5-flash';
     
     try {
       // Call OpenRouter API
@@ -37,8 +40,8 @@ export class OpenRouterTool extends SimpleLLMTool {
         body: JSON.stringify({
           model: model,
           messages: input.messages,
-          temperature: input.temperature || 0.7,
-          max_tokens: input.max_tokens || 4000
+          temperature: input.temperature || config.temperature || 0.7,
+          max_tokens: input.max_tokens || config.maxTokens || 4000
         })
       });
       
@@ -120,6 +123,74 @@ export class OpenRouterTool extends SimpleLLMTool {
     
     const costPer1K = estimatedCosts[model] || 0.005; // Default $5 per 1M tokens
     return (totalTokens / 1000) * costPer1K;
+  }
+  
+  /**
+   * Load tool configuration from RCRT breadcrumb
+   */
+  private async loadToolConfiguration(context: ToolExecutionContext): Promise<any> {
+    try {
+      console.log('[OpenRouter] Loading tool configuration from breadcrumb...');
+      
+      // Search for tool config breadcrumb
+      const configBreadcrumbs = await context.rcrtClient.searchBreadcrumbs({
+        tags: ['tool:config:openrouter', 'tool:config']
+      });
+      
+      if (configBreadcrumbs.length > 0) {
+        // Use the most recent config
+        const latest = configBreadcrumbs.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )[0];
+        
+        const fullBreadcrumb = await context.rcrtClient.getBreadcrumb(latest.id);
+        
+        if (fullBreadcrumb.context?.config) {
+          console.log('[OpenRouter] Loaded configuration:', fullBreadcrumb.context.config);
+          return fullBreadcrumb.context.config;
+        }
+      }
+      
+      console.log('[OpenRouter] No configuration found, using defaults');
+      return {
+        defaultModel: 'google/gemini-2.5-flash',
+        temperature: 0.7,
+        maxTokens: 4000
+      };
+    } catch (error) {
+      console.warn('[OpenRouter] Failed to load configuration, using defaults:', error);
+      return {
+        defaultModel: 'google/gemini-2.5-flash',
+        temperature: 0.7,
+        maxTokens: 4000
+      };
+    }
+  }
+  
+  /**
+   * Get secret by ID instead of name
+   */
+  private async getConfiguredSecret(secretId: string, context: ToolExecutionContext): Promise<string> {
+    try {
+      if (!secretId) {
+        // Fallback to legacy secret name approach
+        console.log('[OpenRouter] No secret ID configured, using legacy OPENROUTER_API_KEY');
+        return await this.getSecret('OPENROUTER_API_KEY', context);
+      }
+      
+      console.log('[OpenRouter] Getting configured secret:', secretId);
+      const decrypted = await context.rcrtClient.getSecret(secretId, `OpenRouter:${context.agentId}`);
+      
+      if (!decrypted.value) {
+        throw new Error('Secret value is empty');
+      }
+      
+      return decrypted.value;
+    } catch (error) {
+      console.warn('[OpenRouter] Failed to get configured secret, trying fallback:', error);
+      // Fallback to legacy approach
+      return await this.getSecret('OPENROUTER_API_KEY', context);
+    }
   }
 }
 

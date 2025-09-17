@@ -7,9 +7,9 @@ let keepAliveCreated = false;
 
 async function getConfig() {
   const { dashboardUrl, extensionToken } = await chrome.storage.local.get(['dashboardUrl', 'extensionToken']);
-  // 🚀 RCRT-ONLY: Connect to RCRT dashboard proxy
+  // 🚀 RCRT-ONLY: Connect to RCRT server directly (like Dashboard v2)
   return {
-    dashboardUrl: dashboardUrl || 'http://localhost:8082', // RCRT dashboard proxy (Docker port)
+    dashboardUrl: dashboardUrl || 'http://localhost:8081', // RCRT server direct
     extensionToken: extensionToken || ''
   };
 }
@@ -23,16 +23,24 @@ async function connectToRCRT() {
     // Try to get JWT token from RCRT dashboard
     let token = extensionToken;
     
-    console.log('🔑 Fetching JWT token from RCRT dashboard...');
-    const res = await fetch(`${dashboardUrl}/api/auth/token`);
+    console.log('🔑 Fetching JWT token from RCRT server...');
+    const res = await fetch(`${dashboardUrl}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        owner_id: '00000000-0000-0000-0000-000000000001',
+        agent_id: '00000000-0000-0000-0000-000000000EEE',
+        roles: ['curator', 'emitter', 'subscriber']
+      })
+    });
     
     if (res.ok) {
       const data = await res.json();
       if (data && data.token) {
         token = data.token;
         await chrome.storage.local.set({ extensionToken: token });
-        console.log('✅ Got JWT token from RCRT dashboard');
-        console.log('🎯 Extension ready for RCRT integration');
+        console.log('✅ Got JWT token from RCRT server');
+        console.log('🎯 Extension ready for Dashboard v2 integration');
         return true;
       }
     } else if (res.status === 404) {
@@ -96,12 +104,12 @@ chrome.runtime.onInstalled.addListener(async () => {
   // 🔧 FORCE RESET: Clear any old storage from previous versions
   await chrome.storage.local.clear();
   await chrome.storage.local.set({ 
-    dashboardUrl: 'http://localhost:8082',
+    dashboardUrl: 'http://localhost:8081',
     extensionToken: '',
-    _version: '2.0-rcrt' // Track version to avoid future storage conflicts
+    _version: '2.0-dashboard-v2' // Track version to avoid future storage conflicts
   });
   
-  console.log('🧹 Cleared old storage, set dashboard URL to localhost:8082');
+  console.log('🧹 Cleared old storage, set RCRT server URL to localhost:8081');
   
   await connectToRCRT();
   

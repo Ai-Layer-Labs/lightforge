@@ -1,0 +1,26 @@
+{
+  "name": "@rcrt-builder/agent-runner",
+  "version": "1.0.0",
+  "description": "RCRT Agent Runner - Executes agent definitions",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "echo 'No build needed - using JS directly'",
+    "dev": "echo 'No build needed - using JS directly'",
+    "start": "node src/index.js",
+    "clean": "echo 'No build needed - using JS directly'"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "@rcrt-builder/sdk": "workspace:*",
+    "tsx": "^4.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "tsup": "^8.0.0",
+    "@types/node": "^20.10.5"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}

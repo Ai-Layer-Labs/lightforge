@@ -67,6 +67,7 @@
                 </div>
             </div>
 
+
             <!-- CRUD Operations Section -->
             <div class="panel-section" data-section="create">
                 <h3 onclick="toggleSectionCollapse('create')">
@@ -542,6 +543,30 @@
                     </div>
                 </div>
                 <button class="btn-small btn-primary" onclick="refreshWebhooks()">Refresh Webhooks</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Interface at Bottom -->
+    <div class="chat-interface-bottom" id="chatInterfaceBottom">
+        <div class="chat-resize-handle" id="chatResizeHandle"></div>
+        <div class="chat-header-bottom">
+            <div class="chat-title">💬 RCRT Chat</div>
+            <div class="chat-controls">
+                <button class="btn-small" onclick="toggleChatInterface()" id="chatToggleBtn">▼ Hide</button>
+                <button class="btn-small" onclick="clearChatHistory()">Clear</button>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <!-- Chat messages will be populated from user:message and user:response breadcrumbs -->
+        </div>
+        
+        <div class="chat-input-area">
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Ask me anything about RCRT, request tool usage, or ask me to create agents..." 
+                       onkeydown="handleChatInput(event)">
+                <button class="btn-primary chat-send-btn" onclick="sendChatMessage()">Send</button>
             </div>
         </div>
     </div>

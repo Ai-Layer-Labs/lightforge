@@ -1,0 +1,22 @@
+{
+  "title": "Chat Response Agent - Handles LLM Responses",
+  "context": {
+    "agent_name": "chat-responder",
+    "category": "responder", 
+    "description": "Converts LLM tool responses into user:response breadcrumbs",
+    "execution": {
+      "code": "// Chat Response Agent - Converts LLM responses to user:response breadcrumbs\nconst toolResponse = triggerBreadcrumb.context;\nconst requestId = toolResponse.request_id;\n\nconsole.log('í´„ Chat Responder processing LLM response for request:', requestId);\n\n// Check if this was a chat-related LLM request\nif (toolResponse.tool === 'openrouter' && toolResponse.status === 'success') {\n  const llmContent = toolResponse.output?.content;\n  \n  if (llmContent) {\n    console.log('âœ… Converting LLM response to user:response breadcrumb');\n    \n    // Try to parse JSON response first\n    let agentResponse = llmContent;\n    try {\n      const parsed = JSON.parse(llmContent.replace(/```json\\n/, '').replace(/\\n```/, ''));\n      if (parsed.agent_response) {\n        agentResponse = parsed.agent_response;\n      }\n    } catch (e) {\n      // Use raw content if not JSON\n    }\n    \n    // Create user:response breadcrumb with LLM content\n    const response = await createBreadcrumb({\n      title: 'Agent Response: ' + agentResponse.substring(0, 30),\n      tags: ['user:response', 'workspace:chat', 'llm:generated'],\n      context: {\n        agent_response: agentResponse,\n        llm_model: toolResponse.output.model,\n        llm_usage: toolResponse.output.usage,\n        original_request_id: requestId,\n        response_type: 'llm_response',\n        timestamp: new Date().toISOString()\n      }\n    });\n    \n    console.log('í¾‰ Created user:response breadcrumb from LLM:', response.id);\n    \n    return {\n      status: 'success',\n      response_id: response.id,\n      agent_response: agentResponse\n    };\n  }\n}\n\nreturn { status: 'ignored', reason: 'Not a chat-related LLM response' };",
+      "type": "javascript"
+    },
+    "subscriptions": ["tool:response"],
+    "triggers": [
+      {
+        "selector": {
+          "all_tags": ["tool:response", "workspace:tools"],
+          "schema_name": "tool.response.v1"
+        }
+      }
+    ],
+    "version": "1.0.1"
+  }
+}

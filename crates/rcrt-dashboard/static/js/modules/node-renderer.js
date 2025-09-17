@@ -148,6 +148,102 @@ export class NodeRenderer {
         return node;
     }
     
+    // ============ AGENT DEFINITION NODES ============
+    
+    createAgentDefinitionNode(agentDef, index, onSelectCallback) {
+        const node = document.createElement('div');
+        node.className = 'agent-definition-node';
+        
+        // Check if we have a custom position for this agent definition
+        let x, y;
+        const nodeSize = 140;
+        
+        if (dashboardState.customAgentDefinitionPositions.has(agentDef.id)) {
+            // Use saved custom position
+            const saved = dashboardState.customAgentDefinitionPositions.get(agentDef.id);
+            x = saved.x - 70; // Convert from center back to top-left
+            y = saved.y - 70;
+        } else {
+            // Use default grid position (offset from agent entities)
+            const cols = 3;
+            const startX = 400; // Offset to the right of agent entities
+            const startY = 100;
+            x = startX + (index % cols) * nodeSize;
+            y = startY + Math.floor(index / cols) * nodeSize;
+        }
+        
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        
+        // Store position for connections (center coordinates)
+        dashboardState.agentDefinitionPositions.push({
+            id: agentDef.id,
+            x: x + 70, // Center of node
+            y: y + 70, // Center of node  
+            width: 140,
+            height: 140
+        });
+        
+        // Get agent definition details
+        const agentName = agentDef.context?.agent_name || 'unknown';
+        const description = agentDef.context?.description || 'No description';
+        const triggerCount = agentDef.context?.triggers?.length || 0;
+        const subscriptionCount = agentDef.context?.subscriptions?.length || 0;
+        
+        node.innerHTML = `
+            <div class="agent-def-icon">🧠</div>
+            <div class="agent-def-name">${agentName}</div>
+            <div class="agent-def-description">${description.substring(0, 30)}${description.length > 30 ? '...' : ''}</div>
+            <div class="agent-def-stats">
+                <div class="agent-def-triggers">⚡ ${triggerCount} triggers</div>
+                <div class="agent-def-subscriptions">📡 ${subscriptionCount} subs</div>
+            </div>
+        `;
+        
+        // Make agent definition node draggable and clickable
+        this.makeAgentDefinitionInteractive(node, agentDef, index, onSelectCallback);
+        
+        return node;
+    }
+    
+    makeAgentDefinitionInteractive(node, agentDef, index, onSelectCallback) {
+        // Make draggable
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+        
+        node.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click only
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = node.getBoundingClientRect();
+                initialX = rect.left;
+                initialY = rect.top;
+                
+                dashboardState.isDraggingNode = true;
+                dashboardState.draggedNode = node;
+                dashboardState.draggedNodeType = 'agentDefinition';
+                dashboardState.draggedNodeIndex = index;
+                
+                node.style.zIndex = '1000';
+                e.preventDefault();
+            }
+        });
+        
+        // Click handler for selection
+        node.addEventListener('click', (e) => {
+            if (!isDragging && onSelectCallback) {
+                onSelectCallback(agentDef);
+                e.stopPropagation();
+            }
+        });
+        
+        // Prevent text selection
+        node.addEventListener('selectstart', (e) => e.preventDefault());
+        node.addEventListener('dragstart', (e) => e.preventDefault());
+    }
+    
     makeAgentInteractive(node, agent, index, onSelectCallback) {
         let agentMouseDown = false;
         

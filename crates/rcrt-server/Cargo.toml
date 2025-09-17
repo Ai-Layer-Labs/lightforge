@@ -28,6 +28,7 @@ ndarray = { version = "0.15", optional = true }
 hmac = "0.12"
 prometheus = "0.13"
 tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
 axum = { version = "0.7", features = ["macros", "json", "tracing"] }
 aes-gcm = "0.10"
 chacha20poly1305 = "0.10"

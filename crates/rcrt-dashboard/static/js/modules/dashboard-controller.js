@@ -87,9 +87,10 @@ export class DashboardController {
             if (!dashboardState.dataLoaded) {
                 this.showLoading('Loading agents and tools...');
                 
-                // Load agents, subscriptions, tools, and secrets in parallel for better performance
-                const [agents, subscriptions, tools, secrets] = await Promise.all([
+                // Load agents, agent definitions, subscriptions, tools, and secrets in parallel for better performance
+                const [agents, agentDefinitions, subscriptions, tools, secrets] = await Promise.all([
                     apiClient.loadAgents().catch(e => { console.warn('Failed to load agents:', e); return []; }),
+                    apiClient.loadAgentDefinitions().catch(e => { console.warn('Failed to load agent definitions:', e); return []; }),
                     apiClient.loadSubscriptions().catch(e => { console.warn('Failed to load subscriptions:', e); return []; }),
                     apiClient.loadAvailableTools(breadcrumbs).catch(e => { console.warn('Failed to load tools:', e); return []; }),
                     apiClient.loadSecrets().catch(e => { console.warn('Failed to load secrets:', e); return []; })
@@ -97,11 +98,12 @@ export class DashboardController {
                 
                 // Update state with loaded data
                 dashboardState.setState('agents', agents);
+                dashboardState.setState('agentDefinitions', agentDefinitions);
                 dashboardState.setState('subscriptions', subscriptions);
                 dashboardState.setState('availableTools', tools);
                 dashboardState.setState('secrets', secrets);
                 
-                console.log('Loaded additional data:', { agents: agents.length, subscriptions: subscriptions.length, tools: tools.length, secrets: secrets.length });
+                console.log('Loaded additional data:', { agents: agents.length, agentDefinitions: agentDefinitions.length, subscriptions: subscriptions.length, tools: tools.length, secrets: secrets.length });
                 
                 // Update secrets manager
                 if (window.secretsManager) {
@@ -205,12 +207,22 @@ export class DashboardController {
             this.canvas.appendChild(node);
         });
         
-        // Render agent nodes
+        // Render agent nodes (entities)
         dashboardState.agents.forEach((agent, index) => {
             const node = this.nodeRenderer.createAgentNode(
                 agent, 
                 index, 
                 (agent) => this.selectAgentForDetails(agent)
+            );
+            this.canvas.appendChild(node);
+        });
+        
+        // Render agent definition nodes (executable logic)
+        dashboardState.agentDefinitions.forEach((agentDef, index) => {
+            const node = this.nodeRenderer.createAgentDefinitionNode(
+                agentDef, 
+                index, 
+                (agentDef) => this.selectAgentDefinitionForDetails(agentDef)
             );
             this.canvas.appendChild(node);
         });
@@ -237,6 +249,9 @@ export class DashboardController {
         
         // Render connection lines
         await this.renderConnections();
+        
+        // Render agent-to-definition connections
+        this.renderAgentDefinitionConnections();
         
         // Update canvas size to fit all nodes
         this.canvasEngine.updateCanvasSize();
@@ -297,6 +312,36 @@ export class DashboardController {
                 });
             }
         }
+    }
+    
+    renderAgentDefinitionConnections() {
+        // Create connections between agent entities and their definitions
+        dashboardState.agentDefinitions.forEach(agentDef => {
+            // Find the agent entity this definition belongs to
+            const entityId = agentDef.context?.agent_entity_id;
+            if (!entityId) return;
+            
+            const agentPos = dashboardState.agentPositions.find(pos => pos.id === entityId);
+            const defPos = dashboardState.agentDefinitionPositions.find(pos => pos.id === agentDef.id);
+            
+            if (agentPos && defPos) {
+                const line = this.canvasEngine.createAgentDefinitionConnectionLine(
+                    agentPos, 
+                    defPos, 
+                    entityId, 
+                    agentDef
+                );
+                this.canvas.appendChild(line);
+                
+                // Track connection
+                dashboardState.connections.push({
+                    type: 'agent-definition',
+                    from: entityId,
+                    to: agentDef.id,
+                    line: line
+                });
+            }
+        });
     }
     
     renderAgentConnections() {
@@ -499,7 +544,7 @@ export class DashboardController {
             dashboardState.setState('selectedBreadcrumb', breadcrumb);
             dashboardState.setState('selectedBreadcrumbDetails', details);
             
-            this.displayBreadcrumbDetails(details);
+        this.displayBreadcrumbDetails(details);
             this.nodeRenderer.highlightBreadcrumbNode(id);
             
         } catch (error) {
@@ -516,8 +561,24 @@ export class DashboardController {
         this.nodeRenderer.highlightAgentNode(agent.id);
     }
     
+    selectAgentDefinitionForDetails(agentDef) {
+        dashboardState.setState('selectedAgentDefinition', agentDef);
+        console.log('Selected agent definition for details:', agentDef);
+        
+        this.displayAgentDefinitionDetails(agentDef);
+    }
+    
+    displayAgentDefinitionDetails(agentDef) {
+        // For now, just log the details - we can add UI later
+        console.log('Agent Definition Details:', {
+            name: agentDef.context?.agent_name,
+            description: agentDef.context?.description,
+            triggers: agentDef.context?.triggers,
+            subscriptions: agentDef.context?.subscriptions
+        });
+    }
+    
     viewToolDetails(tool) {
-        // Use the secrets manager to handle tool selection
         if (window.secretsManager) {
             window.secretsManager.selectTool(tool);
         } else {
@@ -548,11 +609,10 @@ ${toolBreadcrumbs.length > 5 ? `\n... and ${toolBreadcrumbs.length - 5} more` : 
     }
     
     selectSecretForDetails(secret) {
-        // Use the secrets manager to handle secret selection
         if (window.secretsManager) {
             window.secretsManager.selectSecret(secret);
         } else {
-            // Fallback to simple alert
+            // Final fallback
             alert(`Secret: ${secret.name}\nScope: ${secret.scope_type}\nCreated: ${new Date(secret.created_at).toLocaleString()}`);
         }
     }

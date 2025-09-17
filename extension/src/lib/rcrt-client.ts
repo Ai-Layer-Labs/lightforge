@@ -3,7 +3,9 @@
  * Connects to RCRT services via dashboard proxy (like the right sidebar)
  */
 
-const RCRT_DASHBOARD_PROXY = 'http://localhost:8082'; // RCRT dashboard proxy (Docker port)
+const RCRT_BUILDER_PROXY = 'http://localhost:3000'; // Builder with RCRT proxy
+const RCRT_DASHBOARD_V2 = 'http://localhost:5173'; // Dashboard v2 (Vite dev server)
+const RCRT_SERVER_DIRECT = 'http://localhost:8081'; // RCRT server direct
 
 export type BreadcrumbContext = {
   id: string;
@@ -38,19 +40,27 @@ export type EventStreamMessage = {
   timestamp: string;
 };
 
-class RCRTExtensionClient {
+export class RCRTExtensionClient {
   private baseUrl: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = RCRT_DASHBOARD_PROXY) {
+  constructor(baseUrl: string = RCRT_SERVER_DIRECT) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
-  // Get JWT token from dashboard backend (like the right sidebar does)
+  // Get JWT token directly from RCRT server (like background script)
   async authenticate(): Promise<boolean> {
     try {
-      console.log('🔑 Fetching JWT token from dashboard backend...');
-      const response = await fetch(`${this.baseUrl}/api/auth/token`);
+      console.log('🔑 Fetching JWT token directly from RCRT server...');
+      const response = await fetch(`${this.baseUrl}/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner_id: '00000000-0000-0000-0000-000000000001',
+          agent_id: '00000000-0000-0000-0000-000000000EEE', // Extension agent ID (valid UUID)
+          roles: ['curator', 'emitter', 'subscriber']
+        })
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -75,7 +85,7 @@ class RCRTExtensionClient {
       }
     }
 
-    const url = `${this.baseUrl}/api${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -162,11 +172,14 @@ class RCRTExtensionClient {
     const connect = () => {
       if (!shouldReconnect) return;
 
-      // Use dashboard proxy for SSE (CORS compliant)
-      const streamUrl = `${this.baseUrl}/api/events/stream`;
-      console.log('🔐 Connecting to RCRT event stream via dashboard proxy...');
+       // Connect to RCRT SSE stream directly with auth token as query param
+       const streamUrl = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token || '')}`;
+       console.log('🔐 Connecting to RCRT event stream with token...');
       
-      eventSource = new EventSource(streamUrl);
+      // EventSource doesn't support custom headers, so pass token as query parameter
+      eventSource = new EventSource(streamUrl, {
+        withCredentials: false
+      });
       
       eventSource.onopen = () => {
         console.log('✅ Connected to RCRT event stream');
@@ -239,25 +252,61 @@ class RCRTExtensionClient {
     });
   }
 
-  // Convert chat message to breadcrumb
+  // Convert chat message to breadcrumb that triggers Dashboard v2 chat agent
   async createChatBreadcrumb(message: {
     role: 'user' | 'assistant' | 'system';
     content: string;
     sessionId?: string;
   }): Promise<{ id: string }> {
-    return this.createBreadcrumb({
-      title: `Chat: ${message.role} message`,
-      context: {
-        role: message.role,
-        content: message.content,
-        sessionId: message.sessionId,
-        source: 'chrome_extension',
-        timestamp: new Date().toISOString(),
-      },
-      tags: ['chat:message', `chat:${message.role}`, 'chrome:extension'],
-      schema_name: 'chat.message.v1',
-      visibility: 'team',
-      sensitivity: message.content.length > 1000 ? 'pii' : 'low',
+    if (message.role === 'user') {
+      // Create user message that triggers chat agent
+      return this.createBreadcrumb({
+        title: `User: ${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`,
+        context: {
+          role: message.role,
+          content: message.content,
+          conversation_id: message.sessionId || `ext-conv-${Date.now()}`,
+          source: 'chrome_extension',
+          timestamp: new Date().toISOString(),
+        },
+        tags: ['chat:message', 'user:input', 'chrome:extension', 'workspace:agents'],
+        schema_name: 'chat.message.v1',
+        visibility: 'team',
+        sensitivity: 'low',
+      });
+    } else {
+      // Create assistant/system message
+      return this.createBreadcrumb({
+        title: `${message.role}: ${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`,
+        context: {
+          role: message.role,
+          content: message.content,
+          conversation_id: message.sessionId || `ext-conv-${Date.now()}`,
+          source: 'chrome_extension',
+          timestamp: new Date().toISOString(),
+        },
+        tags: ['chat:message', `chat:${message.role}`, 'chrome:extension'],
+        schema_name: 'chat.message.v1',
+        visibility: 'team',
+        sensitivity: 'low',
+      });
+    }
+  }
+
+  // Listen for agent responses to display in chat
+  async listenForAgentResponses(conversationId: string, onResponse: (response: string) => void): Promise<() => void> {
+    return this.connectEventStream((event) => {
+      if (event.type === 'breadcrumb.created' && 
+          event.schema_name === 'agent.response.v1' &&
+          event.tags?.includes('chat:response')) {
+        
+        // Get the full response breadcrumb
+        this.getBreadcrumb(event.breadcrumb_id!).then(breadcrumb => {
+          if (breadcrumb.context.conversation_id === conversationId) {
+            onResponse(breadcrumb.context.content as string);
+          }
+        }).catch(console.error);
+      }
     });
   }
 }

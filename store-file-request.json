@@ -1,0 +1,18 @@
+{
+  "schema_name": "tool.request.v1",
+  "title": "Store Demo Agent File",
+  "tags": ["tool:request", "file:storage", "workspace:tools"],
+  "context": {
+    "tool_name": "file-storage",
+    "request_id": "store-demo-agent-1726498800",
+    "parameters": {
+      "action": "store",
+      "filename": "simple-agent.js",
+      "content": "async function execute(triggerBreadcrumb, context) {\n  console.log('🤖 Simple Demo Agent activated!');\n  \n  const userMessage = triggerBreadcrumb.context?.content || triggerBreadcrumb.title || '';\n  const response = `Hello! I'm a demo agent loaded from a file. You said: \"${userMessage}\"`;\n  \n  await context.rcrtClient.createBreadcrumb({\n    schema_name: 'agent.response.v1',\n    title: 'Demo Agent Response',\n    tags: ['agent:response', 'demo:agent', 'file:loaded'],\n    context: {\n      agent_name: 'Demo File Agent',\n      content: response,\n      response_to: triggerBreadcrumb.id,\n      loaded_from_file: true\n    }\n  });\n  \n  return { response, success: true };\n}",
+      "mime_type": "application/javascript",
+      "encoding": "text",
+      "tags": ["agent:code", "demo:agent", "file:loaded"]
+    }
+  }
+}
+

@@ -20,7 +20,7 @@ FROM base AS build
 COPY . ./
 
 # Install all dependencies (including dev)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build dependencies required by tools-runner (skip DTS for docker)
 ENV TSUP_DTS=false

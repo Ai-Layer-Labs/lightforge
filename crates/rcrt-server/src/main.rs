@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use axum::{routing::{get, post, put, delete}, Router, extract::{State, Query, FromRequestParts}, http::{request::Parts, header, StatusCode}, Json};
+use tower_http::cors::{CorsLayer, Any};
 use tracing_subscriber::{EnvFilter, fmt};
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
@@ -147,6 +148,12 @@ async fn main() -> Result<()> {
         .route("/hygiene/stats", get(get_hygiene_stats))
         .route("/hygiene/run", post(trigger_hygiene_run))
         .with_state(state)
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        )
         .layer(axum::middleware::from_fn(http_metrics_middleware));
 
     let addr: SocketAddr = "0.0.0.0:8080".parse().unwrap();

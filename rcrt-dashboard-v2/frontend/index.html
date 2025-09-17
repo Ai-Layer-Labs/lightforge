@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RCRT Dashboard v2</title>
+    <meta name="description" content="Self-configuring real-time dashboard for RCRT breadcrumbs" />
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Prevent flash of unstyled content -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0f0f0f;
+        color: white;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+      }
+      
+      #root {
+        width: 100vw;
+        height: 100vh;
+      }
+      
+      /* Loading spinner for initial load */
+      .initial-loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0f0f0f, #1a1a2e);
+        z-index: 9999;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(0, 245, 255, 0.2);
+        border-top: 3px solid #00f5ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Initial loading indicator -->
+      <div class="initial-loading">
+        <div class="text-center">
+          <div class="loading-spinner mx-auto mb-4"></div>
+          <div class="text-xl font-bold text-white mb-2">🚀 RCRT Dashboard v2</div>
+          <div class="text-sm text-gray-400">Loading...</div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

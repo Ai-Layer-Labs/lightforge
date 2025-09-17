@@ -117,6 +117,66 @@ pub async fn proxy_sse_stream(State(state): State<AppState>) -> Result<Sse<impl 
                     _ => {} 
                 }
                 
+                // Check for NEW user messages and responses (for chat)
+                match state.http_client
+                    .get(&format!("{}/breadcrumbs?tag=user:message", state.rcrt_base_url))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .send()
+                    .await
+                {
+                    Ok(resp) if resp.status().is_success() => {
+                        if let Ok(messages) = resp.json::<Vec<serde_json::Value>>().await {
+                            if let Some(latest) = messages.first() {
+                                let id = latest.get("id").and_then(|v| v.as_str()).map(String::from);
+                                if id.is_some() {
+                                    let event = serde_json::json!({
+                                        "type": "breadcrumb.updated",
+                                        "schema_name": "user.message.v1", 
+                                        "breadcrumb_id": id,
+                                        "title": latest.get("title"),
+                                        "tags": latest.get("tags"),
+                                        "version": latest.get("version"),
+                                        "updated_at": latest.get("updated_at"),
+                                        "timestamp": chrono::Utc::now().to_rfc3339()
+                                    });
+                                    yield Ok(Event::default().data(event.to_string()));
+                                }
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+                
+                // Check for NEW user responses (for chat)
+                match state.http_client
+                    .get(&format!("{}/breadcrumbs?tag=user:response", state.rcrt_base_url))
+                    .header("Authorization", format!("Bearer {}", token))
+                    .send()
+                    .await
+                {
+                    Ok(resp) if resp.status().is_success() => {
+                        if let Ok(responses) = resp.json::<Vec<serde_json::Value>>().await {
+                            if let Some(latest) = responses.first() {
+                                let id = latest.get("id").and_then(|v| v.as_str()).map(String::from);
+                                if id.is_some() {
+                                    let event = serde_json::json!({
+                                        "type": "breadcrumb.updated",
+                                        "schema_name": "user.response.v1", 
+                                        "breadcrumb_id": id,
+                                        "title": latest.get("title"),
+                                        "tags": latest.get("tags"),
+                                        "version": latest.get("version"),
+                                        "updated_at": latest.get("updated_at"),
+                                        "timestamp": chrono::Utc::now().to_rfc3339()
+                                    });
+                                    yield Ok(Event::default().data(event.to_string()));
+                                }
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+                
                 // Check for NEW tool responses (show immediately)  
                 match state.http_client
                     .get(&format!("{}/breadcrumbs?tag=tool:response", state.rcrt_base_url))
