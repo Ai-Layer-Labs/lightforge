@@ -10,3 +10,145 @@
   overflow-y: auto !important;
   max-height: 30rem !important;
 }
+
+/* HeroUI Dark Theme Overrides */
+[data-theme="dark"] [data-slot="base"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] [data-slot="base"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+[data-theme="dark"] [data-slot="content"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+[data-theme="dark"] [data-slot="item"] {
+  color: white !important;
+}
+
+[data-theme="dark"] [data-slot="item"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+[data-theme="dark"] [data-slot="item"][data-selected="true"] {
+  background-color: rgb(55 65 81) !important;
+  color: white !important;
+}
+
+/* Force dark theme styling for all HeroUI components */
+[data-slot="base"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+  color: white !important;
+}
+
+[data-slot="base"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+[data-slot="content"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+[data-slot="item"] {
+  color: white !important;
+}
+
+[data-slot="item"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+[data-slot="item"][data-selected="true"] {
+  background-color: rgb(55 65 81) !important;
+  color: white !important;
+}
+
+/* More aggressive overrides for HeroUI components */
+button[data-slot="base"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+  color: white !important;
+}
+
+button[data-slot="base"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+div[data-slot="content"] {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+div[data-slot="item"] {
+  color: white !important;
+}
+
+div[data-slot="item"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+div[data-slot="item"][data-selected="true"] {
+  background-color: rgb(55 65 81) !important;
+  color: white !important;
+}
+
+/* Remove backgrounds from all buttons except dropdown items */
+button:not([class*="hover:bg-gray-700"]):not([class*="bg-gray-700"]) {
+  background-color: transparent !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+button:not([class*="hover:bg-gray-700"]):not([class*="bg-gray-700"]):hover {
+  background-color: transparent !important;
+  background: none !important;
+}
+
+/* Specific styling for dropdown items only */
+button[class*="hover:bg-gray-700"] {
+  background-color: transparent !important;
+}
+
+button[class*="hover:bg-gray-700"]:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+button[class*="bg-gray-700"] {
+  background-color: rgb(55 65 81) !important;
+}
+
+/* Override header button hover backgrounds */
+button[title*="Start new chat session"],
+button[title*="View sessions"],
+button[title*="Clear chat"],
+button[title*="Open settings"] {
+  background-color: transparent !important;
+  background: none !important;
+}
+
+button[title*="Start new chat session"]:hover,
+button[title*="View sessions"]:hover,
+button[title*="Clear chat"]:hover,
+button[title*="Open settings"]:hover {
+  background-color: transparent !important;
+  background: none !important;
+}
+
+/* Floating dropdown animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
