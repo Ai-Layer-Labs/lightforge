@@ -6,6 +6,6 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ['@rcrt-builder/sdk', '@rcrt-builder/agents'],
+  external: ['@rcrt-builder/sdk', '@rcrt-builder/runtime', '@rcrt-builder/core'],
   target: 'node18'
 });

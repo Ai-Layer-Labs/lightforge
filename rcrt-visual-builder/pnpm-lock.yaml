@@ -24,6 +24,12 @@ importers:
 
   apps/agent-runner:
     dependencies:
+      '@rcrt-builder/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rcrt-builder/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@rcrt-builder/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk

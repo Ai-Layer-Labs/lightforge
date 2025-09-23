@@ -1,313 +1,306 @@
 /**
  * RCRT Client for Chrome Extension
- * Connects to RCRT services via dashboard proxy (like the right sidebar)
  */
 
-const RCRT_BUILDER_PROXY = 'http://localhost:3000'; // Builder with RCRT proxy
-const RCRT_DASHBOARD_V2 = 'http://localhost:5173'; // Dashboard v2 (Vite dev server)
-const RCRT_SERVER_DIRECT = 'http://localhost:8081'; // RCRT server direct
+export interface BreadcrumbContext {
+  [key: string]: any;
+}
 
-export type BreadcrumbContext = {
+export interface EventStreamMessage {
   id: string;
-  title: string;
-  context: Record<string, unknown>;
-  tags: string[];
-  version: number;
-  updated_at: string;
-};
+  content: string;
+  metadata?: any;
+}
 
-export type BreadcrumbCreate = {
-  title: string;
-  context: Record<string, unknown>;
-  tags: string[];
-  schema_name?: string;
-  visibility?: 'public' | 'team' | 'private';
-  sensitivity?: 'low' | 'pii' | 'secret';
-  ttl?: string;
-};
-
-export type Agent = {
-  id: string;
-  roles: string[];
-  created_at: string;
-};
-
-export type EventStreamMessage = {
-  type: 'breadcrumb_created' | 'breadcrumb_updated' | 'ping';
-  breadcrumb_id?: string;
-  schema_name?: string;
+export interface SSEFilter {
   tags?: string[];
-  timestamp: string;
-};
+  schema_names?: string[];
+  response_to?: string[];
+  custom?: (event: any) => boolean;
+}
 
 export class RCRTExtensionClient {
-  private baseUrl: string;
+  private baseUrl: string = 'http://localhost:8081';
   private token: string | null = null;
+  private authenticated: boolean = false;
 
-  constructor(baseUrl: string = RCRT_SERVER_DIRECT) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
-  }
-
-  // Get JWT token directly from RCRT server (like background script)
   async authenticate(): Promise<boolean> {
     try {
-      console.log('🔑 Fetching JWT token directly from RCRT server...');
       const response = await fetch(`${this.baseUrl}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           owner_id: '00000000-0000-0000-0000-000000000001',
-          agent_id: '00000000-0000-0000-0000-000000000EEE', // Extension agent ID (valid UUID)
-          roles: ['curator', 'emitter', 'subscriber']
+          agent_id: '00000000-0000-0000-0000-000000000002', // Use proper UUID format
+          roles: ['emitter', 'subscriber']
         })
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        this.token = data.token;
-        console.log('✅ Got JWT token for RCRT connection');
-        return true;
-      } else {
-        console.error('❌ Failed to get JWT token:', response.status);
-        return false;
+
+      if (!response.ok) {
+        throw new Error(`Authentication failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      this.token = data.token;
+      this.authenticated = true;
+      return true;
+      
     } catch (error) {
-      console.error('❌ Error getting JWT token:', error);
+      console.error('RCRT authentication failed:', error);
+      this.authenticated = false;
       return false;
     }
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    if (!this.token) {
-      const success = await this.authenticate();
-      if (!success) {
-        throw new Error('Authentication failed');
-      }
+  async createBreadcrumb(breadcrumb: any): Promise<{ id: string }> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
     }
 
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
+    const response = await fetch(`${this.baseUrl}/breadcrumbs`, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.token}`,
-        ...options.headers,
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify(breadcrumb)
     });
 
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`${response.status} ${response.statusText}: ${text}`);
+      const error = await response.text();
+      throw new Error(`Failed to create breadcrumb: ${error}`);
     }
 
     return response.json();
   }
 
-  // ============ Breadcrumb Operations ============
-  
-  async createBreadcrumb(breadcrumb: BreadcrumbCreate): Promise<{ id: string }> {
-    return this.request('/breadcrumbs', {
-      method: 'POST',
-      body: JSON.stringify(breadcrumb),
+  async createChatBreadcrumb(message: any): Promise<{ id: string }> {
+    return this.createBreadcrumb({
+      schema_name: 'user.message.v1',
+      title: 'Extension Chat Message',
+      tags: ['user:message', 'extension:chat'],
+      context: {
+        content: message.content,
+        conversation_id: message.sessionId,
+        timestamp: new Date().toISOString(),
+        source: 'browser-extension'
+      }
     });
   }
 
-  async getBreadcrumb(id: string): Promise<BreadcrumbContext> {
-    return this.request(`/breadcrumbs/${id}`);
-  }
+  async getBreadcrumb(id: string): Promise<any> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
 
-  async listBreadcrumbs(tag?: string): Promise<BreadcrumbContext[]> {
-    const query = tag ? `?tag=${encodeURIComponent(tag)}` : '';
-    return this.request(`/breadcrumbs${query}`);
-  }
-
-  async updateBreadcrumb(id: string, version: number, updates: Partial<BreadcrumbCreate>): Promise<{ ok: boolean }> {
-    return this.request(`/breadcrumbs/${id}`, {
-      method: 'PATCH',
+    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
       headers: {
-        'If-Match': version.toString(),
-      },
-      body: JSON.stringify(updates),
+        'Authorization': `Bearer ${this.token}`
+      }
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get breadcrumb: ${response.status}`);
+    }
+
+    return response.json();
   }
 
-  async deleteBreadcrumb(id: string): Promise<{ ok: boolean }> {
-    return this.request(`/breadcrumbs/${id}`, {
-      method: 'DELETE',
-    });
-  }
+  async connectToSSE(
+    filters: SSEFilter,
+    onEvent: (event: any) => void
+  ): Promise<() => void> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
 
-  async vectorSearch(query: string, nn: number = 10, tag?: string): Promise<BreadcrumbContext[]> {
-    const params = new URLSearchParams({ q: query, nn: nn.toString() });
-    if (tag) params.append('tag', tag);
-    return this.request(`/breadcrumbs/search?${params}`);
-  }
+    console.log('🔌 Connecting to RCRT SSE stream with filters:', filters);
+    
+    const eventSource = new EventSource(`${this.baseUrl}/events/stream`, {
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    } as any);
 
-  // ============ Agent Operations ============
-  
-  async listAgents(): Promise<Agent[]> {
-    return this.request('/agents');
-  }
-
-  async getAgent(id: string): Promise<Agent> {
-    return this.request(`/agents/${id}`);
-  }
-
-  async registerAgent(id: string, roles: string[]): Promise<{ ok: boolean }> {
-    return this.request(`/agents/${id}`, {
-      method: 'POST',
-      body: JSON.stringify({ roles }),
-    });
-  }
-
-  // ============ Event Stream ============
-  
-  connectEventStream(
-    onEvent: (event: EventStreamMessage) => void,
-    onError?: (error: Error) => void
-  ): () => void {
-    let eventSource: EventSource | null = null;
-    let shouldReconnect = true;
-
-    const connect = () => {
-      if (!shouldReconnect) return;
-
-       // Connect to RCRT SSE stream directly with auth token as query param
-       const streamUrl = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token || '')}`;
-       console.log('🔐 Connecting to RCRT event stream with token...');
-      
-      // EventSource doesn't support custom headers, so pass token as query parameter
-      eventSource = new EventSource(streamUrl, {
-        withCredentials: false
-      });
-      
-      eventSource.onopen = () => {
-        console.log('✅ Connected to RCRT event stream');
-        onEvent({
-          type: 'ping',
-          timestamp: new Date().toISOString(),
-        });
-      };
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+    // Handle incoming events
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Skip ping events
+        if (data.type === 'ping') return;
+        
+        // Apply filters
+        let shouldProcess = false;
+        
+        // Tag filter
+        if (filters.tags && data.tags) {
+          shouldProcess = filters.tags.some(tag => data.tags.includes(tag));
+        }
+        
+        // Schema name filter
+        if (!shouldProcess && filters.schema_names && data.schema_name) {
+          shouldProcess = filters.schema_names.includes(data.schema_name);
+        }
+        
+        // Response_to filter (for tracking responses to specific breadcrumbs)
+        if (!shouldProcess && filters.response_to && data.breadcrumb_id) {
+          // We'll need to fetch the breadcrumb to check its context.response_to
+          // For now, we'll use custom filter for this
+        }
+        
+        // Custom filter function
+        if (!shouldProcess && filters.custom) {
+          shouldProcess = filters.custom(data);
+        }
+        
+        // If no filters specified, process all events
+        if (!filters.tags && !filters.schema_names && !filters.custom) {
+          shouldProcess = true;
+        }
+        
+        if (shouldProcess) {
+          console.log('📡 SSE Event passed filters:', data);
           onEvent(data);
-        } catch (error) {
-          console.warn('Failed to parse SSE event:', event.data, error);
         }
-      };
-      
-      eventSource.onerror = (error) => {
-        console.error('SSE connection error:', error);
-        eventSource?.close();
-        eventSource = null;
-        
-        if (onError) {
-          onError(new Error('SSE connection failed'));
-        }
-        
-        if (shouldReconnect) {
-          console.log('🔄 Reconnecting to SSE in 5 seconds...');
-          setTimeout(connect, 5000);
-        }
-      };
+      } catch (error) {
+        console.error('Failed to parse SSE event:', error);
+      }
     };
 
-    connect();
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      eventSource.close();
+    };
 
     // Return cleanup function
     return () => {
-      shouldReconnect = false;
-      if (eventSource) {
-        eventSource.close();
-        eventSource = null;
-      }
+      console.log('🔌 Closing SSE connection');
+      eventSource.close();
     };
   }
 
-  // ============ Browser Integration Helpers ============
-  
-  // Convert browser state to breadcrumb context
-  async createBrowserStateBreadcrumb(pageData: {
-    url: string;
-    title: string;
-    viewport: { width: number; height: number };
-    snapshot?: unknown;
-  }): Promise<{ id: string }> {
-    return this.createBreadcrumb({
-      title: `Browser: ${pageData.title}`,
-      context: {
-        url: pageData.url,
-        title: pageData.title,
-        viewport: pageData.viewport,
-        snapshot: pageData.snapshot,
-        source: 'chrome_extension',
-        timestamp: new Date().toISOString(),
+  async listenForAgentResponses(conversationId: string, onResponse: (content: string) => void): Promise<() => void> {
+    // Create a map to track which messages we're waiting for responses to
+    const waitingForResponses = new Set<string>();
+    
+    // Listen for agent responses with specific tags
+    return this.connectToSSE(
+      {
+        tags: ['agent:response'],
+        custom: (event) => {
+          // Additional filtering can be done here based on conversation_id
+          return event.type === 'breadcrumb.updated' && 
+                 (event.tags?.includes('agent:response') || 
+                  event.schema_name === 'agent.response.v1');
+        }
       },
-      tags: ['browser:state', 'chrome:extension', `url:${new URL(pageData.url).hostname}`],
-      schema_name: 'browser.state.v1',
-      visibility: 'team',
-      sensitivity: 'low',
-    });
-  }
-
-  // Convert chat message to breadcrumb that triggers Dashboard v2 chat agent
-  async createChatBreadcrumb(message: {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    sessionId?: string;
-  }): Promise<{ id: string }> {
-    if (message.role === 'user') {
-      // Create user message that triggers chat agent
-      return this.createBreadcrumb({
-        title: `User: ${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`,
-        context: {
-          role: message.role,
-          content: message.content,
-          conversation_id: message.sessionId || `ext-conv-${Date.now()}`,
-          source: 'chrome_extension',
-          timestamp: new Date().toISOString(),
-        },
-        tags: ['chat:message', 'user:input', 'chrome:extension', 'workspace:agents'],
-        schema_name: 'chat.message.v1',
-        visibility: 'team',
-        sensitivity: 'low',
-      });
-    } else {
-      // Create assistant/system message
-      return this.createBreadcrumb({
-        title: `${message.role}: ${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`,
-        context: {
-          role: message.role,
-          content: message.content,
-          conversation_id: message.sessionId || `ext-conv-${Date.now()}`,
-          source: 'chrome_extension',
-          timestamp: new Date().toISOString(),
-        },
-        tags: ['chat:message', `chat:${message.role}`, 'chrome:extension'],
-        schema_name: 'chat.message.v1',
-        visibility: 'team',
-        sensitivity: 'low',
-      });
-    }
-  }
-
-  // Listen for agent responses to display in chat
-  async listenForAgentResponses(conversationId: string, onResponse: (response: string) => void): Promise<() => void> {
-    return this.connectEventStream((event) => {
-      if (event.type === 'breadcrumb.created' && 
-          event.schema_name === 'agent.response.v1' &&
-          event.tags?.includes('chat:response')) {
-        
-        // Get the full response breadcrumb
-        this.getBreadcrumb(event.breadcrumb_id!).then(breadcrumb => {
-          if (breadcrumb.context.conversation_id === conversationId) {
-            onResponse(breadcrumb.context.content as string);
+      async (event) => {
+        // Fetch the full breadcrumb to get the response content
+        if (event.breadcrumb_id) {
+          try {
+            const breadcrumb = await this.getBreadcrumb(event.breadcrumb_id);
+            
+            // Check if this response is for our conversation
+            if (breadcrumb.context?.conversation_id === conversationId ||
+                breadcrumb.tags?.includes('extension:chat')) {
+              const content = breadcrumb.context?.content || 
+                             breadcrumb.context?.response_text ||
+                             breadcrumb.context?.message ||
+                             'Agent responded but no content found';
+              onResponse(content);
+            }
+          } catch (error) {
+            console.error('Failed to fetch agent response breadcrumb:', error);
           }
-        }).catch(console.error);
+        }
+      }
+    );
+  }
+
+  // Add method to track sent messages
+  trackMessage(messageId: string): void {
+    // This could be expanded to track message-response relationships
+    console.log('📝 Tracking message:', messageId);
+  }
+
+  // Helper method to listen for any breadcrumb updates
+  async listenToBreadcrumbs(
+    filters: SSEFilter,
+    onBreadcrumb: (breadcrumb: any) => void
+  ): Promise<() => void> {
+    return this.connectToSSE(filters, async (event) => {
+      if (event.breadcrumb_id && event.type === 'breadcrumb.updated') {
+        try {
+          const breadcrumb = await this.getBreadcrumb(event.breadcrumb_id);
+          onBreadcrumb(breadcrumb);
+        } catch (error) {
+          console.error('Failed to fetch breadcrumb:', error);
+        }
       }
     });
+  }
+
+  // List agents for debugging
+  async listAgents(): Promise<any[]> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
+
+    const response = await fetch(`${this.baseUrl}/agents`, {
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to list agents: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // List breadcrumbs by tag
+  async listBreadcrumbs(tag?: string): Promise<any[]> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
+
+    const url = tag ? `${this.baseUrl}/breadcrumbs?tag=${tag}` : `${this.baseUrl}/breadcrumbs`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to list breadcrumbs: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Update breadcrumb
+  async updateBreadcrumb(id: string, version: number, update: any): Promise<any> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
+
+    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+        'If-Match': version.toString()
+      },
+      body: JSON.stringify(update)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update breadcrumb: ${response.status}`);
+    }
+
+    return response.json();
   }
 }
 

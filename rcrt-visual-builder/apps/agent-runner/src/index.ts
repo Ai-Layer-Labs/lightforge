@@ -1,527 +1,403 @@
 #!/usr/bin/env node
 /**
- * RCRT Agent Runner
- * Processes agent definitions (data/context) by sending context to LLMs
- * and processing structured responses to trigger tools and create breadcrumbs
+ * RCRT Agent Runner - Modern Implementation
+ * Uses AgentExecutor pattern with centralized SSE dispatcher
  * 
  * PHILOSOPHY: Agents are context + data, NOT executable code
+ * Clean architecture inspired by tools-runner patterns
  */
 
 import dotenv from 'dotenv';
-import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
+import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
+import { AgentExecutor, AgentExecutorOptions } from '@rcrt-builder/runtime';
+import { AgentDefinitionV1 } from '@rcrt-builder/core';
 
-// Track processing status to prevent duplicate executions
-const processingStatus = new Map<string, 'processing' | 'completed'>();
+dotenv.config();
 
-// ============ AGENT DEFINITION INTERFACE ============
+// ============ AGENT REGISTRY ============
 
-interface AgentDefinition {
-  agent_name: string;
-  description: string;
-  triggers: Array<{
-    selector: {
-      any_tags?: string[];
-      all_tags?: string[];
-      context_match?: Array<{
-        path: string;
-        op: 'eq' | 'contains_any' | 'gt' | 'lt';
-        value: any;
-      }>;
-    };
-  }>;
-  // No complex context gathering - just use the breadcrumb context from the API!
-  llm_config: {
-    model: string;
-    system_prompt: string;
-    response_schema: any;
-  };
-}
+export class ModernAgentRegistry {
+  private executors = new Map<string, AgentExecutor>();
+  private catalogBreadcrumbId?: string;
+  private sseCleanup?: () => void;
+  
+  // Track request/response correlation (borrowed from tools-runner)
+  private pendingRequests = new Map<string, {
+    agentId: string;
+    timestamp: Date;
+    resolve: (response: any) => void;
+    reject: (error: any) => void;
+  }>();
 
-interface LLMResponse {
-  response_text: string;
-  tools_to_invoke?: Array<{
-    tool: string;
-    input: any;
-    reason?: string;
-  }>;
-  create_breadcrumbs?: Array<{
-    title: string;
-    tags: string[];
-    context: any;
-  }>;
-  confidence?: number;
-}
+  constructor(
+    private client: RcrtClientEnhanced,
+    private workspace: string,
+    private options: {
+      baseUrl?: string;
+      openRouterApiKey?: string;
+      catalogUpdateInterval?: number;
+      healthCheckInterval?: number;
+    } = {}
+  ) {}
 
-// ============ SSE DISPATCHER ============
-
-async function startAgentSSEDispatcher(
-  client: RcrtClientEnhanced, 
-  workspace: string, 
-  jwtToken: string
-): Promise<void> {
-  try {
-    console.log('📡 Starting agent SSE dispatcher...');
-    console.log(`🔌 Connecting to SSE: ${client.baseUrl}/events/stream`);
+  async start(): Promise<void> {
+    console.log(`🤖 [AgentRegistry] Starting for workspace: ${this.workspace}`);
     
-    const response = await fetch(`${client.baseUrl}/events/stream`, {
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache'
+    // Load existing agent catalog or create new one
+    await this.initializeCatalog();
+    
+    // Load and start all agent definitions
+    await this.loadAgentDefinitions();
+    
+    // Set up periodic catalog updates
+    if (this.options.catalogUpdateInterval) {
+      setInterval(() => this.updateCatalog(), this.options.catalogUpdateInterval);
+    }
+    
+    // Set up health checks
+    if (this.options.healthCheckInterval) {
+      setInterval(() => this.performHealthCheck(), this.options.healthCheckInterval);
+    }
+    
+    console.log(`✅ [AgentRegistry] Started with ${this.executors.size} agents`);
+  }
+
+  async stop(): Promise<void> {
+    console.log('🛑 [AgentRegistry] Stopping all agents...');
+    
+    // Stop SSE if running
+    if (this.sseCleanup) {
+      this.sseCleanup();
+      this.sseCleanup = undefined;
+    }
+    
+    // Stop all executors
+    for (const [id, executor] of this.executors) {
+      try {
+        await executor.stop();
+        console.log(`✅ Stopped agent: ${id}`);
+      } catch (error) {
+        console.error(`❌ Error stopping agent ${id}:`, error);
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`SSE connection failed: ${response.status}`);
     }
     
-    console.log('✅ Agent SSE dispatcher connected');
-    
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('No SSE stream reader available');
-    }
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    this.executors.clear();
+    this.pendingRequests.clear();
+  }
+
+  // Start centralized SSE dispatcher (inspired by tools-runner)
+  async startCentralizedSSE(jwtToken: string): Promise<void> {
+    try {
+      console.log('📡 [AgentRegistry] Starting centralized SSE dispatcher...');
       
-      const chunk = new TextDecoder().decode(value);
-      const lines = chunk.split('\n');
+      const baseUrl = this.options.baseUrl || 'http://localhost:8081';
+      const response = await fetch(`${baseUrl}/events/stream`, {
+        headers: {
+          'Authorization': `Bearer ${jwtToken}`,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const eventData = JSON.parse(line.slice(6));
-            
-            if (eventData.type !== 'ping') {
-              console.log(`📡 Agent Event:`, {
-                type: eventData.type,
-                schema_name: eventData.schema_name,
-                tags: eventData.tags,
-                breadcrumb_id: eventData.breadcrumb_id
-              });
+      if (!response.ok) {
+        throw new Error(`SSE connection failed: ${response.status}`);
+      }
+      
+      console.log('✅ [AgentRegistry] SSE dispatcher connected');
+      
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No SSE stream reader available');
+      }
+      
+      // Process events
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+              
+              if (eventData.type !== 'ping') {
+                await this.routeEventToAgent(eventData);
+              }
+            } catch (error) {
+              console.warn('Failed to parse SSE event:', line, error);
             }
-            
-            await processEventForAgents(eventData, client, workspace);
-          } catch (error) {
-            console.warn('Failed to parse SSE event:', line, error);
           }
         }
       }
+    } catch (error) {
+      console.error('❌ [AgentRegistry] SSE dispatcher error:', error);
+      // Retry connection after delay
+      setTimeout(() => this.startCentralizedSSE(jwtToken), 5000);
     }
-  } catch (error) {
-    console.error('❌ Agent SSE dispatcher error:', error);
-    setTimeout(() => startAgentSSEDispatcher(client, workspace, jwtToken), 5000);
   }
-}
 
-async function processEventForAgents(
-  eventData: any, 
-  client: RcrtClientEnhanced, 
-  workspace: string
-): Promise<void> {
-  
-  if ((eventData.type === 'breadcrumb.created' || eventData.type === 'breadcrumb.updated')) {
-    const breadcrumbId = eventData.breadcrumb_id;
+  // Route events to appropriate agents
+  private async routeEventToAgent(event: any): Promise<void> {
+    // Check if this is a tool response we're waiting for
+    if (event.schema_name === 'tool.response.v1' && event.context?.requestId) {
+      const pending = this.pendingRequests.get(event.context.requestId);
+      if (pending) {
+        pending.resolve(event);
+        this.pendingRequests.delete(event.context.requestId);
+        return;
+      }
+    }
     
-    if (processingStatus.get(breadcrumbId) === 'processing') {
-      console.log(`⏭️ Breadcrumb ${breadcrumbId} already being processed, skipping`);
+    // Route to agents based on their subscriptions
+    for (const [agentId, executor] of this.executors) {
+      const agentDef = executor.getDefinition();
+      
+      // Check if agent is interested in this event
+      if (this.matchesAgentSubscriptions(event, agentDef)) {
+        console.log(`📨 Routing event to agent ${agentId}`);
+        
+        // Let AgentExecutor handle the event
+        executor.processEvent(event).catch((error: any) => {
+          console.error(`❌ Agent ${agentId} error:`, error);
+        });
+      }
+    }
+  }
+
+  // Check if event matches agent subscriptions
+  private matchesAgentSubscriptions(event: any, agentDef: AgentDefinitionV1): boolean {
+    const selectors = agentDef.context.subscriptions?.selectors || [];
+    
+    for (const selector of selectors) {
+      // Tag matching
+      if (selector.any_tags) {
+        const hasAnyTag = selector.any_tags.some((tag: string) => 
+          event.tags?.includes(tag)
+        );
+        if (hasAnyTag) return true;
+      }
+      
+      if (selector.all_tags) {
+        const hasAllTags = selector.all_tags.every((tag: string) => 
+          event.tags?.includes(tag)
+        );
+        if (hasAllTags) return true;
+      }
+      
+      // Schema matching
+      if (selector.schema_name && event.schema_name === selector.schema_name) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Load agent definitions from breadcrumbs
+  private async loadAgentDefinitions(): Promise<void> {
+    try {
+      console.log('🔍 [AgentRegistry] Loading agent definitions...');
+      
+      const agentDefs = await this.client.searchBreadcrumbs({
+        schema_name: 'agent.def.v1',
+        tag: this.workspace
+      });
+      
+      console.log(`📋 Found ${agentDefs.length} agent definitions`);
+      
+      for (const breadcrumb of agentDefs) {
+        try {
+          await this.registerAgent(breadcrumb as AgentDefinitionV1);
+        } catch (error) {
+          console.error(`Failed to register agent ${breadcrumb.context?.agent_id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load agent definitions:', error);
+    }
+  }
+
+  // Register a new agent
+  async registerAgent(agentDef: AgentDefinitionV1): Promise<void> {
+    const agentId = agentDef.context.agent_id;
+    
+    if (this.executors.has(agentId)) {
+      console.log(`⏭️ Agent ${agentId} already registered`);
       return;
     }
     
-    console.log(`🎯 Processing breadcrumb for agents: ${breadcrumbId}`);
-    processingStatus.set(breadcrumbId, 'processing');
+    console.log(`📝 Registering agent: ${agentId}`);
     
-    if (processingStatus.size > 100) {
-      processingStatus.clear();
+    const executorOptions: AgentExecutorOptions = {
+      agentDef,
+      rcrtClient: this.client,
+      workspace: this.workspace,
+      openRouterApiKey: this.options.openRouterApiKey,
+      autoStart: true,
+      metricsInterval: 60000 // Report metrics every minute
+    };
+    
+    const executor = new AgentExecutor(executorOptions);
+    this.executors.set(agentId, executor);
+    
+    console.log(`✅ Agent registered: ${agentId}`);
+  }
+
+  // Initialize or load existing catalog
+  private async initializeCatalog(): Promise<void> {
+    try {
+      const existingCatalogs = await this.client.searchBreadcrumbs({
+        schema_name: 'agent.catalog.v1',
+        tag: this.workspace
+      });
+      
+      if (existingCatalogs.length > 0) {
+        // Use most recent catalog
+        const latest = existingCatalogs.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )[0];
+        
+        this.catalogBreadcrumbId = latest.id;
+        console.log(`📚 Using existing agent catalog: ${this.catalogBreadcrumbId}`);
+      } else {
+        // Create new catalog
+        await this.createCatalogBreadcrumb();
+      }
+    } catch (error) {
+      console.error('Failed to initialize catalog:', error);
+      await this.createCatalogBreadcrumb();
     }
+  }
+
+  private async createCatalogBreadcrumb(): Promise<void> {
+    const catalog = await this.client.createBreadcrumb({
+      schema_name: 'agent.catalog.v1',
+      title: `${this.workspace} Agent Catalog`,
+      tags: [this.workspace, 'agent:catalog'],
+      context: {
+        workspace: this.workspace,
+        agents: [],
+        totalAgents: 0,
+        activeAgents: 0,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+    
+    this.catalogBreadcrumbId = catalog.id;
+    console.log(`📚 Created new agent catalog: ${this.catalogBreadcrumbId}`);
+  }
+
+  private async updateCatalog(): Promise<void> {
+    if (!this.catalogBreadcrumbId) return;
     
     try {
-      // Get breadcrumb using direct API call (bypass SDK)
-      const breadcrumbUrl = `${client.baseUrl}/breadcrumbs/${eventData.breadcrumb_id}`;
-      const authHeader = (client as any).defaultHeaders?.Authorization;
-      const breadcrumbResponse = await fetch(breadcrumbUrl, {
-        headers: { 'Authorization': authHeader || '' }
+      const agents = Array.from(this.executors.entries()).map(([id, executor]) => {
+        const def = executor.getDefinition();
+        const state = executor.getState();
+        
+        return {
+          agent_id: id,
+          name: def.title || id,
+          description: def.title,
+          status: state.status,
+          metrics: state.metrics,
+          lastActivity: state.metrics.last_activity
+        };
       });
       
-      if (!breadcrumbResponse.ok) {
-        throw new Error(`Failed to get breadcrumb: ${breadcrumbResponse.status}`);
-      }
+      const current = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
       
-      const triggerBreadcrumb = await breadcrumbResponse.json();
+      await this.client.updateBreadcrumb(
+        this.catalogBreadcrumbId,
+        current.version,
+        {
+          context: {
+            workspace: this.workspace,
+            agents,
+            totalAgents: agents.length,
+            activeAgents: agents.filter(a => a.status === 'idle' || a.status === 'processing').length,
+            lastUpdated: new Date().toISOString()
+          }
+        }
+      );
       
-      // Find matching agent definitions
-      const agentDefinitions = await findMatchingAgents(client, triggerBreadcrumb, workspace);
-      
-      // Process each matching agent
-      for (const agentDef of agentDefinitions) {
-        await processAgentExecution(client, triggerBreadcrumb, agentDef, workspace);
-      }
-      
-      processingStatus.set(breadcrumbId, 'completed');
-      
+      console.log(`📊 Updated agent catalog with ${agents.length} agents`);
     } catch (error) {
-      console.error('Failed to process event for agents:', error);
-      processingStatus.set(breadcrumbId, 'completed');
+      console.error('Failed to update catalog:', error);
     }
   }
-}
 
-// ============ DIRECT API HELPERS ============
-
-async function createBreadcrumbDirect(
-  client: RcrtClientEnhanced,
-  breadcrumb: any
-): Promise<{ id: string }> {
-  // Get the token from the client's default headers
-  const authHeader = (client as any).defaultHeaders?.Authorization;
-  
-  const response = await fetch(`${client.baseUrl}/breadcrumbs`, {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader || '',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(breadcrumb)
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create breadcrumb: ${error}`);
-  }
-  
-  return response.json();
-}
-
-// ============ AGENT PROCESSING ============
-
-async function findMatchingAgents(
-  client: RcrtClientEnhanced, 
-  triggerBreadcrumb: any, 
-  workspace: string
-): Promise<AgentDefinition[]> {
-  try {
-    // Search for agent definitions using direct API call (bypass SDK)
-    console.log('🔍 Searching for agent definitions...');
-    const searchUrl = `${client.baseUrl}/breadcrumbs?tag=agent:definition`;
-    console.log('🔍 Direct API call:', searchUrl);
+  private async performHealthCheck(): Promise<void> {
+    console.log('💓 [AgentRegistry] Performing health check...');
     
-    const authHeader = (client as any).defaultHeaders?.Authorization;
-    const response = await fetch(searchUrl, {
-      headers: { 'Authorization': authHeader || '' }
+    for (const [id, executor] of this.executors) {
+      const state = executor.getState();
+      console.log(`  Agent ${id}: ${state.status}, processed: ${state.metrics.events_processed}, errors: ${state.metrics.errors}`);
+    }
+  }
+
+  // Helper to create correlated tool requests
+  async createToolRequest(tool: string, input: any, agentId: string): Promise<any> {
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create promise for response
+    const responsePromise = new Promise((resolve, reject) => {
+      this.pendingRequests.set(requestId, {
+        agentId,
+        timestamp: new Date(),
+        resolve,
+        reject
+      });
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingRequests.has(requestId)) {
+          this.pendingRequests.delete(requestId);
+          reject(new Error('Tool request timeout'));
+        }
+      }, 30000);
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to search for agent definitions: ${response.status}`);
-    }
-    
-    const agentBreadcrumbs = await response.json();
-    console.log(`🔍 Found ${agentBreadcrumbs.length} agent definitions`);
-    
-    const matchingAgents: AgentDefinition[] = [];
-    
-    for (const agentBreadcrumb of agentBreadcrumbs) {
-      const agentDef = agentBreadcrumb.context as AgentDefinition;
-      
-      if (agentDef && agentDef.triggers) {
-        for (const trigger of agentDef.triggers) {
-          if (await matchesSelector(triggerBreadcrumb, trigger.selector)) {
-            console.log(`🎯 Agent ${agentDef.agent_name} matches trigger`);
-            matchingAgents.push(agentDef);
-            break; // Only match once per agent
-          }
-        }
-      }
-    }
-    
-    return matchingAgents;
-  } catch (error) {
-    console.error('Error finding matching agents:', error);
-    return [];
-  }
-}
-
-async function matchesSelector(breadcrumb: any, selector: any): Promise<boolean> {
-  // Check tag matches
-  if (selector.any_tags) {
-    const hasAnyTag = selector.any_tags.some((tag: string) => 
-      breadcrumb.tags?.includes(tag)
-    );
-    if (!hasAnyTag) return false;
-  }
-  
-  if (selector.all_tags) {
-    const hasAllTags = selector.all_tags.every((tag: string) => 
-      breadcrumb.tags?.includes(tag)
-    );
-    if (!hasAllTags) return false;
-  }
-  
-  // Check context matches
-  if (selector.context_match) {
-    for (const match of selector.context_match) {
-      const value = getNestedValue(breadcrumb.context, match.path);
-      
-      switch (match.op) {
-        case 'eq':
-          if (value !== match.value) return false;
-          break;
-        case 'contains_any':
-          if (!Array.isArray(match.value)) return false;
-          const strValue = String(value || '').toLowerCase();
-          const hasAny = match.value.some((v: any) => 
-            strValue.includes(String(v).toLowerCase())
-          );
-          if (!hasAny) return false;
-          break;
-        case 'gt':
-          if (!(value > match.value)) return false;
-          break;
-        case 'lt':
-          if (!(value < match.value)) return false;
-          break;
-      }
-    }
-  }
-  
-  return true;
-}
-
-function getNestedValue(obj: any, path: string): any {
-  // Simple JSONPath-like extraction (supports $.field.subfield)
-  const keys = path.replace(/^\$\./, '').split('.');
-  let current = obj;
-  
-  for (const key of keys) {
-    if (current && typeof current === 'object') {
-      current = current[key];
-    } else {
-      return undefined;
-    }
-  }
-  
-  return current;
-}
-
-async function processAgentExecution(
-  client: RcrtClientEnhanced,
-  triggerBreadcrumb: any,
-  agentDef: AgentDefinition,
-  workspace: string
-): Promise<void> {
-  console.log(`🤖 Processing agent: ${agentDef.agent_name}`);
-  
-  try {
-    // 1. Use the breadcrumb context directly (API already provides LLM-ready context)
-    // No complex context gathering needed!
-    
-    // 2. Call LLM with simple breadcrumb context
-    const llmResponse = await callLLM(client, agentDef.llm_config, triggerBreadcrumb);
-    
-    // 3. Process structured response
-    await processLLMResponse(client, llmResponse, agentDef, triggerBreadcrumb, workspace);
-    
-    console.log(`✅ Agent ${agentDef.agent_name} completed successfully`);
-    
-  } catch (error) {
-    console.error(`❌ Agent ${agentDef.agent_name} failed:`, error);
-    
-    // Create error response using direct API
-    await createBreadcrumbDirect(client, {
-      schema_name: 'agent.response.v1',
-      title: `${agentDef.agent_name} Error`,
-      tags: ['agent:response', 'agent:error', workspace],
+    // Create tool request breadcrumb
+    await this.client.createBreadcrumb({
+      schema_name: 'tool.request.v1',
+      title: `Tool Request: ${tool}`,
+      tags: ['tool:request', this.workspace],
       context: {
-        agent_name: agentDef.agent_name,
-        response_to: triggerBreadcrumb.id,
-        error: error.message,
-        timestamp: new Date().toISOString()
+        tool,
+        input,
+        requestId,
+        requestedBy: agentId
       }
     });
-  }
-}
-
-// No complex context gathering function needed!
-// The breadcrumb context from GET /breadcrumbs/{id} is already designed for LLM usage
-
-async function callLLM(
-  client: RcrtClientEnhanced,
-  llmConfig: AgentDefinition['llm_config'],
-  triggerBreadcrumb: any
-): Promise<LLMResponse> {
-  // Simple approach - just use the breadcrumb context directly!
-  
-  const contextText = `**Breadcrumb Context:**
-Title: ${triggerBreadcrumb.title}
-Tags: ${triggerBreadcrumb.tags?.join(', ') || 'none'}
-Context: ${JSON.stringify(triggerBreadcrumb.context, null, 2)}`;
-  
-  // Create a tool request for the existing OpenRouter LLM tool using direct API
-  const toolRequest = await createBreadcrumbDirect(client, {
-    schema_name: 'tool.request.v1',
-    title: 'LLM Request for Agent',
-    tags: ['tool:request', 'workspace:tools'],
-    context: {
-      tool: 'openrouter',
-      input: {
-        messages: [
-          {
-            role: 'system',
-            content: llmConfig.system_prompt + '\n\nPlease respond with valid JSON matching the required schema.'
-          },
-          {
-            role: 'user',
-            content: contextText
-          }
-        ],
-        model: llmConfig.model || 'google/gemini-2.5-flash',
-        temperature: 0.7,
-        max_tokens: 4000
-      }
-    }
-  });
-  
-  // Wait for LLM response (simplified - in production would use proper event listening)
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  try {
-    // Look for the most recent tool response from openrouter using direct API
-    const responseUrl = `${client.baseUrl}/breadcrumbs?tag=tool:response`;
-    const authHeader = (client as any).defaultHeaders?.Authorization;
-    const responseSearch = await fetch(responseUrl, {
-      headers: { 'Authorization': authHeader || '' }
-    });
     
-    if (!responseSearch.ok) {
-      throw new Error(`Failed to search for tool responses: ${responseSearch.status}`);
-    }
-    
-    const responses = await responseSearch.json();
-    
-    // Find the response that matches our request
-    const matchingResponse = responses.find((r: any) => 
-      r.context?.tool === 'openrouter' && 
-      r.context?.status === 'success'
-    );
-    
-    if (matchingResponse) {
-      const output = matchingResponse.context?.output;
-      
-      if (output && output.content) {
-        try {
-          // Try to parse as JSON first (for structured responses)
-          const parsed = JSON.parse(output.content);
-          return parsed as LLMResponse;
-        } catch (parseError) {
-          // If not JSON, treat as plain text response
-          console.warn('LLM returned non-JSON response, wrapping in response_text');
-          return {
-            response_text: output.content || 'LLM response received but could not parse',
-            confidence: 0.7
-          };
-        }
-      }
-    }
-    
-    // Fallback response
-    return {
-      response_text: 'I processed your request but encountered an issue getting a proper response.',
-      confidence: 0.1
-    };
-    
-  } catch (error) {
-    console.error('Error getting LLM response:', error);
-    return {
-      response_text: 'I encountered an error while processing your request.',
-      confidence: 0
-    };
-  }
-}
-
-// No complex formatting needed - just use breadcrumb context directly!
-
-async function processLLMResponse(
-  client: RcrtClientEnhanced,
-  llmResponse: LLMResponse,
-  agentDef: AgentDefinition,
-  triggerBreadcrumb: any,
-  workspace: string
-): Promise<void> {
-  // Create agent response breadcrumb using direct API
-  await createBreadcrumbDirect(client, {
-    schema_name: 'agent.response.v1',
-    title: `${agentDef.agent_name} Response`,
-    tags: ['agent:response', workspace],
-    context: {
-      agent_name: agentDef.agent_name,
-      response_to: triggerBreadcrumb.id,
-      content: llmResponse.response_text,
-      confidence: llmResponse.confidence || 0.8,
-      timestamp: new Date().toISOString()
-    }
-  });
-  
-  // Invoke tools if requested
-  if (llmResponse.tools_to_invoke) {
-    for (const toolRequest of llmResponse.tools_to_invoke) {
-      console.log(`🛠️ Agent ${agentDef.agent_name} invoking tool: ${toolRequest.tool}`);
-      
-      await createBreadcrumbDirect(client, {
-        schema_name: 'tool.request.v1',
-        title: `Tool Request: ${toolRequest.tool}`,
-        tags: ['tool:request', 'workspace:tools'],
-        context: {
-          tool: toolRequest.tool,
-          input: toolRequest.input,
-          requested_by: agentDef.agent_name,
-          reason: toolRequest.reason || 'Agent decision',
-          agent_request_id: triggerBreadcrumb.id
-        }
-      });
-    }
-  }
-  
-  // Create additional breadcrumbs if requested
-  if (llmResponse.create_breadcrumbs) {
-    for (const breadcrumb of llmResponse.create_breadcrumbs) {
-      console.log(`📝 Agent ${agentDef.agent_name} creating breadcrumb: ${breadcrumb.title}`);
-      
-      await createBreadcrumbDirect(client, {
-        schema_name: breadcrumb.schema_name || 'agent.created.v1',
-        title: breadcrumb.title,
-        tags: [...(breadcrumb.tags || []), workspace, `created-by:${agentDef.agent_name}`],
-        context: {
-          ...breadcrumb.context,
-          created_by_agent: agentDef.agent_name,
-          created_from: triggerBreadcrumb.id,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
+    return responsePromise;
   }
 }
 
 // ============ MAIN ============
 
-dotenv.config();
-
 const config = {
   rcrtBaseUrl: process.env.RCRT_BASE_URL || 'http://localhost:8081',
   workspace: process.env.WORKSPACE || 'workspace:agents',
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local',
+  openRouterApiKey: process.env.OPENROUTER_API_KEY,
 };
 
 async function main() {
-  console.log('🤖 RCRT Agent Runner starting...');
+  console.log('🤖 RCRT Agent Runner (Modern) starting...');
   console.log('Configuration:', config);
   
   if (config.deploymentMode === 'docker') {
-    console.log('Waiting for services to be ready...');
+    console.log('⏳ Waiting for services to be ready...');
     await new Promise(resolve => setTimeout(resolve, 10000));
   }
 
   try {
+    // Get JWT token
     const tokenRequest = {
       owner_id: process.env.OWNER_ID || '00000000-0000-0000-0000-000000000001',
       agent_id: process.env.AGENT_ID || '00000000-0000-0000-0000-000000000AAA',
@@ -545,31 +421,39 @@ async function main() {
       throw new Error('No token in response');
     }
     
-    console.log('✅ Obtained JWT token for agent runner');
+    console.log('🔐 Obtained JWT token');
     
-    const client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', jwtToken, {
-      autoRefresh: true
-    });
+    // Create RCRT client
+    const client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', jwtToken);
 
     console.log('✅ Connected to RCRT');
 
-    console.log('✅ Agent runner initialized (no registry needed - agents are data!)');
+    // Create and start agent registry
+    const registry = new ModernAgentRegistry(client, config.workspace, {
+      baseUrl: config.rcrtBaseUrl,
+      openRouterApiKey: config.openRouterApiKey,
+      catalogUpdateInterval: 60000,  // Update catalog every minute
+      healthCheckInterval: 300000    // Health check every 5 minutes
+    });
+    
+    await registry.start();
+    
+    // Start centralized SSE dispatcher
+    await registry.startCentralizedSSE(jwtToken);
 
     // Graceful shutdown
-    process.on('SIGINT', () => {
+    const shutdown = async () => {
       console.log('\n🛑 Shutting down agent runner...');
+      await registry.stop();
       process.exit(0);
-    });
-
-    process.on('SIGTERM', () => {
-      console.log('\n🛑 Shutting down agent runner...');
-      process.exit(0);
-    });
-
-    console.log('🚀 Agent runner ready - listening for agent execution events');
-    console.log(`🤖 Workspace: ${config.workspace}`);
+    };
     
-    await startAgentSSEDispatcher(client, config.workspace, jwtToken);
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+
+    console.log('🚀 Agent runner ready and listening');
+    console.log(`📍 Workspace: ${config.workspace}`);
+    console.log(`🤖 Modern architecture with AgentExecutor pattern`);
     
   } catch (error) {
     console.error('❌ Failed to start agent runner:', error);
@@ -577,6 +461,7 @@ async function main() {
   }
 }
 
+// Error handlers
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
@@ -586,7 +471,7 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// ES module equivalent of require.main === module
+// Start if run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(console.error);
 }

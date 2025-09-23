@@ -1,4 +1,4 @@
-# Agent Runner Dockerfile
+# Agent Runner Dockerfile - Modern TypeScript Implementation
 FROM node:18-alpine as base
 
 RUN apk add --no-cache dumb-init
@@ -9,22 +9,23 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base as build
 COPY . ./
 RUN pnpm install --no-frozen-lockfile
+# Build all dependencies first
 RUN pnpm --filter "@rcrt-builder/*" build
-RUN echo "Agent runner uses JS directly - no build needed"
+# Build agent-runner
+RUN pnpm --filter "@rcrt-builder/agent-runner" build
 
 # Runtime stage  
 FROM base as runtime
 
-# Copy the entire workspace structure with built packages
+# Copy built packages and agent-runner dist
 COPY --from=build /app/packages ./packages
-COPY --from=build /app/apps/agent-runner/src ./src
+COPY --from=build /app/apps/agent-runner/dist ./dist
+COPY --from=build /app/apps/agent-runner/package.json ./package.json
 COPY --from=build /app/package.json ./root-package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
-# Copy agent-runner package.json LAST so it doesn't get overwritten
-COPY --from=build /app/apps/agent-runner/package.json ./package.json
 
-# Install production dependencies with workspace support
+# Install production dependencies
 RUN pnpm install --prod
 
 ENV NODE_ENV=production
@@ -34,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD node -e "console.log('Agent runner health check')" || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]

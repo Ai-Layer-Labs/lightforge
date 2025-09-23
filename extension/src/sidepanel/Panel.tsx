@@ -6,9 +6,11 @@ import {
   Cog6ToothIcon,
   PlusIcon,
   ChatBubbleLeftIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  FunnelIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
-import { rcrtClient } from '../lib/rcrt-client';
+import { rcrtClient, type SSEFilter } from '../lib/rcrt-client';
 
 type ChatMessage = {
   id: string;
@@ -24,6 +26,11 @@ export default function Panel() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId] = useState<string>(`ext-conv-${Date.now()}`);
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<SSEFilter>({
+    tags: ['agent:response']
+  });
+  const [customTag, setCustomTag] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -39,6 +46,18 @@ export default function Panel() {
     };
   }, []);
 
+  // Re-initialize SSE when filters change
+  useEffect(() => {
+    if (connected && sseCleanupRef.current) {
+      // Clean up old connection
+      sseCleanupRef.current();
+      
+      // Start new connection with updated filters
+      setupSSEConnection();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilters, connected]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
@@ -53,22 +72,8 @@ export default function Panel() {
         setConnected(true);
         console.log('✅ Connected to RCRT system');
         
-        // Start listening for agent responses
-        const cleanup = await rcrtClient.listenForAgentResponses(conversationId, (response) => {
-          console.log('🤖 Received agent response:', response);
-          
-          const assistantMessage: ChatMessage = {
-            id: `agent-${Date.now()}`,
-            role: 'assistant',
-            content: response,
-            timestamp: new Date(),
-          };
-          
-          setMessages(prev => [...prev, assistantMessage]);
-          setIsLoading(false);
-        });
-        
-        sseCleanupRef.current = cleanup;
+        // Setup SSE connection with initial filters
+        await setupSSEConnection();
       } else {
         setConnected(false);
         console.error('❌ Failed to connect to RCRT');
@@ -76,6 +81,64 @@ export default function Panel() {
     } catch (error) {
       console.error('❌ RCRT initialization error:', error);
       setConnected(false);
+    }
+  }
+
+  async function setupSSEConnection() {
+    try {
+      // Start listening with current filters
+      const cleanup = await rcrtClient.connectToSSE(
+        activeFilters,
+        async (event) => {
+          console.log('📡 SSE Event received:', event);
+          
+          // Handle different event types
+          if (event.breadcrumb_id && event.type === 'breadcrumb.updated') {
+            try {
+              const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
+              
+              // Check if it's an agent response for our conversation
+              if (breadcrumb.tags?.includes('agent:response') && 
+                  (breadcrumb.context?.conversation_id === conversationId ||
+                   breadcrumb.tags?.includes('extension:chat'))) {
+                
+                const content = breadcrumb.context?.content || 
+                               breadcrumb.context?.response_text ||
+                               breadcrumb.context?.message ||
+                               'Agent responded but no content found';
+                
+                const assistantMessage: ChatMessage = {
+                  id: `agent-${Date.now()}`,
+                  role: 'assistant',
+                  content: content,
+                  timestamp: new Date(),
+                  breadcrumbId: breadcrumb.id
+                };
+                
+                setMessages(prev => [...prev, assistantMessage]);
+                setIsLoading(false);
+              }
+              
+              // You can handle other types of breadcrumbs here
+              // For example, tool responses, errors, etc.
+              if (breadcrumb.tags?.includes('tool:response')) {
+                console.log('🛠️ Tool response:', breadcrumb);
+              }
+              
+              if (breadcrumb.tags?.includes('agent:error')) {
+                console.error('❌ Agent error:', breadcrumb);
+              }
+            } catch (error) {
+              console.error('Failed to fetch breadcrumb:', error);
+            }
+          }
+        }
+      );
+      
+      sseCleanupRef.current = cleanup;
+      console.log('✅ SSE connection established with filters:', activeFilters);
+    } catch (error) {
+      console.error('❌ Failed to setup SSE connection:', error);
     }
   }
 
@@ -104,6 +167,16 @@ export default function Panel() {
       });
       
       console.log('✅ Chat breadcrumb created:', result.id);
+      
+      // Track the message ID for response matching
+      rcrtClient.trackMessage(result.id);
+      
+      // Update user message with breadcrumb ID
+      setMessages(prev => prev.map(msg => 
+        msg.id === userMessage.id 
+          ? { ...msg, breadcrumbId: result.id }
+          : msg
+      ));
       
       // Set timeout in case agent doesn't respond
       setTimeout(() => {
@@ -179,9 +252,111 @@ export default function Panel() {
             >
               <Cog6ToothIcon className="h-4 w-4" />
             </button>
+            
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 transition-colors rounded-lg ${
+                showFilters 
+                  ? 'text-blue-400 bg-blue-500/20 hover:bg-blue-500/30' 
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              }`}
+              title="Configure SSE filters"
+            >
+              <FunnelIcon className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Filter Panel */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 py-3 bg-gray-850 border-b border-gray-700">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">SSE Event Filters</h3>
+              
+              <div className="space-y-2">
+                {/* Preset tag filters */}
+                <div className="flex flex-wrap gap-2">
+                  {['agent:response', 'tool:response', 'user:message', 'agent:error'].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        const currentTags = activeFilters.tags || [];
+                        const newTags = currentTags.includes(tag)
+                          ? currentTags.filter(t => t !== tag)
+                          : [...currentTags, tag];
+                        setActiveFilters({ ...activeFilters, tags: newTags });
+                      }}
+                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                        activeFilters.tags?.includes(tag)
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-400/50'
+                          : 'bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-600'
+                      }`}
+                    >
+                      <TagIcon className="h-3 w-3 inline mr-1" />
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Custom tag input */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customTag}
+                    onChange={(e) => setCustomTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && customTag.trim()) {
+                        const currentTags = activeFilters.tags || [];
+                        if (!currentTags.includes(customTag.trim())) {
+                          setActiveFilters({ 
+                            ...activeFilters, 
+                            tags: [...currentTags, customTag.trim()] 
+                          });
+                        }
+                        setCustomTag('');
+                      }
+                    }}
+                    placeholder="Add custom tag filter..."
+                    className="flex-1 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                  <button
+                    onClick={() => {
+                      if (customTag.trim()) {
+                        const currentTags = activeFilters.tags || [];
+                        if (!currentTags.includes(customTag.trim())) {
+                          setActiveFilters({ 
+                            ...activeFilters, 
+                            tags: [...currentTags, customTag.trim()] 
+                          });
+                        }
+                        setCustomTag('');
+                      }
+                    }}
+                    className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 rounded text-white"
+                  >
+                    Add
+                  </button>
+                </div>
+                
+                {/* Active filters display */}
+                {activeFilters.tags && activeFilters.tags.length > 0 && (
+                  <div className="text-xs text-gray-400">
+                    Active: {activeFilters.tags.join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
