@@ -17,7 +17,7 @@ dotenv.config();
 // ============ AGENT REGISTRY ============
 
 export class ModernAgentRegistry {
-  private executors = new Map<string, AgentExecutor>();
+  public executors = new Map<string, AgentExecutor>();
   private catalogBreadcrumbId?: string;
   private sseCleanup?: () => void;
   
@@ -210,9 +210,11 @@ export class ModernAgentRegistry {
       
       for (const breadcrumb of agentDefs) {
         try {
-          await this.registerAgent(breadcrumb as AgentDefinitionV1);
+          // Search results don't include full context, so fetch the complete breadcrumb
+          const fullBreadcrumb = await this.client.getBreadcrumb(breadcrumb.id);
+          await this.registerAgent(fullBreadcrumb as AgentDefinitionV1);
         } catch (error) {
-          console.error(`Failed to register agent ${breadcrumb.context?.agent_id}:`, error);
+          console.error(`Failed to register agent ${breadcrumb.id}:`, error);
         }
       }
     } catch (error) {
@@ -404,18 +406,22 @@ async function main() {
       roles: ['curator', 'emitter', 'subscriber']
     };
     
-    const resp = await fetch(`${config.rcrtBaseUrl}/auth/token`, { 
-      method: 'POST', 
-      headers: { 'content-type': 'application/json' }, 
-      body: JSON.stringify(tokenRequest)
-    });
+    const getToken = async () => {
+      const resp = await fetch(`${config.rcrtBaseUrl}/auth/token`, { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify(tokenRequest)
+      });
+      
+      if (!resp.ok) {
+        throw new Error(`Token request failed: ${resp.status}`);
+      }
+      
+      const json = await resp.json();
+      return json?.token;
+    };
     
-    if (!resp.ok) {
-      throw new Error(`Token request failed: ${resp.status}`);
-    }
-    
-    const json = await resp.json();
-    const jwtToken = json?.token;
+    const jwtToken = await getToken();
     
     if (!jwtToken) {
       throw new Error('No token in response');
@@ -423,8 +429,12 @@ async function main() {
     
     console.log('🔐 Obtained JWT token');
     
-    // Create RCRT client
-    const client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', jwtToken);
+    // Create RCRT client with token refresh support
+    const client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', jwtToken, {
+      tokenEndpoint: `${config.rcrtBaseUrl}/auth/token`,
+      autoRefresh: true,
+      tokenRequestBody: tokenRequest
+    });
 
     console.log('✅ Connected to RCRT');
 
@@ -440,10 +450,29 @@ async function main() {
     
     // Start centralized SSE dispatcher
     await registry.startCentralizedSSE(jwtToken);
+    
+    // Manually refresh token every 30 minutes (before 1 hour expiry)
+    const tokenRefreshInterval = setInterval(async () => {
+      try {
+        const newToken = await getToken();
+        if (newToken) {
+          client.setToken(newToken);
+          console.log('🔐 Refreshed JWT token');
+          
+          // Update token in all agent executors
+          for (const executor of registry.executors.values()) {
+            executor.updateToken(newToken);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to refresh token:', error);
+      }
+    }, 30 * 60 * 1000); // 30 minutes
 
     // Graceful shutdown
     const shutdown = async () => {
       console.log('\n🛑 Shutting down agent runner...');
+      clearInterval(tokenRefreshInterval);
       await registry.stop();
       process.exit(0);
     };

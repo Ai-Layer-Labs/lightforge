@@ -116,11 +116,9 @@ export class RCRTExtensionClient {
 
     console.log('🔌 Connecting to RCRT SSE stream with filters:', filters);
     
-    const eventSource = new EventSource(`${this.baseUrl}/events/stream`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`
-      }
-    } as any);
+    // EventSource doesn't support headers, but RCRT server accepts token as query parameter
+    const url = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token)}`;
+    const eventSource = new EventSource(url);
 
     // Handle incoming events
     eventSource.onmessage = (event) => {
@@ -301,6 +299,22 @@ export class RCRTExtensionClient {
     }
 
     return response.json();
+  }
+
+  // Subscribe to events - returns EventSource for direct manipulation
+  async subscribeToEvents(): Promise<EventSource> {
+    if (!this.authenticated || !this.token) {
+      throw new Error('Not authenticated with RCRT');
+    }
+
+    console.log('🔌 Connecting to RCRT SSE stream...');
+    
+    // EventSource doesn't support headers directly, but RCRT server accepts
+    // token as a query parameter for SSE/browser clients (see line 1278 in main.rs)
+    const url = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token)}`;
+    const eventSource = new EventSource(url);
+    
+    return eventSource;
   }
 }
 

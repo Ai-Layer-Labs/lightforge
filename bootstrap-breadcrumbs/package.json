@@ -1,0 +1,16 @@
+{
+  "name": "rcrt-bootstrap",
+  "version": "2.0.0",
+  "description": "RCRT Bootstrap System - Initializes essential breadcrumbs",
+  "type": "module",
+  "scripts": {
+    "bootstrap": "node bootstrap.js",
+    "check": "node bootstrap.js --check-only"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

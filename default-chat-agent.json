@@ -1,0 +1,34 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Default Chat Agent",
+  "tags": ["agent:def", "workspace:agents", "chat", "default"],
+  "context": {
+    "agent_id": "default-chat-agent",
+    "model": "openrouter/google/gemini-2.0-flash-exp:free",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou will receive context that includes:\n1. Tool catalog breadcrumb (tool.catalog.v1) - lists available tools\n2. The user's message (chat.message.v1)\n3. Tool responses (tool.response.v1) when tools complete\n\nThe tool catalog will show available tools. Look for the 'tools' array in its context.\n\nWhen responding:\n1. Understand the user's intent\n2. Check available tools from the catalog\n3. Provide a helpful response\n4. Create tool requests when needed\n\nIMPORTANT: Your response must be valid JSON with this structure:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat\", \"workspace:agents\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\n          \"schema_name\": \"tool.request.v1\",\n          \"tool\": \"tool-name\",\n          \"input\": { ... },\n          \"requestId\": \"req-{timestamp}-{random}\"\n        }\n      ]\n    }\n  }\n}",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_update_own": false,
+      "can_delete_own": false,
+      "can_spawn_agents": false
+    },
+    "subscriptions": {
+      "selectors": [
+        {
+          "all_tags": ["chat:message", "workspace:agents"],
+          "schema_name": "chat.message.v1"
+        },
+        {
+          "schema_name": "tool.catalog.v1",
+          "all_tags": ["workspace:tools"]
+        },
+        {
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"]
+        }
+      ]
+    }
+  }
+}

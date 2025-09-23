@@ -1,0 +1,164 @@
+{
+  "schema_name": "guide.pattern.v1",
+  "title": "LLM Transform Patterns Library",
+  "tags": ["guide:transforms", "pattern:llm-hints", "workspace:templates"],
+  "context": {
+    "description": "Common transform patterns for different data types",
+    "patterns": [
+      {
+        "name": "Array Summarization",
+        "use_case": "Large arrays that need concise representation",
+        "input_example": {
+          "items": [
+            {"id": 1, "name": "Alice", "role": "dev"},
+            {"id": 2, "name": "Bob", "role": "dev"},
+            {"id": 3, "name": "Carol", "role": "manager"}
+          ]
+        },
+        "transform": {
+          "summary": {
+            "type": "template",
+            "template": "{{items.length}} items: {{#each items}}{{name}} ({{role}}){{#unless @last}}, {{/unless}}{{/each}}"
+          },
+          "count_by_role": {
+            "type": "jq",
+            "query": ".items | group_by(.role) | map({key: .[0].role, value: length}) | from_entries"
+          }
+        },
+        "output": {
+          "summary": "3 items: Alice (dev), Bob (dev), Carol (manager)",
+          "count_by_role": {"dev": 2, "manager": 1}
+        }
+      },
+      {
+        "name": "Sensitive Data Redaction",
+        "use_case": "Remove sensitive fields for LLM consumption",
+        "input_example": {
+          "user": {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "ssn": "123-45-6789",
+            "preferences": {"theme": "dark"}
+          }
+        },
+        "transform": {
+          "llm_hints": {
+            "exclude": ["ssn", "email"],
+            "include": ["name", "preferences"]
+          }
+        },
+        "output": {
+          "name": "John Doe",
+          "preferences": {"theme": "dark"}
+        }
+      },
+      {
+        "name": "Status Aggregation",
+        "use_case": "Summarize system status from multiple components",
+        "input_example": {
+          "services": [
+            {"name": "api", "status": "healthy", "uptime": 99.9},
+            {"name": "db", "status": "healthy", "uptime": 100},
+            {"name": "cache", "status": "degraded", "uptime": 95}
+          ]
+        },
+        "transform": {
+          "health_summary": {
+            "type": "template",
+            "template": "{{#each services}}{{name}}: {{status}} {{/each}}"
+          },
+          "overall_status": {
+            "type": "jq",
+            "query": "if .services | map(.status) | contains([\"unhealthy\"]) then \"unhealthy\" elif contains([\"degraded\"]) then \"degraded\" else \"healthy\" end"
+          },
+          "average_uptime": {
+            "type": "jq",
+            "query": ".services | map(.uptime) | add / length"
+          }
+        },
+        "output": {
+          "health_summary": "api: healthy db: healthy cache: degraded",
+          "overall_status": "degraded",
+          "average_uptime": 98.3
+        }
+      },
+      {
+        "name": "Nested to Flat",
+        "use_case": "Flatten nested structures for easier LLM parsing",
+        "input_example": {
+          "order": {
+            "id": "ORD-123",
+            "customer": {
+              "name": "ACME Corp",
+              "contact": {
+                "email": "orders@acme.com",
+                "phone": "555-1234"
+              }
+            },
+            "items": [
+              {"sku": "WIDGET-1", "qty": 5}
+            ]
+          }
+        },
+        "transform": {
+          "order_summary": {
+            "type": "jq",
+            "query": "{order_id: .order.id, customer: .order.customer.name, contact_email: .order.customer.contact.email, item_count: .order.items | length}"
+          }
+        },
+        "output": {
+          "order_summary": {
+            "order_id": "ORD-123",
+            "customer": "ACME Corp",
+            "contact_email": "orders@acme.com",
+            "item_count": 1
+          }
+        }
+      },
+      {
+        "name": "Conditional Transforms",
+        "use_case": "Different transforms based on data characteristics",
+        "input_example": {
+          "event": {
+            "type": "error",
+            "severity": "high",
+            "details": {"message": "Connection failed", "retry_count": 3}
+          }
+        },
+        "transform": {
+          "alert": {
+            "type": "template",
+            "template": "{{#if (eq event.severity \"high\")}}🚨 URGENT: {{event.details.message}}{{else}}ℹ️ {{event.type}}: {{event.details.message}}{{/if}}"
+          }
+        },
+        "output": {
+          "alert": "🚨 URGENT: Connection failed"
+        }
+      }
+    ],
+    "best_practices": [
+      "Use template for human-readable summaries",
+      "Use jq for complex data transformations",
+      "Use extract for simple field access",
+      "Combine multiple transforms for rich context",
+      "Always test with representative data"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "pattern_summary": {
+        "type": "template",
+        "template": "{{patterns.length}} transform patterns: {{#each patterns}}{{name}}{{#unless @last}}, {{/unless}}{{/each}}"
+      },
+      "pattern_names": {
+        "type": "extract",
+        "value": "$.patterns[*].name"
+      },
+      "key_advice": {
+        "type": "template",
+        "template": "Key tip: {{best_practices.[0]}}"
+      }
+    },
+    "mode": "replace"
+  }
+}

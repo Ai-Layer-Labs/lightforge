@@ -13,6 +13,7 @@ use serde_json::json;
 use chrono;
 
 mod hygiene;
+mod transforms;
 #[cfg(feature = "nats")]
 use nats;
 use reqwest::Client as HttpClient;
@@ -200,7 +201,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             .map_err(internal_error)?
     };
 
-    let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, version, updated_at }).collect();
+    let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, schema_name: None, version, updated_at }).collect();
     Ok(Json(items))
 }
 
@@ -538,9 +539,38 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
 }
 
 async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<BreadcrumbContextView>, (axum::http::StatusCode, String)> {
-    let Some(view) = state.db.get_breadcrumb_context_for(auth.owner_id, Some(auth.agent_id), id).await.map_err(internal_error)? else {
+    let Some(mut view) = state.db.get_breadcrumb_context_for(auth.owner_id, Some(auth.agent_id), id).await.map_err(internal_error)? else {
         return Err((axum::http::StatusCode::NOT_FOUND, "not found".into()));
     };
+    
+    // Apply LLM hints if present
+    if let Some(hints_value) = view.context.get("llm_hints") {
+        // Clone the value to avoid borrow issues
+        let hints_value = hints_value.clone();
+        
+        // Try to parse llm_hints
+        match serde_json::from_value::<transforms::LlmHints>(hints_value) {
+            Ok(hints) => {
+                // Apply transforms
+                let engine = transforms::TransformEngine::new();
+                match engine.apply_llm_hints(&view.context, &hints) {
+                    Ok(transformed) => {
+                        tracing::debug!("Applied llm_hints transform for breadcrumb {}", id);
+                        view.context = transformed;
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to apply llm_hints for breadcrumb {}: {}", id, e);
+                        // Continue with original context on error
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::debug!("Could not parse llm_hints for breadcrumb {}: {}", id, e);
+                // Continue with original context if hints are malformed
+            }
+        }
+    }
+    
     Ok(Json(view))
 }
 
@@ -1162,34 +1192,66 @@ async fn run_agents(State(_state): State<AppState>, auth: AuthContext, Json(body
 }
 
 #[derive(Deserialize)]
-struct ListQuery { tag: Option<String>, limit: Option<i64>, offset: Option<i64> }
+struct ListQuery { tag: Option<String>, schema_name: Option<String>, limit: Option<i64>, offset: Option<i64> }
 
 #[derive(Serialize)]
-struct ListItem { id: Uuid, title: String, tags: Vec<String>, version: i32, updated_at: chrono::DateTime<chrono::Utc> }
+struct ListItem { id: Uuid, title: String, tags: Vec<String>, schema_name: Option<String>, version: i32, updated_at: chrono::DateTime<chrono::Utc> }
 
 async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQuery>) -> Result<Json<Vec<ListItem>>, (axum::http::StatusCode, String)> {
-    let mut sql = String::from("select id, title, tags, version, updated_at from breadcrumbs");
-    if let Some(tag) = &q.tag {
-        sql.push_str(" where $1 = any(tags)");
+    let mut sql = String::from("select id, title, tags, schema_name, version, updated_at from breadcrumbs");
+    let mut conditions = Vec::new();
+    let mut bind_idx = 1;
+    
+    if q.tag.is_some() {
+        conditions.push(format!("${} = any(tags)", bind_idx));
+        bind_idx += 1;
     }
+    if q.schema_name.is_some() {
+        conditions.push(format!("schema_name = ${}", bind_idx));
+        bind_idx += 1;
+    }
+    
+    if !conditions.is_empty() {
+        sql.push_str(" where ");
+        sql.push_str(&conditions.join(" and "));
+    }
+    
     sql.push_str(" order by updated_at desc");
     if let Some(limit) = q.limit { sql.push_str(&format!(" limit {}", limit.max(1))); }
     if let Some(offset) = q.offset { sql.push_str(&format!(" offset {}", offset.max(0))); }
 
-    let rows = if q.tag.is_some() {
-        sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-            .bind(q.tag.clone().unwrap())
-            .fetch_all(&state.db.pool)
-            .await
-            .map_err(internal_error)?
-    } else {
-        sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-            .fetch_all(&state.db.pool)
-            .await
-            .map_err(internal_error)?
+    let rows = match (q.tag.as_ref(), q.schema_name.as_ref()) {
+        (Some(tag), Some(schema)) => {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(tag)
+                .bind(schema)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        },
+        (Some(tag), None) => {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(tag)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        },
+        (None, Some(schema)) => {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(schema)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        },
+        (None, None) => {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        }
     };
 
-    let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, version, updated_at }).collect();
+    let items = rows.into_iter().map(|(id,title,tags,schema_name,version,updated_at)| ListItem{ id, title, tags, schema_name, version, updated_at }).collect();
     Ok(Json(items))
 }
 

@@ -1,0 +1,79 @@
+{
+  "schema_name": "guide.template.v1",
+  "title": "LLM Hints Usage Guide",
+  "tags": ["guide:llm-hints", "template:breadcrumb", "workspace:system"],
+  "context": {
+    "guide_type": "llm_hints",
+    "description": "This breadcrumb teaches how to use llm_hints for context transformation",
+    "examples": [
+      {
+        "name": "Basic Transform",
+        "description": "Simple template-based transformation",
+        "example": {
+          "llm_hints": {
+            "transform": {
+              "summary": {
+                "type": "template",
+                "template": "{{context.items.length}} items: {{#each context.items}}{{name}} {{/each}}"
+              }
+            },
+            "mode": "replace"
+          }
+        }
+      },
+      {
+        "name": "Field Selection",
+        "description": "Include only specific fields",
+        "example": {
+          "llm_hints": {
+            "include": ["name", "description", "status"],
+            "exclude": ["internal_id", "debug_info"]
+          }
+        }
+      },
+      {
+        "name": "Complex Transform",
+        "description": "Multiple transform types",
+        "example": {
+          "llm_hints": {
+            "transform": {
+              "count": {
+                "type": "extract",
+                "value": "$.items.length"
+              },
+              "categories": {
+                "type": "jq",
+                "query": ".items | map(.category) | unique"
+              },
+              "usage": {
+                "type": "literal",
+                "literal": "Use this data to make decisions"
+              }
+            },
+            "mode": "merge"
+          }
+        }
+      }
+    ],
+    "best_practices": [
+      "Use 'replace' mode for LLM-only views",
+      "Use 'merge' mode to add computed fields",
+      "Keep transforms simple and focused",
+      "Test with small data first",
+      "Document transform purpose"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "quick_reference": {
+        "type": "template",
+        "template": "LLM Hints Guide: {{context.examples.length}} examples showing transform types: template, extract, jq, literal. Best practice: {{context.best_practices.[0]}}"
+      },
+      "example_summary": {
+        "type": "extract",
+        "value": "$.examples[*].name"
+      }
+    },
+    "mode": "replace"
+  }
+}

@@ -35,6 +35,8 @@ chacha20poly1305 = "0.10"
 base64 = "0.22"
 rand = "0.8"
 percent-encoding = "2.3"
+handlebars = "5.1"
+jsonpath_lib = "0.3"
 
 [features]
 default = ["nats", "embed-onnx"]

@@ -11,6 +11,7 @@ import {
   Selector
 } from '@rcrt-builder/core';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
+import { ToolPromptAdapter } from './tool-prompt-adapter';
 
 // Simple OpenRouter client interface (same as in LLM node)
 interface OpenRouterClient {
@@ -181,6 +182,12 @@ export class AgentExecutor {
       // Fetch the triggering breadcrumb
       const breadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id);
       
+      // Skip if this breadcrumb was created by this agent (prevent infinite loops)
+      if (breadcrumb.context?.creator?.agent_id === this.agentDef.context.agent_id) {
+        console.log(`⏭️ Skipping self-created breadcrumb`);
+        return;
+      }
+      
       // Build context
       const context = await this.buildContext(breadcrumb);
       
@@ -188,7 +195,7 @@ export class AgentExecutor {
       const messages = this.buildMessages(breadcrumb, context);
       
       // Call LLM for decision
-      const decision = await this.makeDecision(messages);
+      const decision = await this.makeDecision(messages, context);
       
       // Execute decision
       await this.executeDecision(decision);
@@ -262,11 +269,25 @@ export class AgentExecutor {
     const selectors = this.agentDef.context.subscriptions?.selectors || [];
     for (const selector of selectors) {
       const breadcrumbs = await this.rcrtClient.searchBreadcrumbs(selector);
-      context.push({
-        type: 'subscription',
-        selector,
-        data: breadcrumbs.slice(0, 10), // Limit to recent 10
-      });
+      
+      // Special handling for tool catalog until server implements context transforms
+      if (selector.schema_name === 'tool.catalog.v1' && breadcrumbs.length > 0) {
+        // searchBreadcrumbs returns summary without full context, so fetch the complete breadcrumb
+        const fullToolCatalog = await this.rcrtClient.getBreadcrumb(breadcrumbs[0].id);
+        context.push({
+          type: 'tool_catalog',
+          data: fullToolCatalog,
+          // Generate LLM-friendly prompt from raw catalog
+          prompt: ToolPromptAdapter.generateToolPrompt(fullToolCatalog as any),
+          tools: ToolPromptAdapter.generateToolSchemas(fullToolCatalog.context?.tools || [])
+        });
+      } else {
+        context.push({
+          type: 'subscription',
+          selector,
+          data: breadcrumbs.slice(0, 10), // Limit to recent 10
+        });
+      }
     }
     
     return context;
@@ -284,11 +305,21 @@ export class AgentExecutor {
       content: this.agentDef.context.system_prompt,
     });
     
-    // Add context
-    if (context.length > 0) {
+    // Add tool catalog prompt if available
+    const toolContext = context.find(c => c.type === 'tool_catalog');
+    if (toolContext?.prompt) {
       messages.push({
         role: 'system',
-        content: `Context (${context.length} items):\n${JSON.stringify(context, null, 2)}`,
+        content: `\n${toolContext.prompt}`,
+      });
+    }
+    
+    // Add other context (excluding tool catalog which is already added as prompt)
+    const otherContext = context.filter(c => c.type !== 'tool_catalog');
+    if (otherContext.length > 0) {
+      messages.push({
+        role: 'system',
+        content: `Context (${otherContext.length} items):\n${JSON.stringify(otherContext, null, 2)}`,
       });
     }
     
@@ -311,16 +342,44 @@ export class AgentExecutor {
   /**
    * Make decision using LLM
    */
-  private async makeDecision(messages: any[]): Promise<any> {
+  private async makeDecision(messages: any[], context: any[]): Promise<any> {
+    // Check if we have tool schemas for function calling
+    const toolContext = context.find(c => c.type === 'tool_catalog');
+    const tools = toolContext?.tools;
+    
     const response = await this.llmClient.complete({
       model: this.agentDef.context.model,
       messages,
       temperature: this.agentDef.context.temperature || 0.7,
       max_tokens: this.agentDef.context.max_tokens || 4096,
-      tools: this.agentDef.context.tools,
+      tools: tools || this.agentDef.context.tools, // Use discovered tools or fallback
     });
     
-    // Parse decision
+    // Handle tool calls if present
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      // Convert tool calls to our format
+      const toolRequests = response.tool_calls.map((tc: any) => ({
+        schema_name: 'tool.request.v1',
+        tool: tc.function.name,
+        input: JSON.parse(tc.function.arguments),
+        requestId: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      
+      return {
+        action: 'create',
+        breadcrumb: {
+          schema_name: 'agent.response.v1',
+          title: 'Tool Invocation',
+          tags: ['agent:response', this.workspace],
+          context: {
+            message: 'Invoking tools to help with your request',
+            tool_requests: toolRequests
+          }
+        }
+      };
+    }
+    
+    // Parse decision from content
     try {
       return JSON.parse(response.content);
     } catch {
@@ -350,10 +409,25 @@ export class AgentExecutor {
     switch (decision.action) {
       case 'create':
         if (capabilities.can_create_breadcrumbs && decision.breadcrumb) {
-          await this.rcrtClient.createBreadcrumb({
+          // Add creator metadata to prevent self-triggering
+          const breadcrumbWithCreator = {
             ...decision.breadcrumb,
             tags: [...(decision.breadcrumb.tags || []), this.workspace],
-          });
+            // Add appropriate TTL based on schema type (as ISO 8601 datetime)
+            ttl: decision.breadcrumb.schema_name === 'agent.response.v1' 
+                 ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+                 : decision.breadcrumb.schema_name === 'tool.request.v1' 
+                 ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+                 : undefined,  // No TTL for other types unless specified
+            context: {
+              ...decision.breadcrumb.context,
+              creator: {
+                type: 'agent',
+                agent_id: this.agentDef.context.agent_id
+              }
+            }
+          };
+          await this.rcrtClient.createBreadcrumb(breadcrumbWithCreator);
         }
         break;
         
@@ -417,16 +491,25 @@ export class AgentExecutor {
    * Save memory to breadcrumbs
    */
   private async saveMemory(): Promise<void> {
+    // Check if agent config specifies memory TTL
+    const memoryTtlHours = this.agentDef.context.memory?.ttl_hours || 48; // Default 48 hours
+    const memoryTtl = new Date(Date.now() + memoryTtlHours * 60 * 60 * 1000).toISOString();
+      
     for (const [key, value] of this.memory) {
       await this.rcrtClient.createBreadcrumb({
         schema_name: 'agent.memory.v1',
         title: `Memory: ${key}`,
         tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:memory', this.workspace],
+        ttl: memoryTtl,
         context: {
           agent_id: this.agentDef.context.agent_id,
           memory_type: 'working',
           content: value,
           created_at: new Date().toISOString(),
+          creator: {
+            type: 'agent',
+            agent_id: this.agentDef.context.agent_id
+          }
         },
       });
     }
@@ -451,10 +534,11 @@ export class AgentExecutor {
    * Report agent metrics
    */
   private async reportMetrics(): Promise<void> {
-    const metrics: AgentMetricsV1 = {
+    await this.rcrtClient.createBreadcrumb({
       schema_name: 'agent.metrics.v1',
       title: `Metrics: ${this.agentDef.context.agent_id}`,
       tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:metrics', this.workspace],
+      ttl: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),  // Keep metrics for 24 hours
       context: {
         agent_id: this.agentDef.context.agent_id,
         timestamp: new Date().toISOString(),
@@ -472,14 +556,12 @@ export class AgentExecutor {
             : 1,
         },
         period: 'minute',
-      },
-      id: '',
-      version: 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    
-    await this.rcrtClient.createBreadcrumb(metrics);
+        creator: {
+          type: 'agent',
+          agent_id: this.agentDef.context.agent_id
+        }
+      }
+    });
   }
   
   /**
@@ -490,12 +572,17 @@ export class AgentExecutor {
       schema_name: 'agent.error.v1',
       title: `Error: ${this.agentDef.context.agent_id}`,
       tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:error', this.workspace],
+      ttl: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),  // Expire after 2 hours
       context: {
         agent_id: this.agentDef.context.agent_id,
         error: String(error),
         stack: error.stack,
         event,
         timestamp: new Date().toISOString(),
+        creator: {
+          type: 'agent',
+          agent_id: this.agentDef.context.agent_id
+        }
       },
     });
   }
@@ -505,6 +592,13 @@ export class AgentExecutor {
    */
   getState(): AgentState {
     return { ...this.state };
+  }
+  
+  /**
+   * Update JWT token for the client
+   */
+  updateToken(token: string): void {
+    this.rcrtClient.setToken(token);
   }
   
   /**

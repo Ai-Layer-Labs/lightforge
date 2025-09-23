@@ -366,6 +366,25 @@ export class ToolRegistry {
 
   private async createCatalogBreadcrumb(): Promise<void> {
     try {
+      // Add llm_hints for context transformation
+      const llmHints = {
+        transform: {
+          tool_summary: {
+            type: 'template',
+            template: '{{context.activeTools}} tools available:\n{{#each context.tools}}- {{this.name}} ({{this.category}}): {{this.description}}\n{{/each}}\n\nTo use a tool, create a tool.request.v1 breadcrumb with:\n- tool: the tool name\n- input: parameters matching the inputSchema\n- requestId: unique identifier'
+          },
+          available_tools: {
+            type: 'extract',
+            value: '$.tools[*].name'
+          },
+          categories: {
+            type: 'jq',
+            query: '.tools | map(.category) | unique'
+          }
+        },
+        mode: 'replace'
+      };
+
       const catalogBreadcrumb = await this.client.createBreadcrumb({
         schema_name: 'tool.catalog.v1',
         title: `${this.workspace} Tool Catalog`,
@@ -375,7 +394,8 @@ export class ToolRegistry {
           tools: this.catalog,
           totalTools: this.catalog.length,
           activeTools: this.catalog.filter(t => t.status === 'active').length,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          llm_hints: llmHints
         }
       });
       
@@ -404,6 +424,25 @@ export class ToolRegistry {
       // Get current version for optimistic concurrency control
       const current = await this.client.getBreadcrumb(this.catalogBreadcrumbId);
       
+      // Add llm_hints for context transformation
+      const llmHints = {
+        transform: {
+          tool_summary: {
+            type: 'template',
+            template: '{{context.activeTools}} tools available:\n{{#each context.tools}}- {{this.name}} ({{this.category}}): {{this.description}}\n{{/each}}\n\nTo use a tool, create a tool.request.v1 breadcrumb with:\n- tool: the tool name\n- input: parameters matching the inputSchema\n- requestId: unique identifier'
+          },
+          available_tools: {
+            type: 'extract',
+            value: '$.tools[*].name'
+          },
+          categories: {
+            type: 'jq',
+            query: '.tools | map(.category) | unique'
+          }
+        },
+        mode: 'replace'
+      };
+
       const updatePayload = {
         title: `${this.workspace} Tool Catalog`,
         context: {
@@ -411,7 +450,8 @@ export class ToolRegistry {
           tools: this.catalog,
           totalTools: this.catalog.length,
           activeTools: this.catalog.filter(t => t.status === 'active').length,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          llm_hints: llmHints
         }
       };
       

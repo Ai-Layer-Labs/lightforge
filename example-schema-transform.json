@@ -1,0 +1,54 @@
+{
+  "schema_name": "schema.transform.v1",
+  "title": "Transform Definition: tool.catalog.v1",
+  "tags": ["schema:transform", "target:tool.catalog.v1", "workspace:system"],
+  "context": {
+    "target_schema": "tool.catalog.v1",
+    "description": "Transforms tool catalog for LLM consumption",
+    "transform_rules": [
+      {
+        "name": "default",
+        "type": "structured",
+        "output": {
+          "available_tools": {
+            "source": "$.tools",
+            "transform": "map_join",
+            "template": "{{name}}: {{description}}"
+          },
+          "tool_count": {
+            "source": "$.tools",
+            "transform": "length"
+          },
+          "categories": {
+            "source": "$.tools[*].category",
+            "transform": "unique"
+          },
+          "usage_instructions": {
+            "type": "literal",
+            "value": "To use a tool, create a tool.request.v1 breadcrumb with:\n- tool: the tool name\n- input: tool-specific parameters\n- requestId: unique identifier"
+          },
+          "last_updated": {
+            "source": "$.lastUpdated",
+            "transform": "passthrough"
+          }
+        }
+      },
+      {
+        "name": "minimal",
+        "type": "template",
+        "template": "Tools: {{#each tools}}{{name}}{{#unless @last}}, {{/unless}}{{/each}}"
+      },
+      {
+        "name": "detailed",
+        "type": "jq",
+        "expression": ".tools | group_by(.category) | map({category: .[0].category, tools: map({name, description, required_params: .inputSchema.required})})"
+      }
+    ],
+    "default_rule": "default",
+    "selection_criteria": {
+      "minimal": "context.request_mode == 'minimal'",
+      "detailed": "context.verbose == true",
+      "default": "true"
+    }
+  }
+}

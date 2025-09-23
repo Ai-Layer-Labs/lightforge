@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ThinkOS Agent",
-  "version": "1.0.0",
-  "description": "AI-powered browser agent with CrewAI integration for intelligent web automation and assistance",
+  "name": "RCRT Chat",
+  "version": "2.0.0",
+  "description": "Your AI assistant powered by Right Context Right Time - chat with tools and agents directly from your browser",
   "permissions": [
     "storage",
     "tabs",

@@ -1,0 +1,125 @@
+{
+  "schema_name": "guide.api.v1",
+  "title": "Context View API Usage Guide",
+  "tags": ["guide:api", "context:view", "workspace:templates"],
+  "context": {
+    "description": "How to effectively use the /breadcrumbs/{id} context view endpoint",
+    "api_design": {
+      "context_view": {
+        "endpoint": "/breadcrumbs/{id}",
+        "purpose": "Returns LLM-optimized view of breadcrumb",
+        "transforms": "Applies llm_hints if present",
+        "access": "Standard breadcrumb access control"
+      },
+      "full_view": {
+        "endpoint": "/breadcrumbs/{id}/full",
+        "purpose": "Returns complete raw breadcrumb data",
+        "transforms": "None - raw data",
+        "access": "Requires curator role or read_full ACL"
+      }
+    },
+    "usage_patterns": [
+      {
+        "pattern": "Agent Context Building",
+        "description": "Agents fetch breadcrumbs for context",
+        "example": {
+          "code": "const toolCatalog = await client.getBreadcrumb(catalogId);",
+          "result": "Receives transformed view with llm_hints applied"
+        },
+        "benefit": "Agents get optimized data without transformation logic"
+      },
+      {
+        "pattern": "Direct LLM Integration",
+        "description": "Pass context view directly to LLM",
+        "example": {
+          "code": "messages.push({ role: 'system', content: JSON.stringify(breadcrumb.context) });",
+          "result": "LLM receives only relevant, transformed data"
+        },
+        "benefit": "Token-efficient, focused context"
+      },
+      {
+        "pattern": "Debugging with Full View",
+        "description": "Use full view to see complete data",
+        "example": {
+          "code": "const full = await client.getBreadcrumbFull(id);",
+          "result": "See raw data, llm_hints, all metadata"
+        },
+        "benefit": "Understand transformations and debug issues"
+      }
+    ],
+    "transform_examples": {
+      "without_hints": {
+        "description": "Breadcrumb without llm_hints returns as-is",
+        "api_response": {
+          "context": {
+            "tools": ["...full tool array..."],
+            "metadata": "...all fields..."
+          }
+        }
+      },
+      "with_replace_mode": {
+        "description": "llm_hints with mode: 'replace'",
+        "breadcrumb_has": {
+          "llm_hints": {
+            "transform": {
+              "summary": {"type": "template", "template": "..."}
+            },
+            "mode": "replace"
+          }
+        },
+        "api_response": {
+          "context": {
+            "summary": "Transformed summary only"
+          }
+        }
+      },
+      "with_merge_mode": {
+        "description": "llm_hints with mode: 'merge'",
+        "breadcrumb_has": {
+          "llm_hints": {
+            "transform": {
+              "count": {"type": "extract", "value": "$.items.length"}
+            },
+            "mode": "merge"
+          }
+        },
+        "api_response": {
+          "context": {
+            "items": ["...original array..."],
+            "count": 5
+          }
+        }
+      }
+    },
+    "best_practices": [
+      "Always use context view for LLM consumption",
+      "Design llm_hints to minimize token usage",
+      "Use 'replace' mode for dedicated LLM views",
+      "Use 'merge' mode to augment existing data",
+      "Test transforms with small data first",
+      "Document transform purpose in breadcrumb"
+    ],
+    "future_enhancements": {
+      "server_side": "Server will apply transforms automatically",
+      "caching": "Transformed views will be cached",
+      "variants": "Multiple transform variants per schema"
+    }
+  },
+  "llm_hints": {
+    "transform": {
+      "guide_summary": {
+        "type": "template",
+        "template": "Context View Guide: {{context.usage_patterns.length}} patterns for using /breadcrumbs/{id} endpoint. Key: {{context.best_practices.[0]}}"
+      },
+      "patterns": {
+        "type": "extract",
+        "value": "$.usage_patterns[*].pattern"
+      },
+      "api_comparison": {
+        "type": "template",
+        "template": "Two endpoints: /breadcrumbs/{id} (transformed) vs /breadcrumbs/{id}/full (raw)"
+      }
+    },
+    "mode": "replace"
+  }
+}

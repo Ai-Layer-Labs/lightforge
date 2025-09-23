@@ -1,45 +1,97 @@
-# ThinkOS Agent Extension
+# RCRT Chat Browser Extension
 
-AI-powered browser agent with CrewAI integration for intelligent web automation and assistance.
+Your AI assistant powered by Right Context Right Time, accessible directly from your browser.
 
-## 🎨 Branding
+## Features
 
-The extension uses the ThinkOS brand colors:
-- **Primary Gold**: `#F6B259` - Used for buttons, icons, and accents
-- **Light Gold**: `#FFE3C4` - Used for highlights
-- **Dark Gold**: `#C18F59` - Used for secondary elements
-- **Copper**: `#F7B359` - Used for interactive elements
-- **Dark Background**: `#0E0F12` to `#1a1b1f` - Gradient background
+- 🤖 **AI-Powered Chat**: Interact with intelligent agents using natural language
+- 🛠️ **Tool Integration**: Execute tools like file storage, web search, and more
+- 📡 **Real-time Updates**: Live connection via Server-Sent Events
+- 🔐 **Secure**: JWT authentication with the RCRT system
+- 🎨 **Modern UI**: Clean, dark theme interface with smooth animations
+- ⚡ **Fast & Responsive**: Built with React and TypeScript
 
-## 🚀 Development
+## Quick Start
 
-### Dev Mode (Full Screen)
+1. **Ensure RCRT is running**:
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Add your OpenRouter API key**:
+   ```bash
+   export OPENROUTER_API_KEY=sk-or-v1-xxx
+   node add-openrouter-key.js
+   docker compose restart tools-runner
+   ```
+
+3. **Build and install**:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+4. **Load in Chrome/Edge**:
+   - Go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `dist` folder
+
+5. **Start chatting!** Click the extension icon
+
+## Development
+
+### Build for Development
 ```bash
-npm run dev
-# Open http://localhost:5173/dev.html
+npm run dev    # Watch mode with hot reload
+npm run build  # Production build
 ```
 
-### Build Extension
-```bash
-npm run build
-# Load dist/ folder in Chrome
+### Project Structure
+```
+extension/
+├── src/
+│   ├── popup/          # Main chat interface
+│   │   ├── RCRTChat.tsx    # Primary chat component
+│   │   └── Popup.tsx       # Root component
+│   ├── lib/            # RCRT client library
+│   └── background/     # Service worker
+├── manifest.json       # Extension manifest
+└── dist/              # Built extension
 ```
 
-## 🔧 Features
+### Key Components
 
-- **Full-Screen UI**: Responsive design that extends to browser edges
-- **ThinkOS Branding**: Consistent with the ThinkOS visual identity
-- **CrewAI Integration**: AI-powered browser automation
-- **Hot Reload**: Instant updates during development
+- **RCRTChat**: Main chat interface with RCRT integration
+- **RCRTExtensionClient**: Handles authentication and API calls
+- **SSE Integration**: Real-time event streaming
 
-## 📱 Chrome Extension
+## Architecture
 
-1. Build with `npm run build`
-2. Go to `chrome://extensions/`
-3. Enable Developer mode
-4. Click "Load unpacked"
-5. Select the `dist/` folder
+The extension connects to your local RCRT instance and:
+1. Creates `chat.message.v1` breadcrumbs for user input
+2. Subscribes to `agent.response.v1` events via SSE
+3. Shows tool invocations and responses in real-time
+4. Maintains session context for conversations
 
-## 🎯 Icon
+## UI Design
 
-Uses `think-os-agent.svg` - a sophisticated golden/copper design representing the AI agent concept.
+The extension uses a modern dark theme:
+- **Background**: Gradient from `gray-900` to `gray-800`
+- **Primary**: Teal accents (`teal-400`, `teal-600`)
+- **Messages**: User (teal), Assistant (gray), System (gray/red), Tools (purple)
+- **Typography**: Clean, readable text with proper contrast
+
+## Troubleshooting
+
+See the main [RCRT Chat Setup Guide](../RCRT_CHAT_SETUP_GUIDE.md) for detailed troubleshooting steps.
+
+### Common Issues
+
+- **Connection Failed**: Ensure RCRT is running on `localhost:8081`
+- **No Response**: Check if agent-runner is active
+- **Tool Errors**: Verify tools-runner has the API keys
+
+## License
+
+Part of the RCRT ecosystem.

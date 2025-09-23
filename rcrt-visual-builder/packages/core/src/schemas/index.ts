@@ -5,3 +5,4 @@ export * from './flow';
 export * from './agent';
 export * from './workspace';
 export * from './ui';
+export * from './context-transform';

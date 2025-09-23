@@ -1,0 +1,38 @@
+{
+  "schema_name": "system.bootstrap.v1",
+  "title": "RCRT Bootstrap Status",
+  "tags": ["system:bootstrap", "workspace:system"],
+  "context": {
+    "version": "2.0.0",
+    "description": "Tracks bootstrap status and prevents duplicate initialization",
+    "components": {
+      "infrastructure": {
+        "database": true,
+        "nats": true,
+        "services": ["rcrt", "dashboard", "agent-runner", "tools-runner"]
+      },
+      "agents": {
+        "system_agents": [
+          "00000000-0000-0000-0000-0000000000aa",
+          "00000000-0000-0000-0000-0000000000bb",
+          "00000000-0000-0000-0000-0000000000ddd",
+          "00000000-0000-0000-0000-000000000AAA"
+        ],
+        "default_agents": ["default-chat-assistant"]
+      },
+      "breadcrumbs": {
+        "tool_catalog": true,
+        "templates": true,
+        "guides": true
+      }
+    },
+    "bootstrap_sequence": [
+      "1. System agents registered",
+      "2. Tool catalog created",
+      "3. Template library loaded",
+      "4. Default agents created",
+      "5. Bootstrap marker created"
+    ],
+    "timestamp": "WILL_BE_SET_AT_RUNTIME"
+  }
+}

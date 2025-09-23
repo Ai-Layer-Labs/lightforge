@@ -58,6 +58,7 @@ pub struct BreadcrumbContextView {
     pub title: String,
     pub context: JsonValue,
     pub tags: Vec<String>,
+    pub schema_name: Option<String>,
     pub version: i32,
     pub updated_at: DateTime<Utc>,
 }

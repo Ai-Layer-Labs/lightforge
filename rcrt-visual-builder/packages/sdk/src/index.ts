@@ -134,6 +134,7 @@ export class RcrtClientEnhanced {
   private eventSource?: EventSource;
   private tokenEndpoint?: string;
   private autoRefresh: boolean;
+  private tokenRequestBody?: any;
 
   constructor(
     baseUrl: string = 'http://localhost:8081',
@@ -142,11 +143,13 @@ export class RcrtClientEnhanced {
     options: {
       tokenEndpoint?: string;
       autoRefresh?: boolean;
+      tokenRequestBody?: any;
     } = {}
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.tokenEndpoint = options.tokenEndpoint;
     this.autoRefresh = options.autoRefresh ?? true;
+    this.tokenRequestBody = options.tokenRequestBody;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
     };
@@ -181,7 +184,7 @@ export class RcrtClientEnhanced {
       const response = await fetch(this.tokenEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify(this.tokenRequestBody || {})
       });
       
       if (!response.ok) return false;

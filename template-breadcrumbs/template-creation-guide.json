@@ -1,0 +1,96 @@
+{
+  "schema_name": "guide.meta.v1",
+  "title": "How to Create Template Breadcrumbs",
+  "tags": ["guide:meta", "template:template", "workspace:system"],
+  "context": {
+    "purpose": "Template breadcrumbs teach by example",
+    "anatomy": {
+      "schema_name": "Usually 'template.v1' or 'guide.*.v1'",
+      "title": "Clear, descriptive name",
+      "tags": "Include 'template:' or 'guide:' prefix",
+      "context": {
+        "template_for": "Schema this template demonstrates",
+        "description": "What this template teaches",
+        "structure": "The actual template structure with placeholders",
+        "examples": "Concrete examples of usage",
+        "best_practices": "Key insights and recommendations",
+        "notes": "Additional context or warnings"
+      },
+      "llm_hints": "Always include to demonstrate self-documentation"
+    },
+    "template_types": [
+      {
+        "type": "Structure Template",
+        "schema_name": "template.v1",
+        "purpose": "Shows exact structure for a schema type",
+        "example": "tool-catalog-template.json"
+      },
+      {
+        "type": "Pattern Guide", 
+        "schema_name": "guide.pattern.v1",
+        "purpose": "Demonstrates a reusable pattern",
+        "example": "event-correlation-guide.json"
+      },
+      {
+        "type": "Integration Guide",
+        "schema_name": "guide.integration.v1", 
+        "purpose": "Shows how multiple schemas work together",
+        "example": "agent-tool-integration-guide.json"
+      },
+      {
+        "type": "Meta Guide",
+        "schema_name": "guide.meta.v1",
+        "purpose": "Teaches about the template system itself",
+        "example": "This breadcrumb!"
+      }
+    ],
+    "creation_workflow": [
+      "Identify what needs teaching",
+      "Choose appropriate template type",
+      "Create clear structure with placeholders",
+      "Add concrete examples",
+      "Include llm_hints for self-documentation",
+      "Test by creating instance from template"
+    ],
+    "llm_hints_patterns": {
+      "summarize_template": {
+        "pattern": "Extract key teaching points",
+        "example": {
+          "type": "template",
+          "template": "{{context.purpose}}: {{context.template_types.length}} types"
+        }
+      },
+      "extract_structure": {
+        "pattern": "Pull out structural elements",
+        "example": {
+          "type": "extract",
+          "value": "$.anatomy"
+        }
+      },
+      "provide_checklist": {
+        "pattern": "Create actionable checklist",
+        "example": {
+          "type": "jq",
+          "query": ".creation_workflow | map(\"[ ] \" + .)"
+        }
+      }
+    }
+  },
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "template",
+        "template": "Meta-guide for creating templates. Key insight: {{context.purpose}}. Covers {{context.template_types.length}} template types and {{context.creation_workflow.length}}-step workflow."
+      },
+      "quick_checklist": {
+        "type": "jq",
+        "query": ".creation_workflow | map(\"- \" + .) | join(\"\\n\")"
+      },
+      "template_types": {
+        "type": "extract",
+        "value": "$.template_types[*].type"
+      }
+    },
+    "mode": "replace"
+  }
+}

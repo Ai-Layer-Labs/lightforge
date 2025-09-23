@@ -1,0 +1,47 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Default Chat Assistant",
+  "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
+  "context": {
+    "agent_id": "default-chat-assistant",
+    "model": "openrouter/google/gemini-2.0-flash-exp:free",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou dynamically discover available tools from the tool catalog breadcrumb. When you need to use a tool:\n1. Check the tool catalog in your context for available tools\n2. Create a tool.request.v1 breadcrumb with the appropriate parameters\n3. Wait for the tool.response.v1 breadcrumb with results\n\nAlways be helpful, concise, and clear. Explain what you're doing when invoking tools.\n\nIMPORTANT: Respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response\",\n      \"tool_requests\": [...]\n    }\n  }\n}",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_update_own": false,
+      "can_delete_own": false,
+      "can_spawn_agents": false
+    },
+    "subscriptions": {
+      "selectors": [
+        {
+          "all_tags": ["chat:message", "workspace:agents"],
+          "schema_name": "chat.message.v1"
+        },
+        {
+          "schema_name": "tool.catalog.v1",
+          "all_tags": ["workspace:tools"]
+        },
+        {
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
+          ]
+        }
+      ]
+    },
+    "metadata": {
+      "version": "2.0.0",
+      "created_by": "bootstrap",
+      "purpose": "General purpose chat interface",
+      "features": [
+        "Dynamic tool discovery",
+        "Context-aware responses",
+        "Tool invocation capability"
+      ]
+    }
+  }
+}

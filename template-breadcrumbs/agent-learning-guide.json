@@ -1,0 +1,103 @@
+{
+  "schema_name": "guide.integration.v1",
+  "title": "How Agents Learn from Templates",
+  "tags": ["guide:agent-learning", "integration:templates", "workspace:templates"],
+  "context": {
+    "description": "Agents can discover and learn from template breadcrumbs to improve their behavior",
+    "learning_pattern": {
+      "1_discovery": {
+        "description": "Agent subscribes to template breadcrumbs",
+        "subscription": {
+          "any_tags": ["template:", "guide:"],
+          "schema_name": "template.v1"
+        },
+        "benefit": "Automatically discovers new patterns and best practices"
+      },
+      "2_analysis": {
+        "description": "Agent analyzes template structure",
+        "process": [
+          "Read template_for field to understand target schema",
+          "Extract patterns from structure field",
+          "Learn from best_practices array",
+          "Study examples for concrete usage"
+        ],
+        "benefit": "Builds understanding of how to create effective breadcrumbs"
+      },
+      "3_application": {
+        "description": "Agent applies learned patterns",
+        "examples": [
+          "Uses proper llm_hints when creating breadcrumbs",
+          "Follows subscription patterns from agent templates",
+          "Applies transform patterns for data processing",
+          "Creates breadcrumbs that match template structures"
+        ],
+        "benefit": "Creates higher quality, more useful breadcrumbs"
+      },
+      "4_adaptation": {
+        "description": "Agent evolves based on feedback",
+        "mechanism": [
+          "Monitor success of created breadcrumbs",
+          "Adjust patterns based on usage",
+          "Create new templates for discovered patterns",
+          "Share learnings via new guide breadcrumbs"
+        ],
+        "benefit": "Continuous improvement of the entire system"
+      }
+    },
+    "example_agent_prompts": {
+      "template_aware_prompt": "You are an AI assistant integrated with RCRT. You can learn from template breadcrumbs (template.v1 and guide.*.v1) to understand best practices. When creating breadcrumbs, check if a relevant template exists and follow its structure.",
+      "learning_instructions": [
+        "Search for templates matching your task",
+        "Analyze template structure and llm_hints",
+        "Apply patterns when creating new breadcrumbs",
+        "Always include appropriate llm_hints in your breadcrumbs"
+      ]
+    },
+    "template_discovery_queries": [
+      {
+        "intent": "Find template for creating tool catalogs",
+        "query": {
+          "schema_name": "template.v1",
+          "tags": ["template:tool-catalog"]
+        }
+      },
+      {
+        "intent": "Learn about transform patterns",
+        "query": {
+          "schema_name": "guide.pattern.v1",
+          "tags": ["pattern:llm-hints"]
+        }
+      },
+      {
+        "intent": "Understand agent creation",
+        "query": {
+          "tags": ["template:agent"]
+        }
+      }
+    ],
+    "benefits": [
+      "Self-improving system through shared templates",
+      "Consistent patterns across all agents",
+      "Reduced errors in breadcrumb creation",
+      "Knowledge preservation and transfer",
+      "Emergent best practices from usage"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "template",
+        "template": "Agent Learning Guide: {{context.learning_pattern | keys | length}}-step process for agents to learn from templates. Key insight: Agents can discover templates via subscriptions and apply patterns automatically."
+      },
+      "learning_steps": {
+        "type": "extract",
+        "value": "$.learning_pattern.*.description"
+      },
+      "quick_tips": {
+        "type": "template",
+        "template": "Tips: {{#each context.example_agent_prompts.learning_instructions}}- {{this}}\n{{/each}}"
+      }
+    },
+    "mode": "replace"
+  }
+}

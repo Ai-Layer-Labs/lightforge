@@ -1,0 +1,70 @@
+{
+  "schema_name": "template.v1", 
+  "title": "Agent Definition Template",
+  "tags": ["template:agent", "guide:agents", "workspace:templates", "system:bootstrap"],
+  "context": {
+    "template_for": "agent.definition.v1",
+    "description": "Template for creating agents that properly use breadcrumb context",
+    "structure": {
+      "schema_name": "agent.definition.v1",
+      "title": "{Agent Name}",
+      "tags": ["agent:definition", "workspace:agents", "{custom-tags}"],
+      "context": {
+        "agent_id": "{unique-agent-id}",
+        "model": "{llm-model-identifier}",
+        "system_prompt": "Base instructions + 'You will receive context breadcrumbs based on your subscriptions'",
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "capabilities": {
+          "can_create_breadcrumbs": true,
+          "can_update_own": false,
+          "can_delete_own": false,
+          "can_spawn_agents": false
+        },
+        "subscriptions": {
+          "selectors": [
+            {
+              "comment": "Subscribe to user messages",
+              "all_tags": ["user:message"],
+              "schema_name": "chat.message.v1"
+            },
+            {
+              "comment": "Subscribe to tool catalog for discovery",
+              "schema_name": "tool.catalog.v1",
+              "all_tags": ["workspace:tools"]
+            },
+            {
+              "comment": "Subscribe to tool responses",
+              "schema_name": "tool.response.v1",
+              "all_tags": ["workspace:tools"],
+              "context_match": [
+                {"path": "$.requestedBy", "op": "eq", "value": "{agent_id}"}
+              ]
+            }
+          ]
+        },
+        "response_format": {
+          "schema_name": "agent.response.v1",
+          "required_fields": ["message"],
+          "optional_fields": ["tool_requests", "created_breadcrumbs"]
+        }
+      }
+    },
+    "best_practices": [
+      "Always subscribe to tool.catalog.v1 for tool discovery",
+      "Use context_match to filter only your tool responses",
+      "Keep system prompts focused on using context",
+      "Let breadcrumbs drive agent behavior, not hardcoded logic",
+      "Include clear response format instructions"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "guide": {
+        "type": "template",
+        "template": "Agent Template: {{context.best_practices.length}} best practices. Key: {{context.best_practices.[0]}}"
+      }
+    },
+    "mode": "replace"
+  }
+}

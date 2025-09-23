@@ -116,6 +116,7 @@ impl Db {
             title: r.title,
             context: r.context,
             tags: r.tags,
+            schema_name: r.schema_name,
             version: r.version,
             updated_at: r.updated_at,
         }))

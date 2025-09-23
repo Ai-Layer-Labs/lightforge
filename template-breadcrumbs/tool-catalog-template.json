@@ -1,0 +1,52 @@
+{
+  "schema_name": "template.v1",
+  "title": "Tool Catalog Template",
+  "tags": ["template:tool-catalog", "guide:tools", "workspace:templates"],
+  "context": {
+    "template_for": "tool.catalog.v1",
+    "description": "Template for creating tool catalogs with proper LLM hints",
+    "structure": {
+      "schema_name": "tool.catalog.v1",
+      "title": "{workspace} Tool Catalog",
+      "tags": ["{workspace}", "tool:catalog"],
+      "context": {
+        "tools": "Array of tool definitions",
+        "totalTools": "Number",
+        "activeTools": "Number", 
+        "lastUpdated": "ISO timestamp"
+      },
+      "llm_hints": {
+        "transform": {
+          "tool_summary": {
+            "type": "template",
+            "template": "{{context.activeTools}} tools available:\\n{{#each context.tools}}- {{name}} ({{category}}): {{description}}\\n{{/each}}\\n\\nTo invoke: create tool.request.v1 breadcrumb"
+          },
+          "quick_list": {
+            "type": "extract",
+            "value": "$.tools[*].name"
+          },
+          "by_category": {
+            "type": "jq",
+            "query": ".tools | group_by(.category) | map({key: .[0].category, value: map(.name)}) | from_entries"
+          }
+        },
+        "mode": "replace"
+      }
+    },
+    "notes": [
+      "The llm_hints transform creates an LLM-friendly view",
+      "tool_summary provides natural language description",
+      "quick_list extracts just tool names for concise reference",
+      "by_category groups tools for easier discovery"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "template_usage": {
+        "type": "template",
+        "template": "Tool Catalog Template: Creates {{context.structure.llm_hints.transform | keys | length}} different LLM views. Key insight: {{context.notes.[0]}}"
+      }
+    },
+    "mode": "replace"
+  }
+}
