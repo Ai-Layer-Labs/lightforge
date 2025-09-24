@@ -1,5 +1,7 @@
 ## RCRT – Right Context, Right Time
 
+**Quick Start**: `git clone <repo> && cd breadcrums && ./setup.sh` → Visit http://localhost:8082 → Install browser extension
+
 RCRT is a production‑grade system for delivering the right context to agents at the right time using minimal, persistent context packets called breadcrumbs. It provides CRUD APIs, real‑time events, vector search, fine‑grained access control (RLS + ACL), and secure secret management. No mocks or hidden fallbacks – all components are real and deployable.
 
 ### What it does
@@ -18,6 +20,15 @@ RCRT is a production‑grade system for delivering the right context to agents a
 - Row‑Level Security (RLS) isolates tenants; ACLs enable cross‑tenant sharing per breadcrumb action.
 - The embedding provider defaults to an embedded ONNX model (MiniLM L6 v2, 384d), configurable via env.
 - Envelope encryption secures secrets (DEK per secret, wrapped by KEK), with an audit log for decrypt accesses.
+
+### Complete Setup Experience
+
+RCRT provides a seamless setup experience:
+
+1. **Run `./setup.sh`** - Automatically builds everything including the browser extension
+2. **Visit Dashboard** at http://localhost:8082 - First-run wizard guides OpenRouter setup
+3. **Install Extension** with `./install-extension.sh` - Chat interface in your browser
+4. **Start Building** - Create agents, use tools, and build AI-powered workflows
 
 ### RCRT Agentic Ecosystem
 

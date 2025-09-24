@@ -15,9 +15,11 @@
 
 That's it! The script will:
 - ✅ Check all prerequisites
+- ✅ Build the browser extension
 - ✅ Generate missing files (Cargo.lock)
 - ✅ Start all Docker services
 - ✅ Validate everything is working
+- ✅ Guide you to install the browser extension
 
 ## Manual Setup (if needed)
 
@@ -40,11 +42,23 @@ Once running, access these URLs:
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Builder UI** | http://localhost:3000 | Visual workflow builder |
+| **Dashboard** | http://localhost:8082 | RCRT Dashboard v2 |
 | **RCRT Server** | http://localhost:8081 | Main API server |
-| **Dashboard** | http://localhost:8082 | System dashboard |
+| **Builder UI** | http://localhost:3000 | Visual workflow builder |
+| **Browser Extension** | `extension/dist/` | Chrome/Edge extension |
 | **Database** | localhost:5432 | PostgreSQL + pgvector |
 | **NATS** | localhost:4222 | Message broker |
+
+## 🧩 Browser Extension
+
+After setup, install the browser extension for chat access:
+
+1. **Quick install**: Run `./install-extension.sh`
+2. **Manual install**:
+   - Open Chrome/Edge extensions page
+   - Enable Developer mode
+   - Load unpacked → select `extension/dist/`
+   - Click the RCRT icon to chat!
 
 ## Environment Variables (Optional)
 

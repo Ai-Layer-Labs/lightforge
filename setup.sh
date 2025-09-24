@@ -31,6 +31,16 @@ echo "🧹 Cleaning up..."
 rm -rf rcrt-visual-builder/apps/builder/node_modules || true
 rm -rf rcrt-visual-builder/node_modules || true
 
+# Build the browser extension first (if node/npm available)
+if command -v npm >/dev/null 2>&1; then
+    echo "🧩 Building browser extension..."
+    (cd extension && npm install && npm run build) || echo "⚠️  Extension build failed (not critical)"
+    echo "✅ Extension built in extension/dist/"
+else
+    echo "⚠️  Node.js not found - skipping extension build"
+    echo "   You can build it later with: cd extension && npm install && npm run build"
+fi
+
 # Build core services first (WITHOUT agent-runner)
 echo "🔨 Building core services..."
 docker compose up -d db nats rcrt dashboard tools-runner
@@ -103,3 +113,17 @@ echo "   4. Check logs: docker compose logs -f [service-name]"
 echo ""
 echo "🛑 To stop: docker compose down"
 echo "🔄 If agent-runner shows 0 agents: ./reload-agents.js"
+echo ""
+echo "🧩 Browser Extension:"
+if [ -d "extension/dist" ]; then
+    echo "   ✅ Extension is built and ready in: extension/dist/"
+    echo "   📋 To install in Chrome/Edge:"
+    echo "      1. Open chrome://extensions/ (or edge://extensions/)"
+    echo "      2. Enable 'Developer mode' (toggle in top right)"
+    echo "      3. Click 'Load unpacked'"
+    echo "      4. Select the 'extension/dist' folder"
+    echo "      5. Click the RCRT extension icon to start chatting!"
+else
+    echo "   ⚠️  Extension not built yet. To build:"
+    echo "      cd extension && npm install && npm run build"
+fi

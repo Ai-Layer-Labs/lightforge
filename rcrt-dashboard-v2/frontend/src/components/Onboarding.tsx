@@ -112,7 +112,15 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         <div className="text-center p-4">
           <h2 className="text-2xl font-bold mb-4 text-green-400">Setup Complete! 🎉</h2>
           <p className="mb-4">Your OpenRouter API key is now configured.</p>
-          <p className="text-sm opacity-75">You can now use AI-powered features in RCRT!</p>
+          <p className="text-sm opacity-75 mb-4">You can now use AI-powered features in RCRT!</p>
+          <div className="mt-4 p-4 bg-purple-500/20 rounded-lg border border-purple-400/40">
+            <p className="text-purple-300 font-semibold mb-2">🧩 Next: Install the Browser Extension</p>
+            <p className="text-sm text-gray-300">Chat with RCRT directly from your browser!</p>
+            <div className="mt-3 p-2 bg-black/30 rounded text-left">
+              <p className="text-xs text-gray-300 font-mono">Run: ./install-extension.sh</p>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Or manually load extension/dist in Chrome/Edge</p>
+          </div>
         </div>
       ),
       placement: 'center',
