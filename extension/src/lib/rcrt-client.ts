@@ -20,19 +20,29 @@ export interface SSEFilter {
 }
 
 export class RCRTExtensionClient {
-  private baseUrl: string = 'http://localhost:8081';
+  private baseUrl: string = 'http://127.0.0.1:8081';
   private token: string | null = null;
   private authenticated: boolean = false;
 
   async authenticate(): Promise<boolean> {
     try {
+      // First check if we already have a token from the background script
+      const stored = await chrome.storage.local.get(['extensionToken']);
+      if (stored.extensionToken) {
+        console.log('Using existing token from background script');
+        this.token = stored.extensionToken;
+        this.authenticated = true;
+        return true;
+      }
+
+      // Otherwise get a new token
       const response = await fetch(`${this.baseUrl}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           owner_id: '00000000-0000-0000-0000-000000000001',
-          agent_id: '00000000-0000-0000-0000-000000000002', // Use proper UUID format
-          roles: ['emitter', 'subscriber']
+          agent_id: '00000000-0000-0000-0000-000000000EEE', // Use same agent ID as background
+          roles: ['curator', 'emitter', 'subscriber']
         })
       });
 
@@ -43,6 +53,10 @@ export class RCRTExtensionClient {
       const data = await response.json();
       this.token = data.token;
       this.authenticated = true;
+      
+      // Save the token for consistency
+      await chrome.storage.local.set({ extensionToken: this.token });
+      
       return true;
       
     } catch (error) {
@@ -57,21 +71,55 @@ export class RCRTExtensionClient {
       throw new Error('Not authenticated with RCRT');
     }
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(breadcrumb)
-    });
+    try {
+      // Try using the background script to make the API call
+      // This avoids CORS issues that can happen in extension popups
+      if (chrome.runtime?.sendMessage) {
+        return new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({
+            type: 'RCRT_API_CALL',
+            endpoint: '/breadcrumbs',
+            method: 'POST',
+            body: breadcrumb,
+            token: this.token
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (response?.error) {
+              reject(new Error(response.error));
+            } else {
+              resolve(response);
+            }
+          });
+        });
+      }
+      
+      // Fallback to direct fetch if not in extension context
+      const response = await fetch(`${this.baseUrl}/breadcrumbs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(breadcrumb),
+        mode: 'cors',
+        credentials: 'omit'
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to create breadcrumb: ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to create breadcrumb: ${error}`);
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        console.error('Network error details:', error);
+        throw new Error('Network error: Unable to connect to RCRT. Check if the server is running and CORS is enabled.');
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   async createChatBreadcrumb(message: any): Promise<{ id: string }> {
@@ -93,17 +141,43 @@ export class RCRTExtensionClient {
       throw new Error('Not authenticated with RCRT');
     }
 
-    const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`
+    try {
+      // Try using the background script to make the API call
+      if (chrome.runtime?.sendMessage) {
+        return new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({
+            type: 'RCRT_API_CALL',
+            endpoint: `/breadcrumbs/${id}`,
+            method: 'GET',
+            token: this.token
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (response?.error) {
+              reject(new Error(response.error));
+            } else {
+              resolve(response);
+            }
+          });
+        });
       }
-    });
+      
+      // Fallback to direct fetch
+      const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${this.token}`
+        }
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to get breadcrumb: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get breadcrumb: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Failed to get breadcrumb:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   async connectToSSE(
@@ -307,12 +381,23 @@ export class RCRTExtensionClient {
       throw new Error('Not authenticated with RCRT');
     }
 
-    console.log('🔌 Connecting to RCRT SSE stream...');
+    console.log('🔌 Connecting to RCRT SSE stream for tool:response events...');
     
     // EventSource doesn't support headers directly, but RCRT server accepts
     // token as a query parameter for SSE/browser clients (see line 1278 in main.rs)
-    const url = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token)}`;
+    // Add tag filter for tool:response
+    const url = `${this.baseUrl}/events/stream?token=${encodeURIComponent(this.token)}&tag=tool:response`;
     const eventSource = new EventSource(url);
+    
+    // Add error handling
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      // EventSource will automatically reconnect
+    };
+    
+    eventSource.onopen = () => {
+      console.log('✅ SSE connection opened');
+    };
     
     return eventSource;
   }

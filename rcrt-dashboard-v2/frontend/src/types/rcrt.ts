@@ -30,35 +30,60 @@ export interface Agent {
   created_at: string;
 }
 
+export interface SelectorSubscription {
+  id: string;
+  owner_id: string;
+  agent_id: string;
+  selector: {
+    any_tags?: string[];
+    all_tags?: string[];
+    schema_name?: string;
+    context_match?: Array<{
+      path: string;
+      op: 'eq' | 'contains_any' | 'gt' | 'lt';
+      value: any;
+    }>;
+  };
+}
+
 export interface AgentDefinition extends Breadcrumb {
-  schema_name: 'agent.definition.v1';
+  schema_name: 'agent.def.v1';
   context: {
-    agent_entity_id: string;
-    agent_name: string;
-    description: string;
-    category: string;
-    version: string;
-    execution: {
-      type: 'javascript';
-      code: string;
+    agent_id: string;
+    agent_name?: string;
+    description?: string;
+    model: string;
+    system_prompt: string;
+    temperature?: number;
+    max_tokens?: number;
+    capabilities: {
+      can_create_breadcrumbs: boolean;
+      can_update_own: boolean;
+      can_delete_own: boolean;
+      can_spawn_agents: boolean;
+      can_modify_agents?: boolean;
+      can_create_flows?: boolean;
     };
-    subscriptions: string[];
-    triggers: Array<{
-      selector: {
+    subscriptions: {
+      selectors: Array<{
         any_tags?: string[];
         all_tags?: string[];
+        schema_name?: string;
         context_match?: Array<{
           path: string;
           op: 'eq' | 'contains_any' | 'gt' | 'lt';
           value: any;
         }>;
-      };
-    }>;
-    capabilities?: {
-      can_create?: boolean;
-      can_modify?: boolean;
-      can_use_tools?: boolean;
-      max_execution_time?: number;
+      }>;
+    };
+    emits?: {
+      tags?: string[];
+      schemas?: string[];
+    };
+    memory?: {
+      type: 'breadcrumb' | 'local' | 'none';
+      tags?: string[];
+      ttl_hours?: number;
     };
   };
 }
@@ -249,12 +274,15 @@ export type NodeType =
 export type ConnectionType = 
   | 'creation'
   | 'subscription'
+  | 'emission'
   | 'tool-response'
   | 'agent-definition'
   | 'secret-usage'
   | 'acl-grant'
   | 'webhook'
-  | 'agent-thinking';
+  | 'agent-thinking'
+  | 'tool-request'
+  | 'tool-execution';
 
 export interface RenderNode {
   id: string;

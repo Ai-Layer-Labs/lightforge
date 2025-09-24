@@ -1,4 +1,5 @@
-import { RenderNode, RenderConnection, NodeType, ConnectionType, Position3D, Breadcrumb, Agent, Secret, Tool } from '../types/rcrt';
+import { RenderNode, RenderConnection, NodeType, ConnectionType, Position3D, Breadcrumb, Agent, Secret, Tool, SelectorSubscription, AgentDefinition } from '../types/rcrt';
+import { matchesSelector, findMatchingBreadcrumbs, matchesEmissionRules } from './selectorMatching';
 
 /**
  * Data transformation utilities for converting RCRT API data to render format
@@ -309,76 +310,72 @@ export function discoverConnections(data: {
   agents: Agent[];
   secrets: Secret[];
   tools?: Tool[];
+  subscriptions?: SelectorSubscription[];
 }): RenderConnection[] {
   const connections: RenderConnection[] = [];
   
-  // Debug: Log what data we're working with
-  console.log('🔗 Connection discovery input:', {
+  console.log('🔗 Dynamic connection discovery starting...');
+  console.log('📊 Input data:', {
     breadcrumbs: data.breadcrumbs.length,
     agents: data.agents.length,
     secrets: data.secrets.length,
     tools: data.tools?.length || 0,
+    subscriptions: data.subscriptions?.length || 0,
   });
   
-  // Debug: Show sample breadcrumbs with their schemas and context
-  console.log('📋 Sample breadcrumbs for connection discovery:');
-  data.breadcrumbs.slice(0, 3).forEach((b, i) => {
-    console.log(`  ${i + 1}. ${b.title} - schema: ${b.schema_name}, tags: [${b.tags?.join(', ')}], context keys: [${Object.keys(b.context || {}).join(', ')}]`);
-  });
+  // DEBUG: Show sample data to understand what we're working with
+  console.log('🔍 Sample breadcrumbs:', data.breadcrumbs.slice(0, 3).map(b => ({
+    id: b.id,
+    title: b.title,
+    schema: b.schema_name,
+    tags: b.tags,
+    created_by: b.created_by
+  })));
   
-  // Debug: Show secrets
-  console.log('🔐 Secrets for connection discovery:', data.secrets.map(s => ({ id: s.id, name: s.name })));
+  console.log('🔍 Agents:', data.agents.map(a => ({ id: a.id, roles: a.roles })));
   
-  // Debug: Show tools
-  if (data.tools) {
-    console.log('🛠️ Tools for connection discovery:', data.tools.map(t => ({ id: t.id || t.name, name: t.name })));
+  if (data.subscriptions && data.subscriptions.length > 0) {
+    console.log('🔍 Sample subscriptions:', data.subscriptions.slice(0, 2).map(s => ({
+      agent_id: s.agent_id,
+      selector: s.selector
+    })));
   }
   
-  // 1. Find creation connections (breadcrumb.created_by -> agent.id)
+  // 1. DYNAMIC: Find subscription connections from agent definitions
+  const subscriptionConnections = findSubscriptionConnectionsFromAgentDefs(data.breadcrumbs);
+  console.log(`🔗 Found ${subscriptionConnections.length} subscription connections from agent definitions`);
+  connections.push(...subscriptionConnections);
+  
+  // 2. DYNAMIC: Find emission connections using agent definition data
+  const emissionConnections = findEmissionConnectionsFromAgentDefs(data.breadcrumbs);
+  console.log(`🔗 Found ${emissionConnections.length} dynamic emission connections`);
+  connections.push(...emissionConnections);
+  
+  // 3. Keep essential hardcoded connections for system relationships
   const creationConnections = findCreationConnections(data.breadcrumbs, data.agents);
   console.log(`🔗 Found ${creationConnections.length} creation connections`);
   connections.push(...creationConnections);
   
-  // 2. Find agent definition connections (agent definition -> agent entity)
-  const agentDefConnections = findAgentDefinitionConnections(data.breadcrumbs, data.agents);
-  console.log(`🔗 Found ${agentDefConnections.length} agent definition connections`);
-  connections.push(...agentDefConnections);
+  // 4. Tool execution flow (request -> response correlation)
+  const toolFlowConnections = findToolExecutionFlow(data.breadcrumbs);
+  console.log(`🔗 Found ${toolFlowConnections.length} tool execution flow connections`);
+  connections.push(...toolFlowConnections);
   
-  // 3. Find tool response connections (tool request -> tool response)
-  const toolResponseConnections = findToolResponseConnections(data.breadcrumbs);
-  console.log(`🔗 Found ${toolResponseConnections.length} tool response connections`);
-  connections.push(...toolResponseConnections);
+  // 5. Chat conversation flow (message -> response correlation)
+  const chatFlowConnections = findChatConversationFlow(data.breadcrumbs);
+  console.log(`🔗 Found ${chatFlowConnections.length} chat conversation flow connections`);
+  connections.push(...chatFlowConnections);
   
-  // 4. Find chat conversation connections (message -> response)
-  const chatConnections = findChatConversationConnections(data.breadcrumbs);
-  console.log(`🔗 Found ${chatConnections.length} chat connections`);
-  connections.push(...chatConnections);
   
-  // 5. Find tool configuration connections (tool config -> tool)
-  if (data.tools) {
-    const toolConfigConnections = findToolConfigConnections(data.breadcrumbs, data.tools);
-    console.log(`🔗 Found ${toolConfigConnections.length} tool config connections`);
-    connections.push(...toolConfigConnections);
-  }
-  
-  // 6. Find secret usage connections (secret -> breadcrumbs that reference it)
-  const secretConnections = findSecretUsageConnections(data.breadcrumbs, data.secrets);
-  console.log(`🔗 Found ${secretConnections.length} secret usage connections`);
-  connections.push(...secretConnections);
-  
-  // 7. Find tool execution connections (tool -> tool requests/responses)
-  if (data.tools) {
-    const toolExecConnections = findToolExecutionConnections(data.breadcrumbs, data.tools);
-    console.log(`🔗 Found ${toolExecConnections.length} tool execution connections`);
-    connections.push(...toolExecConnections);
-  }
-  
-  console.log(`🔗 Discovered ${connections.length} connections`);
+  console.log(`✅ Discovered ${connections.length} total connections (${data.subscriptions ? 'with' : 'without'} subscription data)`);
   return connections;
 }
 
 function findCreationConnections(breadcrumbs: Breadcrumb[], agents: Agent[]): RenderConnection[] {
   const connections: RenderConnection[] = [];
+  
+  console.log('🔍 Finding creation connections...');
+  console.log(`  Breadcrumbs with created_by: ${breadcrumbs.filter(b => b.created_by).length}/${breadcrumbs.length}`);
   
   breadcrumbs.forEach(breadcrumb => {
     if (breadcrumb.created_by) {
@@ -400,10 +397,14 @@ function findCreationConnections(breadcrumbs: Breadcrumb[], agents: Agent[]): Re
             highlighted: false,
           },
         });
+        console.log(`  ✅ Created connection: ${agent.id} → ${breadcrumb.title}`);
+      } else {
+        console.log(`  ⚠️ No agent found for created_by: ${breadcrumb.created_by} (breadcrumb: ${breadcrumb.title})`);
       }
     }
   });
   
+  console.log(`🔗 Creation connections: ${connections.length}`);
   return connections;
 }
 
@@ -552,9 +553,11 @@ export function getDefaultDashboardConfig() {
     },
     connection_styles: {
       creation: { color: '#00ff88', style: 'solid' as const, width: 2 },
-      subscription: { color: '#0099ff', style: 'dashed' as const, width: 1.5 },
+      subscription: { color: '#0099ff', style: 'dashed' as const, width: 2 },
+      emission: { color: '#00ff88', style: 'solid' as const, width: 2 },
       'agent-thinking': { color: '#ff6b6b', style: 'dotted' as const, width: 1, animated: true },
       'tool-response': { color: '#ffa500', style: 'solid' as const, width: 2 },
+      'tool-execution': { color: '#ffa500', style: 'solid' as const, width: 3, animated: true },
     },
     node_styles: {
       'chat.message.v1': { icon: '💬', color: '#00f5ff', size: 'small' as const },
@@ -621,7 +624,275 @@ export function applyCircularLayout(nodes: RenderNode[]): void {
   });
 }
 
-// ============ NEW CONNECTION DISCOVERY FUNCTIONS ============
+// ============ DYNAMIC CONNECTION DISCOVERY FUNCTIONS ============
+
+/**
+ * Find subscription connections by reading agent definitions directly
+ * This is the correct approach since we have all the data in breadcrumbs
+ */
+function findSubscriptionConnectionsFromAgentDefs(breadcrumbs: Breadcrumb[]): RenderConnection[] {
+  const connections: RenderConnection[] = [];
+  
+  // Find agent definitions
+  const agentDefinitions = breadcrumbs.filter(b => 
+    b.schema_name === 'agent.def.v1'
+  ) as AgentDefinition[];
+  
+  console.log(`🔍 Found ${agentDefinitions.length} agent definitions to analyze`);
+  
+  agentDefinitions.forEach(agentDef => {
+    // Skip if no context
+    if (!agentDef.context) {
+      console.warn(`⚠️ Agent definition "${agentDef.title}" has no context, skipping`);
+      return;
+    }
+    
+    const agentId = agentDef.context.agent_id;
+    const selectors = agentDef.context.subscriptions?.selectors || [];
+    
+    console.log(`📡 Agent "${agentDef.title}" (${agentId}) has ${selectors.length} selectors`);
+    
+    selectors.forEach((selector, selectorIndex) => {
+      console.log(`  Selector ${selectorIndex}:`, selector);
+      
+      // Find breadcrumbs that match this selector
+      const matchingBreadcrumbs = findMatchingBreadcrumbs(breadcrumbs, selector);
+      console.log(`    → Found ${matchingBreadcrumbs.length} matching breadcrumbs`);
+      
+      matchingBreadcrumbs.forEach(breadcrumb => {
+        // Don't create self-connections
+        if (breadcrumb.created_by === agentId || breadcrumb.id === agentDef.id) return;
+        
+        connections.push({
+          id: `subscription-${breadcrumb.id}-${agentDef.id}`,
+          type: 'subscription',
+          fromNodeId: breadcrumb.id,
+          toNodeId: agentDef.id,
+          metadata: {
+            label: getSubscriptionLabelFromSelector(selector),
+            color: '#0099ff',
+            style: 'dashed',
+            weight: 2,
+          },
+          state: {
+            visible: true,
+            highlighted: false,
+          },
+        });
+        
+        console.log(`    ✅ Created subscription: ${breadcrumb.title} → ${agentDef.title}`);
+      });
+    });
+  });
+  
+  return connections;
+}
+
+/**
+ * Find emission connections using agent definition emission rules
+ */
+function findEmissionConnectionsFromAgentDefs(breadcrumbs: Breadcrumb[]): RenderConnection[] {
+  const connections: RenderConnection[] = [];
+  
+  // Find agent definitions
+  const agentDefinitions = breadcrumbs.filter(b => 
+    b.schema_name === 'agent.def.v1'
+  ) as AgentDefinition[];
+  
+  console.log(`🔍 Found ${agentDefinitions.length} agent definitions for emission analysis`);
+  
+  agentDefinitions.forEach(agentDef => {
+    // Skip if no context
+    if (!agentDef.context) {
+      console.warn(`⚠️ Agent definition "${agentDef.title}" has no context, skipping emissions`);
+      return;
+    }
+    
+    const emits = agentDef.context.emits;
+    const agentId = agentDef.context.agent_id;
+    
+    console.log(`📤 Agent "${agentDef.title}" (${agentId}) emits:`, emits);
+    
+    if (!emits) {
+      console.log(`  No emission rules defined for ${agentDef.title}`);
+      return;
+    }
+    
+    // Find breadcrumbs that match the emission rules
+    const emittedBreadcrumbs = breadcrumbs.filter(breadcrumb =>
+      matchesEmissionRules(breadcrumb, emits, agentId)
+    );
+    
+    console.log(`  Found ${emittedBreadcrumbs.length} breadcrumbs matching emission rules`);
+    
+    // Create emission connections from agent definition to emitted breadcrumbs
+    emittedBreadcrumbs.forEach(breadcrumb => {
+      connections.push({
+        id: `emission-${agentDef.id}-${breadcrumb.id}`,
+        type: 'emission',
+        fromNodeId: agentDef.id,
+        toNodeId: breadcrumb.id,
+        metadata: {
+          label: getEmissionLabel(emits),
+          color: '#00ff88',
+          style: 'solid',
+          weight: 2,
+        },
+        state: {
+          visible: true,
+          highlighted: false,
+        },
+      });
+      
+      console.log(`    ✅ Created emission: ${agentDef.title} → ${breadcrumb.title}`);
+    });
+  });
+  
+  return connections;
+}
+
+/**
+ * Simplified tool execution flow (request -> response)
+ */
+function findToolExecutionFlow(breadcrumbs: Breadcrumb[]): RenderConnection[] {
+  const connections: RenderConnection[] = [];
+  
+  const toolRequests = breadcrumbs.filter(b => b.schema_name === 'tool.request.v1');
+  const toolResponses = breadcrumbs.filter(b => b.schema_name === 'tool.response.v1');
+  
+  toolResponses.forEach(response => {
+    const requestId = response.context?.request_id || response.context?.requestId;
+    if (requestId) {
+      const request = toolRequests.find(r => r.id === requestId);
+      if (request) {
+        connections.push({
+          id: `tool-flow-${request.id}-${response.id}`,
+          type: 'tool-execution',
+          fromNodeId: request.id,
+          toNodeId: response.id,
+          metadata: {
+            label: response.context?.tool || 'tool',
+            color: '#ffa500',
+            style: 'solid',
+            weight: 3,
+            animated: true,
+          },
+          state: {
+            visible: true,
+            highlighted: false,
+          },
+        });
+      }
+    }
+  });
+  
+  return connections;
+}
+
+/**
+ * Simplified chat conversation flow
+ */
+function findChatConversationFlow(breadcrumbs: Breadcrumb[]): RenderConnection[] {
+  const connections: RenderConnection[] = [];
+  
+  // Group by conversation_id
+  const chatMessages = breadcrumbs.filter(b => 
+    b.schema_name?.startsWith('chat.') || 
+    b.schema_name?.startsWith('agent.response.') ||
+    b.schema_name?.startsWith('agent.thinking.')
+  );
+  
+  const conversations = new Map<string, Breadcrumb[]>();
+  chatMessages.forEach(msg => {
+    const convId = msg.context?.conversation_id;
+    if (convId) {
+      if (!conversations.has(convId)) {
+        conversations.set(convId, []);
+      }
+      conversations.get(convId)!.push(msg);
+    }
+  });
+  
+  // Create sequential connections within conversations
+  conversations.forEach(messages => {
+    messages.sort((a, b) => 
+      new Date(a.context?.timestamp || a.created_at).getTime() - 
+      new Date(b.context?.timestamp || b.created_at).getTime()
+    );
+    
+    for (let i = 0; i < messages.length - 1; i++) {
+      const fromMsg = messages[i];
+      const toMsg = messages[i + 1];
+      
+      connections.push({
+        id: `chat-flow-${fromMsg.id}-${toMsg.id}`,
+        type: 'agent-thinking',
+        fromNodeId: fromMsg.id,
+        toNodeId: toMsg.id,
+        metadata: {
+          label: '',
+          color: '#00f5ff',
+          style: 'dashed',
+          weight: 1.5,
+          animated: true,
+        },
+        state: {
+          visible: true,
+          highlighted: false,
+        },
+      });
+    }
+  });
+  
+  return connections;
+}
+
+/**
+ * Helper to create readable subscription labels from agent definition selectors
+ */
+function getSubscriptionLabelFromSelector(selector: AgentDefinition['context']['subscriptions']['selectors'][0]): string {
+  const parts: string[] = [];
+  
+  if (selector.schema_name) {
+    parts.push(selector.schema_name);
+  }
+  
+  if (selector.any_tags && selector.any_tags.length > 0) {
+    parts.push(`[${selector.any_tags.slice(0, 2).join(',')}]`);
+  }
+  
+  if (selector.all_tags && selector.all_tags.length > 0) {
+    parts.push(`[${selector.all_tags.slice(0, 2).join(',')}]`);
+  }
+  
+  return parts.length > 0 ? parts.join(' ') : 'subscribes';
+}
+
+/**
+ * Helper to create readable subscription labels (legacy function)
+ */
+function getSubscriptionLabel(selector: SelectorSubscription['selector']): string {
+  return getSubscriptionLabelFromSelector(selector);
+}
+
+/**
+ * Helper to create readable emission labels
+ */
+function getEmissionLabel(emits: { tags?: string[]; schemas?: string[] }): string {
+  const parts: string[] = [];
+  
+  if (emits.schemas && emits.schemas.length > 0) {
+    parts.push(`${emits.schemas[0]}${emits.schemas.length > 1 ? '...' : ''}`);
+  }
+  
+  if (emits.tags && emits.tags.length > 0) {
+    parts.push(`[${emits.tags.slice(0, 2).join(',')}${emits.tags.length > 2 ? '...' : ''}]`);
+  }
+  
+  return parts.length > 0 ? parts.join(' ') : 'emits';
+}
+
+// ============ LEGACY CONNECTION DISCOVERY FUNCTIONS ============
 
 function findToolConfigConnections(breadcrumbs: Breadcrumb[], tools: Tool[]): RenderConnection[] {
   const connections: RenderConnection[] = [];
@@ -841,5 +1112,5 @@ function findToolExecutionConnections(breadcrumbs: Breadcrumb[], tools: Tool[]):
   return connections;
 }
 
+
 // ============ UTILITY FUNCTIONS ============
-// (generateRandomPosition is already exported above)

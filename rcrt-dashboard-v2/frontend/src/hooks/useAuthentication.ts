@@ -44,10 +44,9 @@ export function useAuthentication() {
           controller.abort();
         }, 10000); // 10 second timeout
         
-        // Try direct connection (works for extension)
-        console.log('🔗 Attempting direct connection to RCRT server...');
-        const response = await fetch('http://localhost:8081/auth/token', {
-          mode: 'cors', // Explicitly set CORS mode
+        // Use proxy for authentication (more reliable than direct connection)
+        console.log('🔗 Attempting connection via proxy...');
+        const response = await fetch('/api/auth/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -128,4 +127,5 @@ export function useAuthentication() {
     refetchToken: tokenQuery.refetch,
   };
 }
+
 

@@ -11,10 +11,13 @@
       "tags": ["agent:definition", "workspace:agents", "{custom-tags}"],
       "context": {
         "agent_id": "{unique-agent-id}",
-        "model": "{llm-model-identifier}",
+        "llm_tool": "{tool-name-for-llm}",
+        "llm_config": {
+          "model": "{llm-model-identifier}",
+          "temperature": 0.7,
+          "max_tokens": 2000
+        },
         "system_prompt": "Base instructions + 'You will receive context breadcrumbs based on your subscriptions'",
-        "temperature": 0.7,
-        "max_tokens": 2000,
         "capabilities": {
           "can_create_breadcrumbs": true,
           "can_update_own": false,

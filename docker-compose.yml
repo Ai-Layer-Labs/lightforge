@@ -178,6 +178,7 @@ services:
       AGENT_ID: 00000000-0000-0000-0000-000000000AAA
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       DEPLOYMENT_MODE: docker
+    restart: unless-stopped
 
   dashboard:
     build:

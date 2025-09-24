@@ -141,6 +141,18 @@ export class ModernAgentRegistry {
 
   // Route events to appropriate agents
   private async routeEventToAgent(event: any): Promise<void> {
+    // Check if this is a new agent definition being created
+    if (event.schema_name === 'agent.def.v1' && event.tags?.includes(this.workspace)) {
+      console.log(`🆕 New agent definition detected: ${event.id}`);
+      try {
+        const fullBreadcrumb = await this.client.getBreadcrumb(event.id);
+        await this.registerAgent(fullBreadcrumb as AgentDefinitionV1);
+        await this.updateCatalog();
+      } catch (error) {
+        console.error(`Failed to register new agent ${event.id}:`, error);
+      }
+    }
+    
     // Check if this is a tool response we're waiting for
     if (event.schema_name === 'tool.response.v1' && event.context?.requestId) {
       const pending = this.pendingRequests.get(event.context.requestId);
@@ -237,12 +249,17 @@ export class ModernAgentRegistry {
       agentDef,
       rcrtClient: this.client,
       workspace: this.workspace,
-      openRouterApiKey: this.options.openRouterApiKey,
       autoStart: true,
       metricsInterval: 60000 // Report metrics every minute
     };
     
     const executor = new AgentExecutor(executorOptions);
+    
+    // WORKAROUND: Add missing getDefinition method if it doesn't exist
+    if (!executor.getDefinition) {
+      (executor as any).getDefinition = () => agentDef;
+    }
+    
     this.executors.set(agentId, executor);
     
     console.log(`✅ Agent registered: ${agentId}`);
@@ -385,8 +402,7 @@ export class ModernAgentRegistry {
 const config = {
   rcrtBaseUrl: process.env.RCRT_BASE_URL || 'http://localhost:8081',
   workspace: process.env.WORKSPACE || 'workspace:agents',
-  deploymentMode: process.env.DEPLOYMENT_MODE || 'local',
-  openRouterApiKey: process.env.OPENROUTER_API_KEY,
+  deploymentMode: process.env.DEPLOYMENT_MODE || 'local'
 };
 
 async function main() {
@@ -441,7 +457,6 @@ async function main() {
     // Create and start agent registry
     const registry = new ModernAgentRegistry(client, config.workspace, {
       baseUrl: config.rcrtBaseUrl,
-      openRouterApiKey: config.openRouterApiKey,
       catalogUpdateInterval: 60000,  // Update catalog every minute
       healthCheckInterval: 300000    // Health check every 5 minutes
     });
@@ -483,6 +498,12 @@ async function main() {
     console.log('🚀 Agent runner ready and listening');
     console.log(`📍 Workspace: ${config.workspace}`);
     console.log(`🤖 Modern architecture with AgentExecutor pattern`);
+    
+    // Keep the process alive
+    console.log('💚 Agent runner is running. Press Ctrl+C to stop.');
+    
+    // Prevent the process from exiting
+    process.stdin.resume();
     
   } catch (error) {
     console.error('❌ Failed to start agent runner:', error);

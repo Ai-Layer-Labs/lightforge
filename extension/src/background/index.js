@@ -5,11 +5,55 @@ let currentTabId = null;
 let isAttached = false;
 let keepAliveCreated = false;
 
+// Message handler for RCRT API calls
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'RCRT_API_CALL') {
+    handleApiCall(request.endpoint, request.method, request.body, request.token)
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true; // Keep the message channel open for async response
+  }
+});
+
+async function handleApiCall(endpoint, method, body, token) {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const options = {
+      method: method,
+      headers: headers
+    };
+    
+    if (body && method !== 'GET') {
+      options.body = JSON.stringify(body);
+    }
+    
+    const response = await fetch(`http://127.0.0.1:8081${endpoint}`, options);
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error ${response.status}: ${error}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Background API call failed:', error);
+    throw error;
+  }
+}
+
 async function getConfig() {
   const { dashboardUrl, extensionToken } = await chrome.storage.local.get(['dashboardUrl', 'extensionToken']);
   // 🚀 RCRT-ONLY: Connect to RCRT server directly (like Dashboard v2)
   return {
-    dashboardUrl: dashboardUrl || 'http://localhost:8081', // RCRT server direct
+    dashboardUrl: dashboardUrl || 'http://127.0.0.1:8081', // RCRT server direct
     extensionToken: extensionToken || ''
   };
 }

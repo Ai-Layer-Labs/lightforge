@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test RCRT Connection</title>
+</head>
+<body>
+    <h1>Test RCRT Connection</h1>
+    <button id="testAuth">Test Authentication</button>
+    <button id="testCreate">Test Create Breadcrumb</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        let token = null;
+
+        document.getElementById('testAuth').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:8081/auth/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner_id: '00000000-0000-0000-0000-000000000001',
+                        agent_id: '00000000-0000-0000-0000-000000000002',
+                        roles: ['emitter', 'subscriber']
+                    })
+                });
+                
+                const data = await response.json();
+                token = data.token;
+                output.innerHTML = '<pre>Auth Success: ' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                output.innerHTML = '<pre style="color:red">Auth Error: ' + error + '</pre>';
+            }
+        });
+
+        document.getElementById('testCreate').addEventListener('click', async () => {
+            if (!token) {
+                output.innerHTML = '<pre style="color:red">Please authenticate first</pre>';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8081/breadcrumbs', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        schema_name: 'user.message.v1',
+                        title: 'Test Message',
+                        tags: ['user:message', 'test'],
+                        context: {
+                            content: 'Test from HTML page',
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                output.innerHTML = '<pre>Create Success: ' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                output.innerHTML = '<pre style="color:red">Create Error: ' + error + '</pre>';
+            }
+        });
+    </script>
+</body>
+</html>

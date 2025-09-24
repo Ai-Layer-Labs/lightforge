@@ -320,6 +320,8 @@ export class RcrtClientEnhanced {
     const isSelector = (p: any): p is Selector => {
       console.log('🔍 Checking if selector:', p, typeof p, p && typeof p === 'object');
       if (!p || typeof p !== 'object') return false;
+      // If it has 'tags' property, it's a SearchParams not a Selector
+      if ('tags' in p) return false;
       return 'any_tags' in p || 'all_tags' in p;
     };
 
@@ -331,10 +333,12 @@ export class RcrtClientEnhanced {
     } else {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
+          // Handle 'tags' -> 'tag' conversion for API compatibility
+          const paramKey = key === 'tags' ? 'tag' : key;
           if (Array.isArray(value)) {
-            value.forEach(v => queryParams.append(key, String(v)));
+            value.forEach(v => queryParams.append(paramKey, String(v)));
           } else {
-            queryParams.append(key, String(value));
+            queryParams.append(paramKey, String(value));
           }
         }
       });

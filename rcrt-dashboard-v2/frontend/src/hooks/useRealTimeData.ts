@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDashboard } from '../stores/DashboardStore';
 import { useAuthentication } from './useAuthentication';
-import { Breadcrumb, Agent, Tool, Secret } from '../types/rcrt';
+import { Breadcrumb, Agent, Tool, Secret, SelectorSubscription } from '../types/rcrt';
 import { convertToRenderNode, discoverConnections } from '../utils/dataTransforms';
 
 /**
@@ -125,6 +125,31 @@ export function useRealTimeData() {
     staleTime: 5 * 60 * 1000,
     enabled: canLoadData && !!breadcrumbsQuery.data,
   });
+
+  // Load subscription data for dynamic connections
+  const subscriptionsQuery = useQuery({
+    queryKey: ['subscriptions'],
+    queryFn: async (): Promise<SelectorSubscription[]> => {
+      console.log('📡 Loading subscription data from RCRT...');
+      try {
+        // Note: This endpoint returns subscriptions for the authenticated agent
+        // In a real implementation, we'd need to aggregate subscriptions from all agents
+        const response = await authenticatedFetch('/api/subscriptions/selectors');
+        if (!response.ok) {
+          console.warn(`Subscription API returned ${response.status}, proceeding without subscription data`);
+          return [];
+        }
+        const subscriptions = await response.json();
+        console.log(`Loaded ${subscriptions.length} subscription selectors`);
+        return subscriptions;
+      } catch (error) {
+        console.warn('Failed to load subscription data, proceeding without it:', error);
+        return [];
+      }
+    },
+    staleTime: 2 * 60 * 1000, // Shorter stale time for more dynamic data
+    enabled: canLoadData,
+  });
   
   // ============ DATA PROCESSING ============
   
@@ -168,13 +193,13 @@ export function useRealTimeData() {
         // Update nodes in store
         setNodes(allNodes);
         
-        // Load full context for important breadcrumbs to enable connection discovery
-        const enhancedBreadcrumbs = await loadFullContextForConnections(regularBreadcrumbs);
+        // Skip loading full context - we already have all the data we need
+        // const enhancedBreadcrumbs = await loadFullContextForConnections(regularBreadcrumbs);
         
-        // Re-create nodes with enhanced data (to get proper node types)
+        // Use the breadcrumbs as-is since they already contain all necessary data
         const enhancedNodes = [
-          // Convert enhanced breadcrumbs to nodes (now with schema_name for proper typing)
-          ...enhancedBreadcrumbs.map(breadcrumb => 
+          // Convert breadcrumbs to nodes directly
+          ...regularBreadcrumbs.map(breadcrumb => 
             convertToRenderNode('breadcrumb', breadcrumb)
           ),
           
@@ -197,12 +222,13 @@ export function useRealTimeData() {
         // Update nodes with enhanced data
         setNodes(enhancedNodes);
         
-        // Discover connections with enhanced data
+        // Discover connections with regular data and subscription data
         const connections = discoverConnections({
-          breadcrumbs: enhancedBreadcrumbs,
+          breadcrumbs: regularBreadcrumbs,
           agents: agentsQuery.data,
           secrets: secretsQuery.data,
           tools: toolsQuery.data,
+          subscriptions: subscriptionsQuery.data || [],
         });
         
         setConnections(connections);

@@ -3,8 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
-  // Enable DTS for type declarations
-  dts: true,
+  // Disable DTS temporarily due to build issues
+  dts: false,
   splitting: false,
   sourcemap: true,
   clean: true,

@@ -134,7 +134,7 @@ export class OpenRouterTool extends SimpleLLMTool {
       
       // Search for tool config breadcrumb
       const configBreadcrumbs = await context.rcrtClient.searchBreadcrumbs({
-        tags: ['tool:config:openrouter', 'tool:config']
+        tag: 'tool:config:openrouter'
       });
       
       if (configBreadcrumbs.length > 0) {

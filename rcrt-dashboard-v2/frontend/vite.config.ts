@@ -12,54 +12,64 @@ export default defineConfig({
     host: true, // Allow external connections
     cors: true, // Enable CORS for all origins
     proxy: {
-      // Proxy authentication requests
-      '/api/auth': {
-        target: 'http://localhost:8081',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace('/api/auth', '/auth'),
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('🚨 Auth proxy error:', err);
-          });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('🔐 Auth request to RCRT:', req.method, req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('✅ Auth response from RCRT:', proxyRes.statusCode, req.url);
-          });
-        },
-      },
-      // Proxy all other API requests to the existing RCRT server
+      // Proxy all API requests to the existing RCRT server
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace('/api', ''),
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
+          proxy.on('error', (err, req, res) => {
             console.log('🚨 API proxy error:', err);
+            console.log('Failed URL:', req.url);
+            console.log('Error details:', err.message);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             console.log('📡 API request to RCRT:', req.method, req.url);
+            console.log('Target:', proxyReq.protocol + '//' + proxyReq.host + ':' + proxyReq.port + proxyReq.path);
+            console.log('Headers:', proxyReq.getHeaders());
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
             console.log('✅ API response from RCRT:', proxyRes.statusCode, req.url);
+            console.log('Response headers:', proxyRes.headers);
           });
         },
       },
-      // Proxy SSE events stream
+      // Proxy SSE events stream with special handling
       '/events': {
-        target: 'http://localhost:8081',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
         secure: false,
-        ws: true, // Enable WebSocket proxying if needed
+        ws: true,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('🚨 SSE proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('📡 SSE request to RCRT:', req.method, req.url);
+            // Forward Authorization header if present in query params
+            if (req.url?.includes('token=')) {
+              const token = new URL(req.url, 'http://localhost').searchParams.get('token');
+              if (token) {
+                proxyReq.setHeader('Authorization', `Bearer ${token}`);
+              }
+            }
+          });
+        },
       },
-      // Proxy health check
+      // Proxy health check (should go through /api like other endpoints)
       '/health': {
-        target: 'http://localhost:8081',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('🚨 Health proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('🏥 Health request to RCRT:', req.method, req.url);
+          });
+        },
       }
     }
   },

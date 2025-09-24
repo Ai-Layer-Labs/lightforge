@@ -28,7 +28,7 @@ export default function Panel() {
   const [conversationId] = useState<string>(`ext-conv-${Date.now()}`);
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<SSEFilter>({
-    tags: ['agent:response']
+    tags: ['tool:response']
   });
   const [customTag, setCustomTag] = useState('');
   
@@ -119,10 +119,42 @@ export default function Panel() {
                 setIsLoading(false);
               }
               
-              // You can handle other types of breadcrumbs here
-              // For example, tool responses, errors, etc.
+              // Handle tool responses (which contain LLM output)
               if (breadcrumb.tags?.includes('tool:response')) {
                 console.log('🛠️ Tool response:', breadcrumb);
+                console.log('Tool context:', breadcrumb.context);
+                
+                // Check if it's a successful OpenRouter response
+                if (breadcrumb.context?.tool === 'openrouter' && 
+                    breadcrumb.context?.status === 'success' &&
+                    breadcrumb.context?.output?.content) {
+                  
+                  // Parse the LLM's JSON response to extract the actual message
+                  let messageContent = breadcrumb.context.output.content;
+                  try {
+                    // Remove markdown code blocks if present
+                    const jsonContent = messageContent.replace(/```json\n?|```/g, '').trim();
+                    const parsed = JSON.parse(jsonContent);
+                    
+                    // Extract the message from the agent response structure
+                    if (parsed.breadcrumb?.context?.message) {
+                      messageContent = parsed.breadcrumb.context.message;
+                    }
+                  } catch (e) {
+                    console.log('Using raw content, could not parse JSON:', e);
+                  }
+                  
+                  const assistantMessage: ChatMessage = {
+                    id: `assistant-${Date.now()}`,
+                    role: 'assistant',
+                    content: messageContent,
+                    timestamp: new Date(),
+                    breadcrumbId: breadcrumb.id
+                  };
+                  
+                  setMessages(prev => [...prev, assistantMessage]);
+                  setIsLoading(false);
+                }
               }
               
               if (breadcrumb.tags?.includes('agent:error')) {

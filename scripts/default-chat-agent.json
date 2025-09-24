@@ -6,7 +6,7 @@
     "agent_id": "default-chat-assistant",
     "llm_tool": "openrouter",
     "llm_config": {
-      "model": "google/gemini-2.5-flash",
+      "model": "google/gemini-2.0-flash-exp",
       "temperature": 0.7,
       "max_tokens": 2000
     },
@@ -20,8 +20,8 @@
     "subscriptions": {
       "selectors": [
         {
-          "any_tags": ["user:message", "chat:message"],
-          "schema_name": "user.message.v1"
+          "all_tags": ["chat:message", "workspace:agents"],
+          "schema_name": "chat.message.v1"
         },
         {
           "schema_name": "tool.catalog.v1",

@@ -31,17 +31,13 @@ echo "🧹 Cleaning up..."
 rm -rf rcrt-visual-builder/apps/builder/node_modules || true
 rm -rf rcrt-visual-builder/node_modules || true
 
-# Build core services first (they're more reliable)
+# Build core services first (WITHOUT agent-runner)
 echo "🔨 Building core services..."
-docker compose up -d db nats rcrt dashboard
+docker compose up -d db nats rcrt dashboard tools-runner
 
-# Wait a bit for core services
+# Wait for core services to be ready
 echo "⏳ Waiting for core services..."
-sleep 15
-
-# Start agent and tools runners
-echo "🤖 Starting agent-runner and tools-runner..."
-docker compose up -d tools-runner agent-runner
+sleep 20
 
 # Try to start builder (may fail due to node_modules issues)
 echo "🔨 Starting builder (optional)..."
@@ -50,9 +46,7 @@ docker compose up -d builder || echo "⚠️  Builder may have build issues (not
 echo "⏳ Waiting for services..."
 sleep 30
 
-# Register agents
-echo "🤖 Registering agents..."
-./scripts/ensure-agents.sh || echo "⚠️  Agent registration may need manual setup"
+# Note: Agent registration handled later via load-default-agent.js
 
 # Bootstrap the system
 echo ""
@@ -62,39 +56,9 @@ echo "🌱 Bootstrapping RCRT system..."
 echo "⏳ Waiting for tool catalog to be created..."
 sleep 10
 
-# Check if default agent already exists
-if node -e "
-  const checkAgent = async () => {
-    try {
-      const tokenResp = await fetch('http://localhost:8081/auth/token', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          owner_id: '00000000-0000-0000-0000-000000000001',
-          agent_id: '00000000-0000-0000-0000-000000000AAA',
-          roles: ['curator']
-        })
-      });
-      const { token } = await tokenResp.json();
-      
-      const agentsResp = await fetch('http://localhost:8081/breadcrumbs?schema_name=agent.def.v1&tag=workspace:agents', {
-        headers: { 'Authorization': \`Bearer \${token}\` }
-      });
-      const agents = await agentsResp.json();
-      
-      const hasDefaultAgent = agents.some(a => a.title === 'Default Chat Agent');
-      process.exit(hasDefaultAgent ? 0 : 1);
-    } catch (e) {
-      process.exit(1);
-    }
-  };
-  checkAgent();
-" 2>/dev/null; then
-  echo "✅ Default chat agent already exists"
-else
-  echo "📝 Loading default chat agent..."
-  node load-default-agent.js 2>/dev/null || echo "⚠️  Failed to load default agent (you can run this manually later)"
-fi
+# Load default agent using robust script
+echo "🤖 Ensuring default chat agent..."
+node ensure-default-agent.js || echo "⚠️  Failed to load default agent (run 'node ensure-default-agent.js' manually)"
 
 # Add OpenRouter key if .env has been updated
 if grep -q "your-openrouter-api-key-here" .env; then
@@ -104,6 +68,15 @@ else
   echo "🔑 Adding OpenRouter API key to secrets..."
   node add-openrouter-key.js 2>/dev/null || echo "⚠️  Failed to add OpenRouter key (you can run this manually later)"
 fi
+
+# NOW start the agent-runner after default agent is loaded
+echo ""
+echo "🤖 Starting agent-runner..."
+docker compose up -d agent-runner
+
+# Final wait
+echo "⏳ Waiting for agent-runner to initialize..."
+sleep 10
 
 echo ""
 echo "✅ RCRT Setup Complete!"
@@ -129,3 +102,4 @@ echo "   3. Create agent definitions and see them execute automatically"
 echo "   4. Check logs: docker compose logs -f [service-name]"
 echo ""
 echo "🛑 To stop: docker compose down"
+echo "🔄 If agent-runner shows 0 agents: ./reload-agents.js"

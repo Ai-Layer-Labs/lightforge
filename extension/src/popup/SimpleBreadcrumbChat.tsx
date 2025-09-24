@@ -87,11 +87,35 @@ export function SimpleBreadcrumbChat() {
         try {
           const data: EventStreamMessage = JSON.parse(event.data);
           
-          // Listen for agent responses
-          if (data.type === 'breadcrumb_created' && 
-              data.schema_name === 'agent.response.v1' &&
-              data.tags?.includes('extension:chat')) {
-            handleAgentResponse(data.breadcrumb_id!);
+          // Listen for ANY tool response breadcrumb
+          if (data.tags?.includes('tool:response')) {
+            console.log('🎯 Tool response received:', data);
+            
+            // The SSE event includes the full breadcrumb data
+            if (data.breadcrumb) {
+              const breadcrumb = data.breadcrumb;
+              
+              // Check if it's a successful OpenRouter response
+              if (breadcrumb.context?.tool === 'openrouter' && 
+                  breadcrumb.context?.status === 'success' &&
+                  breadcrumb.context?.output?.content) {
+                
+                const assistantMessage: Message = {
+                  id: breadcrumb.id || `response-${Date.now()}`,
+                  role: 'assistant',
+                  content: breadcrumb.context.output.content,
+                  timestamp: new Date(breadcrumb.updated_at || Date.now()),
+                  breadcrumbId: breadcrumb.id
+                };
+                
+                console.log('✅ Adding response:', assistantMessage);
+                setMessages(prev => [...prev, assistantMessage]);
+                setIsLoading(false);
+              }
+            } else if (data.breadcrumb_id) {
+              // Fallback: fetch the breadcrumb if not included
+              handleToolResponse(data.breadcrumb_id);
+            }
           }
         } catch (error) {
           console.warn('Failed to parse SSE event:', error);
@@ -108,27 +132,53 @@ export function SimpleBreadcrumbChat() {
     }
   };
 
-  const handleAgentResponse = async (breadcrumbId: string) => {
+  const handleToolResponse = async (breadcrumbId: string) => {
     if (!rcrtClient.current) return;
+    
+    console.log('📥 Handling tool response for breadcrumb:', breadcrumbId);
     
     try {
       const breadcrumb = await rcrtClient.current.getBreadcrumb(breadcrumbId);
+      console.log('📄 Retrieved breadcrumb:', breadcrumb);
       
-      // Check if this response is for our conversation
-      if (breadcrumb.context.conversation_id === conversationId) {
-        const assistantMessage: Message = {
-          id: breadcrumbId,
-          role: 'assistant',
-          content: breadcrumb.context.content as string,
-          timestamp: new Date(breadcrumb.updated_at),
-          breadcrumbId
-        };
+      // Tool responses contain the LLM output in context.output.content
+      if (breadcrumb.context?.tool === 'openrouter' && breadcrumb.context?.status === 'success') {
+        const content = breadcrumb.context.output?.content;
+        console.log('💬 Tool response content:', content);
         
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsLoading(false);
+        if (content) {
+          // Extract the message from the JSON response if it's wrapped
+          let messageContent = content;
+          try {
+            // Try to parse if it's JSON formatted
+            if (content.includes('agent.response.v1')) {
+              const parsed = JSON.parse(content.replace(/```json\n?|```/g, ''));
+              messageContent = parsed.breadcrumb?.context?.message || content;
+            }
+          } catch (e) {
+            // If parsing fails, use the content as-is
+            console.log('📝 Using raw content (no JSON parsing needed)');
+          }
+          
+          const assistantMessage: Message = {
+            id: breadcrumbId,
+            role: 'assistant',
+            content: messageContent,
+            timestamp: new Date(breadcrumb.updated_at),
+            breadcrumbId
+          };
+          
+          console.log('✅ Adding assistant message:', assistantMessage);
+          setMessages(prev => [...prev, assistantMessage]);
+          setIsLoading(false);
+        } else {
+          console.warn('⚠️ No content in tool response');
+        }
+      } else {
+        console.warn('⚠️ Not a successful OpenRouter response:', breadcrumb.context);
       }
     } catch (error) {
-      console.error('Failed to get agent response:', error);
+      console.error('❌ Failed to get tool response:', error);
       setIsLoading(false);
     }
   };
@@ -136,10 +186,11 @@ export function SimpleBreadcrumbChat() {
   const handleSend = async () => {
     if (!input.trim() || isLoading || !rcrtClient.current) return;
 
+    const userContent = input.trim();
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: userContent,
       timestamp: new Date()
     };
 
@@ -159,7 +210,7 @@ export function SimpleBreadcrumbChat() {
         title: 'Extension Chat Message',
         tags: ['extension:chat', 'user:message'],
         context: {
-          content: input.trim(),
+          content: userContent,
           conversation_id: conversationId,
           timestamp: new Date().toISOString(),
           source: 'browser-extension'
@@ -168,13 +219,25 @@ export function SimpleBreadcrumbChat() {
       
       console.log('Created user message breadcrumb:', breadcrumb.id);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      
+      // Provide more detailed error information
+      let errorDetail = 'Failed to send message.';
+      if (error.message?.includes('Failed to fetch')) {
+        errorDetail = 'Connection error. Please ensure RCRT is running on localhost:8081';
+      } else if (error.message?.includes('Not authenticated')) {
+        errorDetail = 'Authentication failed. Refreshing...';
+        // Try to re-authenticate
+        setTimeout(() => initializeRCRT(), 1000);
+      } else {
+        errorDetail = `Error: ${error.message || error}`;
+      }
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'system',
-        content: '❌ Failed to send message. Please try again.',
+        content: `❌ ${errorDetail}`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

@@ -17,6 +17,8 @@
     "http://localhost:8082/*",
     "http://localhost:8081/*",
     "http://localhost:5173/*",
+    "http://127.0.0.1:8081/*",
+    "http://127.0.0.1:8080/*",
     "<all_urls>"
   ],
   "background": {
@@ -48,6 +50,6 @@
     "128": "icons/think-os-agent.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://localhost:3000 http://localhost:8082 http://localhost:8081 http://localhost:5173;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://localhost:3000 http://localhost:8082 http://localhost:8081 http://localhost:5173 http://127.0.0.1:8081 http://127.0.0.1:8080;"
   }
 }
