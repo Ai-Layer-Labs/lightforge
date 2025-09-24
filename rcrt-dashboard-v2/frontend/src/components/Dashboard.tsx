@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboard, useCurrentView, useLoading } from '../stores/DashboardStore';
 import { useRealTimeData } from '../hooks/useRealTimeData';
@@ -8,6 +8,7 @@ import { LeftPanel } from './panels/LeftPanel';
 import { Canvas2D } from './canvas/Canvas2D';
 import { Canvas3D } from './canvas/Canvas3D';
 import { LoadingOverlay } from './ui/LoadingOverlay';
+import { Onboarding } from './Onboarding';
 
 export function Dashboard() {
   const { loadConfiguration, switchView } = useDashboard();
@@ -139,6 +140,13 @@ export function Dashboard() {
       <AnimatePresence>
         {loading.initialLoad && <LoadingOverlay />}
       </AnimatePresence>
+      
+      {/* Onboarding Flow - only shows when needed */}
+      {!loading.initialLoad && isAuthenticated && (
+        <Onboarding onComplete={() => {
+          console.log('✅ Onboarding completed!');
+        }} />
+      )}
     </div>
   );
 }

@@ -182,19 +182,17 @@ services:
 
   dashboard:
     build:
-      context: .
-      dockerfile: crates/rcrt-dashboard/Dockerfile
+      context: ./rcrt-dashboard-v2/frontend
+      dockerfile: Dockerfile
     depends_on:
       - rcrt
     environment:
+      # The nginx config handles proxying to RCRT backend
       RCRT_URL: http://rcrt:8080
-      OWNER_ID: 00000000-0000-0000-0000-000000000001
-      AGENT_ID: 00000000-0000-0000-0000-000000000DDD
-      RUST_LOG: info
     ports:
       - "8082:8082"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/index.html || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

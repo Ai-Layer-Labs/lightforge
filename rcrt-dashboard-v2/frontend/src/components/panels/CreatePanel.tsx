@@ -107,6 +107,7 @@ export function CreatePanel() {
                 description="Store encrypted secrets"
                 color="bg-red-500/20 border-red-400/50 text-red-300"
                 onClick={() => setActiveForm('secret')}
+                dataTour="create-secret"
               />
               <CreateButton 
                 icon="🤖" 
@@ -148,12 +149,13 @@ export function CreatePanel() {
   );
 }
 
-function CreateButton({ icon, label, description, color, onClick }: {
+function CreateButton({ icon, label, description, color, onClick, dataTour }: {
   icon: string;
   label: string;
   description: string;
   color: string;
   onClick: () => void;
+  dataTour?: string;
 }) {
   return (
     <motion.button
@@ -161,6 +163,7 @@ function CreateButton({ icon, label, description, color, onClick }: {
       onClick={onClick}
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
+      data-tour={dataTour}
     >
       <div className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
@@ -414,6 +417,7 @@ function CreateSecretForm({ onBack, isCreating, setIsCreating }: {
             required
             className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-400 focus:outline-none"
             placeholder="API_KEY, DATABASE_URL, etc."
+            data-tour="secret-name"
           />
         </div>
 
@@ -426,6 +430,7 @@ function CreateSecretForm({ onBack, isCreating, setIsCreating }: {
             rows={3}
             className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-400 focus:outline-none font-mono text-sm"
             placeholder="Enter the secret value..."
+            data-tour="secret-value"
           />
         </div>
 
@@ -447,6 +452,7 @@ function CreateSecretForm({ onBack, isCreating, setIsCreating }: {
             type="submit"
             disabled={!name || !value || isCreating}
             className="flex-1 px-4 py-2 bg-red-500/20 border border-red-400/50 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            data-tour="create-secret-button"
           >
             {isCreating ? '⏳ Creating...' : '🔐 Create Secret'}
           </button>

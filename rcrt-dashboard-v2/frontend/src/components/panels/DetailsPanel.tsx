@@ -262,6 +262,7 @@ export function DetailsPanel() {
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className="w-full px-4 py-2 bg-green-500/20 border border-green-400/50 rounded-lg text-green-300 hover:bg-green-500/30 transition-colors"
+                data-tour="configure-tool"
               >
                 {isEditing ? '👁️ View Mode' : '🛠️ Configure Tool'}
               </button>
@@ -1132,6 +1133,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
                    value={config[variable.key] || ''}
                    onChange={(e) => updateConfigValue(variable.key, e.target.value)}
                    className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-green-400 focus:outline-none"
+                   data-tour={variable.key === 'apiKey' && node.data?.id === 'openrouter' ? 'select-secret' : undefined}
                  >
                    <option value="">Select a secret...</option>
                    {secrets.map(secret => (

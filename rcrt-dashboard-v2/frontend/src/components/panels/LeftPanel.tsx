@@ -163,6 +163,7 @@ function TabButton({ tab, isActive, onClick }: {
       onClick={onClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
+      data-tour={tab.id === 'create' ? 'create-button' : undefined}
     >
       <span>{tab.icon}</span>
       <span>{tab.label}</span>

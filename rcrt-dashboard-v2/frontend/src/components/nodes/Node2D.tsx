@@ -324,6 +324,7 @@ const Node2DComponent = ({
       }}
       onHoverStart={onHoverStart}
       onHoverEnd={onHoverEnd}
+      data-tour={node.type === 'tool' && node.data?.id === 'openrouter' ? 'openrouter-tool' : undefined}
     >
       {renderNodeContent()}
       
