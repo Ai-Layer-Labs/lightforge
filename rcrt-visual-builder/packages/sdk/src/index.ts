@@ -311,6 +311,38 @@ export class RcrtClientEnhanced {
     return response.json();
   }
 
+  /**
+   * Batch fetch multiple breadcrumbs with context
+   * Uses parallel requests for better performance
+   */
+  async getBreadcrumbsBatch(ids: string[], options?: { maxConcurrency?: number }): Promise<Breadcrumb[]> {
+    const maxConcurrency = options?.maxConcurrency || 5;
+    const results: Breadcrumb[] = new Array(ids.length);
+    const errors: Array<{ id: string; error: string }> = [];
+    
+    // Process in batches to avoid overwhelming the server
+    for (let i = 0; i < ids.length; i += maxConcurrency) {
+      const batch = ids.slice(i, i + maxConcurrency);
+      const promises = batch.map(async (id, batchIndex) => {
+        try {
+          const breadcrumb = await this.getBreadcrumb(id);
+          results[i + batchIndex] = breadcrumb;
+        } catch (error) {
+          errors.push({ id, error: String(error) });
+          results[i + batchIndex] = null as any;
+        }
+      });
+      
+      await Promise.all(promises);
+    }
+    
+    if (errors.length > 0) {
+      console.warn(`Failed to fetch ${errors.length} breadcrumbs:`, errors);
+    }
+    
+    return results.filter(Boolean);
+  }
+
   // ============ Search Operations ============
 
   async searchBreadcrumbs(params: SearchParams | Selector): Promise<Breadcrumb[]> {
@@ -366,6 +398,38 @@ export class RcrtClientEnhanced {
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Failed to perform vector search: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Search breadcrumbs with optional context inclusion
+   * When include_context is true, returns full BreadcrumbContextView objects
+   */
+  async searchBreadcrumbsWithContext(params: SearchParams & { include_context?: boolean }): Promise<Breadcrumb[]> {
+    const queryParams = new URLSearchParams();
+    
+    // Handle all search parameters
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        // Handle 'tags' -> 'tag' conversion for API compatibility
+        const paramKey = key === 'tags' ? 'tag' : key;
+        if (Array.isArray(value)) {
+          value.forEach(v => queryParams.append(paramKey, String(v)));
+        } else {
+          queryParams.append(paramKey, String(value));
+        }
+      }
+    });
+
+    const response = await this.fetchWithAuth(
+      `${this.baseUrl}/breadcrumbs?${queryParams.toString()}`
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to search breadcrumbs with context: ${error}`);
     }
 
     return response.json();

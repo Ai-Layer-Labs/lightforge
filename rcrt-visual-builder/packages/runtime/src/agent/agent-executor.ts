@@ -60,12 +60,9 @@ export class AgentExecutor {
   async start(): Promise<void> {
     console.log(`🤖 Starting agent: ${this.agentDef.context.agent_id}`);
     
-    // Start SSE subscription
-    const cleanup = this.rcrtClient.startEventStream(
-      (event) => this.processEvent(event)
-    );
+    // NOTE: SSE subscription is handled by the centralized dispatcher in AgentRegistry
+    // We don't start our own SSE connection here to avoid duplicate events
     
-    this.sseCleanup = cleanup;
     this.state.status = 'active';
     
     // Start metrics reporting if interval specified
@@ -79,9 +76,7 @@ export class AgentExecutor {
   async stop(): Promise<void> {
     console.log(`🛑 Stopping agent: ${this.agentDef.context.agent_id}`);
     
-    if (this.sseCleanup) {
-      this.sseCleanup();
-    }
+    // SSE cleanup handled by centralized dispatcher
     
     if (this.metricsTimer) {
       clearInterval(this.metricsTimer);
@@ -191,11 +186,17 @@ export class AgentExecutor {
   
   private async handleToolResponse(event: BreadcrumbEvent): Promise<void> {
     const breadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id!);
-    const { requestId, output, error } = breadcrumb.context || {};
+    const context = breadcrumb.context || {};
+    // Handle both camelCase and snake_case for compatibility
+    const requestId = context.requestId || context.request_id;
+    const { output, error } = context;
+    
+    console.log(`🔨 Tool response received with request_id: ${requestId}`);
     
     // Check if this is a response to our LLM request
     const pendingRequest = this.pendingLLMRequests.get(requestId);
     if (!pendingRequest) {
+      console.log(`⚠️ No pending request found for ${requestId}`);
       // Not our request, ignore
       return;
     }
@@ -212,14 +213,20 @@ export class AgentExecutor {
     }
     
     // Parse LLM response
+    console.log(`🧠 Processing LLM response:`, JSON.stringify(output).substring(0, 200));
+    
     try {
       const llmContent = output?.content || '';
+      console.log(`📝 LLM content to parse:`, llmContent.substring(0, 200));
+      
       const parsedResponse = JSON.parse(llmContent);
+      console.log(`✅ Parsed LLM response successfully`);
       
       // Execute the LLM's decision
       await this.executeDecision(parsedResponse);
       
     } catch (parseError) {
+      console.error(`❌ Failed to parse LLM response:`, parseError);
       // If LLM didn't return valid JSON, create a simple text response
       const responseText = output?.content || 'I encountered an error processing your request.';
       await this.createSimpleResponse(responseText);
@@ -254,31 +261,69 @@ export class AgentExecutor {
       }
     }
     
-    // Add recent chat history
-    const recentChats = await this.rcrtClient.searchBreadcrumbs({
-      schema_name: 'chat.message.v1',
-      tags: ['workspace:agents'],
-      limit: 10
+    // Add recent chat history - use enhanced search API to get context directly
+    const userMessages = await this.rcrtClient.searchBreadcrumbsWithContext({
+      schema_name: 'user.message.v1',
+      limit: 10,
+      include_context: true
     });
     
-    if (recentChats.length > 0) {
-      context.push({
-        type: 'chat_history',
-        messages: recentChats.map(c => ({
-          role: c.context?.role || 'user',
-          content: c.context?.message,
-          timestamp: c.updated_at
-        })).reverse() // Oldest first
-      });
+    const agentResponses = await this.rcrtClient.searchBreadcrumbsWithContext({
+      schema_name: 'agent.response.v1',
+      limit: 10,
+      include_context: true
+    });
+    
+    console.log(`📚 Building chat history - found ${userMessages.length} user messages and ${agentResponses.length} agent responses`);
+    
+    // Combine and sort by timestamp
+    const allMessages = [...userMessages, ...agentResponses]
+      .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
+      .slice(-20); // Keep last 20 messages
+    
+    if (allMessages.length > 0) {
+      const chatHistory = allMessages
+        .map(msg => {
+          if (msg.schema_name === 'user.message.v1') {
+            return {
+              role: 'user',
+              content: msg.context?.message || msg.context?.content,
+              timestamp: msg.updated_at
+            };
+          } else if (msg.schema_name === 'agent.response.v1') {
+            return {
+              role: 'assistant',
+              content: msg.context?.message,
+              timestamp: msg.updated_at
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+      
+      console.log(`💬 Chat history includes ${chatHistory.length} messages with full context (fetched in 2 requests!)`);
+      
+      if (chatHistory.length > 0) {
+        context.push({
+          type: 'chat_history',
+          messages: chatHistory
+        });
+      }
+    } else {
+      console.log(`⚠️ No chat history found`);
     }
     
     return context;
   }
   
   private async executeDecision(decision: any): Promise<void> {
+    console.log(`🎯 Executing decision:`, JSON.stringify(decision).substring(0, 500));
+    
     const { action, breadcrumb } = decision;
     
     if (action === 'create' && breadcrumb) {
+      console.log(`📝 Creating breadcrumb of type: ${breadcrumb.schema_name}`);
+      
       // Add creator metadata
       const breadcrumbWithCreator = {
         ...breadcrumb,
@@ -297,6 +342,8 @@ export class AgentExecutor {
         }
       };
       
+      console.log(`🚀 About to create breadcrumb:`, JSON.stringify(breadcrumbWithCreator).substring(0, 300));
+      
       await this.rcrtClient.createBreadcrumb(breadcrumbWithCreator);
       console.log(`✅ Created breadcrumb: ${breadcrumb.schema_name}`);
       
@@ -307,6 +354,8 @@ export class AgentExecutor {
           timestamp: new Date()
         });
       }
+    } else {
+      console.log(`⚠️ Unhandled decision action: ${action}`);
     }
   }
   

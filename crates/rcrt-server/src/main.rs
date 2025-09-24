@@ -163,8 +163,16 @@ async fn main() -> Result<()> {
     Ok(())
 }
 #[derive(Deserialize)]
-struct SearchQuery { qvec: Option<String>, q: Option<String>, nn: Option<i64>, tag: Option<String> }
-async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q): Query<SearchQuery>) -> Result<Json<Vec<ListItem>>, (StatusCode, String)> {
+struct SearchQuery { qvec: Option<String>, q: Option<String>, nn: Option<i64>, tag: Option<String>, include_context: Option<bool> }
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum SearchResult {
+    List(Vec<ListItem>),
+    Context(Vec<BreadcrumbContextView>),
+}
+
+async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q): Query<SearchQuery>) -> Result<Json<SearchResult>, (StatusCode, String)> {
     // if qvec not provided, attempt to embed ?q=title/context
     let qvec: Vec<f32> = if let Some(qv) = q.qvec {
         qv.split(',').filter_map(|s| s.parse::<f32>().ok()).collect()
@@ -173,36 +181,70 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             Ok(v) => v,
             Err(e) => {
                 tracing::warn!("vector_search embedding failed: {}", e);
-                return Ok(Json(vec![]));
+                return Ok(Json(SearchResult::List(vec![])));
             }
         }
-    } else { return Ok(Json(vec![])); };
+    } else { return Ok(Json(SearchResult::List(vec![]))); };
     let limit = q.nn.unwrap_or(5).max(1) as i64;
+    let include_context = q.include_context.unwrap_or(false);
 
-    let mut sql = String::from("select id, title, tags, version, updated_at from breadcrumbs where owner_id = $1");
-    if q.tag.is_some() { sql.push_str(" and $3 = any(tags)"); }
-    sql.push_str(" order by embedding <#> $2 limit ");
-    sql.push_str(&limit.to_string());
+    if include_context {
+        // Return full context view
+        let mut sql = String::from("select id, title, context, tags, schema_name, version, updated_at from breadcrumbs where owner_id = $1");
+        if q.tag.is_some() { sql.push_str(" and $3 = any(tags)"); }
+        sql.push_str(" order by embedding <#> $2 limit ");
+        sql.push_str(&limit.to_string());
 
-    let rows = if let Some(tag) = q.tag {
-        sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-            .bind(auth.owner_id)
-            .bind(&qvec)
-            .bind(tag)
-            .fetch_all(&state.db.pool)
-            .await
-            .map_err(internal_error)?
+        let rows = if let Some(tag) = q.tag {
+            sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(auth.owner_id)
+                .bind(&qvec)
+                .bind(tag)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        } else {
+            sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(auth.owner_id)
+                .bind(&qvec)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        };
+
+        let items = rows.into_iter().map(|(id,title,context,tags,schema_name,version,updated_at)| {
+            BreadcrumbContextView {
+                id, title, context, tags, schema_name, version, updated_at
+            }
+        }).collect();
+        Ok(Json(SearchResult::Context(items)))
     } else {
-        sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-            .bind(auth.owner_id)
-            .bind(&qvec)
-            .fetch_all(&state.db.pool)
-            .await
-            .map_err(internal_error)?
-    };
+        // Return minimal list view
+        let mut sql = String::from("select id, title, tags, version, updated_at from breadcrumbs where owner_id = $1");
+        if q.tag.is_some() { sql.push_str(" and $3 = any(tags)"); }
+        sql.push_str(" order by embedding <#> $2 limit ");
+        sql.push_str(&limit.to_string());
 
-    let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, schema_name: None, version, updated_at }).collect();
-    Ok(Json(items))
+        let rows = if let Some(tag) = q.tag {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(auth.owner_id)
+                .bind(&qvec)
+                .bind(tag)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        } else {
+            sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                .bind(auth.owner_id)
+                .bind(&qvec)
+                .fetch_all(&state.db.pool)
+                .await
+                .map_err(internal_error)?
+        };
+
+        let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, schema_name: None, version, updated_at }).collect();
+        Ok(Json(SearchResult::List(items)))
+    }
 }
 
 fn extract_text_for_embedding(bc: &rcrt_core::models::Breadcrumb) -> String {
@@ -1192,13 +1234,27 @@ async fn run_agents(State(_state): State<AppState>, auth: AuthContext, Json(body
 }
 
 #[derive(Deserialize)]
-struct ListQuery { tag: Option<String>, schema_name: Option<String>, limit: Option<i64>, offset: Option<i64> }
+struct ListQuery { tag: Option<String>, schema_name: Option<String>, limit: Option<i64>, offset: Option<i64>, include_context: Option<bool> }
 
 #[derive(Serialize)]
 struct ListItem { id: Uuid, title: String, tags: Vec<String>, schema_name: Option<String>, version: i32, updated_at: chrono::DateTime<chrono::Utc> }
 
-async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQuery>) -> Result<Json<Vec<ListItem>>, (axum::http::StatusCode, String)> {
-    let mut sql = String::from("select id, title, tags, schema_name, version, updated_at from breadcrumbs");
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ListResult {
+    List(Vec<ListItem>),
+    Context(Vec<BreadcrumbContextView>),
+}
+
+async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQuery>) -> Result<Json<ListResult>, (axum::http::StatusCode, String)> {
+    let include_context = q.include_context.unwrap_or(false);
+    
+    let mut sql = if include_context {
+        String::from("select id, title, context, tags, schema_name, version, updated_at from breadcrumbs")
+    } else {
+        String::from("select id, title, tags, schema_name, version, updated_at from breadcrumbs")
+    };
+    
     let mut conditions = Vec::new();
     let mut bind_idx = 1;
     
@@ -1220,39 +1276,75 @@ async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQue
     if let Some(limit) = q.limit { sql.push_str(&format!(" limit {}", limit.max(1))); }
     if let Some(offset) = q.offset { sql.push_str(&format!(" offset {}", offset.max(0))); }
 
-    let rows = match (q.tag.as_ref(), q.schema_name.as_ref()) {
-        (Some(tag), Some(schema)) => {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(tag)
-                .bind(schema)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        },
-        (Some(tag), None) => {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(tag)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        },
-        (None, Some(schema)) => {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(schema)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        },
-        (None, None) => {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        }
-    };
-
-    let items = rows.into_iter().map(|(id,title,tags,schema_name,version,updated_at)| ListItem{ id, title, tags, schema_name, version, updated_at }).collect();
-    Ok(Json(items))
+    if include_context {
+        let rows = match (q.tag.as_ref(), q.schema_name.as_ref()) {
+            (Some(tag), Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(tag)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (Some(tag), None) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(tag)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, None) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            }
+        };
+        let items = rows.into_iter().map(|(id,title,context,tags,schema_name,version,updated_at)| {
+            BreadcrumbContextView { id, title, context, tags, schema_name, version, updated_at }
+        }).collect();
+        Ok(Json(ListResult::Context(items)))
+    } else {
+        let rows = match (q.tag.as_ref(), q.schema_name.as_ref()) {
+            (Some(tag), Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(tag)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (Some(tag), None) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(tag)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, None) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            }
+        };
+        let items = rows.into_iter().map(|(id,title,tags,schema_name,version,updated_at)| ListItem{ id, title, tags, schema_name, version, updated_at }).collect();
+        Ok(Json(ListResult::List(items)))
+    }
 }
 
 #[derive(Deserialize)]

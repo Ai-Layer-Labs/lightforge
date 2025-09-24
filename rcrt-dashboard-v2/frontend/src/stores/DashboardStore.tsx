@@ -32,6 +32,12 @@ interface DashboardState {
     zoom: number;
   };
   
+  // 2D Canvas transform state
+  canvas2D: {
+    pan: { x: number; y: number };
+    zoom: number;
+  };
+  
   // Filters
   activeFilters: FilterState;
   
@@ -55,7 +61,7 @@ interface DashboardState {
   addNode: (node: RenderNode) => void;
   updateNode: (id: string, updates: Partial<RenderNode>) => void;
   deleteNode: (id: string) => void;
-  setNodes: (nodes: RenderNode[]) => void;
+  setNodes: (nodes: RenderNode[], preservePositions?: boolean) => void;
   
   // Connection management
   addConnection: (connection: RenderConnection) => void;
@@ -73,6 +79,7 @@ interface DashboardState {
   // View management
   switchView: (view: '2d' | '3d') => void;
   updateCamera: (camera: Partial<DashboardState['camera']>) => void;
+  updateCanvas2D: (transform: Partial<DashboardState['canvas2D']>) => void;
   
   // Configuration
   loadConfiguration: () => Promise<void>;
@@ -172,6 +179,10 @@ export const useDashboardStore = create<DashboardState>()(
         target: { x: 0, y: 0, z: 0 },
         zoom: 1,
       },
+      canvas2D: {
+        pan: { x: 0, y: 0 },
+        zoom: 1,
+      },
       activeFilters: {
         text: '',
         tags: [],
@@ -193,6 +204,11 @@ export const useDashboardStore = create<DashboardState>()(
       // ============ NODE ACTIONS ============
       
       addNode: (node) => set((state) => {
+        // If node already exists, preserve its position
+        const existingNode = state.nodes.get(node.id);
+        if (existingNode) {
+          node.position = existingNode.position;
+        }
         state.nodes.set(node.id, node);
       }),
       
@@ -218,9 +234,22 @@ export const useDashboardStore = create<DashboardState>()(
         });
       }),
       
-      setNodes: (nodes) => set((state) => {
+      setNodes: (nodes, preservePositions = true) => set((state) => {
+        // Create a map of existing positions to preserve them
+        const existingPositions = new Map<string, Position3D>();
+        if (preservePositions) {
+          state.nodes.forEach((node, id) => {
+            existingPositions.set(id, node.position);
+          });
+        }
+        
+        // Clear and repopulate, preserving positions where possible
         state.nodes.clear();
         nodes.forEach(node => {
+          // If this node already existed and we're preserving positions, keep its position
+          if (preservePositions && existingPositions.has(node.id)) {
+            node.position = existingPositions.get(node.id)!;
+          }
           state.nodes.set(node.id, node);
         });
       }),
@@ -318,6 +347,15 @@ export const useDashboardStore = create<DashboardState>()(
       
       updateCamera: (camera) => set((state) => {
         Object.assign(state.camera, camera);
+      }),
+      
+      updateCanvas2D: (transform) => set((state) => {
+        if (transform.pan) {
+          Object.assign(state.canvas2D.pan, transform.pan);
+        }
+        if (transform.zoom !== undefined) {
+          state.canvas2D.zoom = transform.zoom;
+        }
       }),
       
       // ============ CONFIGURATION ACTIONS ============
@@ -450,6 +488,7 @@ export const useSelectedNodes = () => useDashboardStore((state) =>
 );
 export const useCurrentView = () => useDashboardStore((state) => state.currentView);
 export const useCamera = () => useDashboardStore((state) => state.camera);
+export const useCanvas2D = () => useDashboardStore((state) => state.canvas2D);
 export const useEventStream = () => useDashboardStore((state) => state.eventStream);
 export const useLoading = () => useDashboardStore((state) => state.loading);
 

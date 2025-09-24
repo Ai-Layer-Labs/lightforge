@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
-import { useNodes, useConnections, useDashboard } from '../../stores/DashboardStore';
+import { useNodes, useConnections, useCanvas2D, useDashboardStore } from '../../stores/DashboardStore';
 import { Node2D } from '../nodes/Node2D';
 import { Connection2D } from '../nodes/Connection2D';
 import { RenderNode, Position3D } from '../../types/rcrt';
@@ -8,13 +8,21 @@ import { applyGridLayout, applyCircularLayout, applyForceLayout, applyHierarchic
 
 export function Canvas2D() {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasTransform, setCanvasTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
   
   const nodes = useNodes();
   const connections = useConnections();
-  const { updateNode, selectNode, deselectAll, setHoveredNode, setNodes } = useDashboard();
+  const canvas2D = useCanvas2D();
+  const updateNode = useDashboardStore((state) => state.updateNode);
+  const selectNode = useDashboardStore((state) => state.selectNode);
+  const deselectAll = useDashboardStore((state) => state.deselectAll);
+  const setHoveredNode = useDashboardStore((state) => state.setHoveredNode);
+  const setNodes = useDashboardStore((state) => state.setNodes);
+  const updateCanvas2D = useDashboardStore((state) => state.updateCanvas2D);
+  
+  // Track if we've applied initial layout using a ref to avoid re-renders
+  const hasAppliedInitialLayout = useRef(false);
   
   // ============ CANVAS PANNING ============
   
@@ -35,11 +43,12 @@ export function Canvas2D() {
       const deltaX = e.movementX;
       const deltaY = e.movementY;
       
-      setCanvasTransform(prev => ({
-        ...prev,
-        x: prev.x + deltaX,
-        y: prev.y + deltaY,
-      }));
+      updateCanvas2D({
+        pan: {
+          x: canvas2D.pan.x + deltaX,
+          y: canvas2D.pan.y + deltaY,
+        }
+      });
     }
   };
   
@@ -69,8 +78,8 @@ export function Canvas2D() {
     
     // Calculate new position accounting for canvas transform
     const newPosition: Position3D = {
-      x: node.position.x + info.offset.x / canvasTransform.scale,
-      y: node.position.y + info.offset.y / canvasTransform.scale,
+      x: node.position.x + info.offset.x / canvas2D.zoom,
+      y: node.position.y + info.offset.y / canvas2D.zoom,
       z: node.position.z,
     };
     
@@ -85,36 +94,93 @@ export function Canvas2D() {
   
   // ============ LAYOUT FUNCTIONS ============
   
-  const applyLayout = (layoutType: 'grid' | 'circular' | 'force' | 'hierarchical') => {
-    console.log(`📐 Applying ${layoutType} layout to ${nodes.length} nodes`);
+  const applyLayout = useCallback((layoutType: 'grid' | 'circular' | 'force' | 'hierarchical', nodesToLayout?: RenderNode[]) => {
+    if (!nodesToLayout || nodesToLayout.length === 0) {
+      console.log('📐 No nodes to layout');
+      return;
+    }
+    
+    console.log(`📐 Applying ${layoutType} layout to ${nodesToLayout.length} nodes`);
     
     let layoutedNodes: RenderNode[];
     
     switch (layoutType) {
       case 'grid':
-        layoutedNodes = applyGridLayout(nodes, defaultLayoutConfig);
+        layoutedNodes = applyGridLayout(nodesToLayout, defaultLayoutConfig);
         break;
       case 'circular':
-        layoutedNodes = applyCircularLayout(nodes, defaultLayoutConfig);
+        layoutedNodes = applyCircularLayout(nodesToLayout, defaultLayoutConfig);
         break;
       case 'force':
-        layoutedNodes = applyForceLayout(nodes, defaultLayoutConfig);
+        layoutedNodes = applyForceLayout(nodesToLayout, defaultLayoutConfig);
         break;
       case 'hierarchical':
-        layoutedNodes = applyHierarchicalLayout(nodes, defaultLayoutConfig);
+        layoutedNodes = applyHierarchicalLayout(nodesToLayout, defaultLayoutConfig);
         break;
       default:
         return;
     }
     
-    // Update all nodes with new positions
-    setNodes(layoutedNodes);
+    // Update all nodes with new positions (don't preserve old positions)
+    setNodes(layoutedNodes, false);
     
     // Center view on the laid out nodes
     setTimeout(() => {
       centerViewOnNodes(layoutedNodes);
     }, 100);
-  };
+  }, [setNodes]);
+  
+  // Apply grid layout when nodes are first loaded
+  const previousNodesLength = useRef(0);
+  const previousNodeIds = useRef<Set<string>>(new Set());
+  
+  useEffect(() => {
+    const currentNodeIds = new Set(nodes.map(n => n.id));
+    
+    // Check if we have new nodes
+    const newNodeIds = [...currentNodeIds].filter(id => !previousNodeIds.current.has(id));
+    
+    if (newNodeIds.length > 0) {
+      console.log(`📐 ${newNodeIds.length} new nodes detected`);
+      
+      // If this is the first load or we need to re-layout
+      if (!hasAppliedInitialLayout.current || newNodeIds.length > 5) {
+        console.log('📐 Applying grid layout to all nodes');
+        hasAppliedInitialLayout.current = true;
+        // Use setTimeout to avoid the update depth issue
+        setTimeout(() => {
+          applyLayout('grid', nodes);
+        }, 100);
+      } else {
+        // For small numbers of new nodes, just add them to the grid
+        console.log('📐 Adding new nodes to existing grid');
+        setTimeout(() => {
+          const existingNodes = nodes.filter(n => !newNodeIds.includes(n.id));
+          const newNodes = nodes.filter(n => newNodeIds.includes(n.id));
+          
+          // Find the next available grid position
+          const maxRow = Math.max(...existingNodes.map(n => Math.floor(n.position.y / 220)), 0);
+          const maxCol = Math.max(...existingNodes.map(n => Math.floor(n.position.x / 220)), 0);
+          const startIndex = (maxRow + 1) * 5; // Assuming 5 columns
+          
+          // Position new nodes in grid
+          const updatedNewNodes = newNodes.map((node, index) => ({
+            ...node,
+            position: {
+              x: ((startIndex + index) % 5) * 220 + 150,
+              y: Math.floor((startIndex + index) / 5) * 220 + 150,
+              z: 0
+            }
+          }));
+          
+          setNodes([...existingNodes, ...updatedNewNodes], false);
+        }, 100);
+      }
+    }
+    
+    previousNodesLength.current = nodes.length;
+    previousNodeIds.current = currentNodeIds;
+  }, [nodes, applyLayout, setNodes]);
   
   const centerViewOnNodes = (nodesToCenter: RenderNode[] = nodes) => {
     if (nodesToCenter.length === 0) return;
@@ -147,10 +213,9 @@ export function Canvas2D() {
     const scaleY = (canvasRect.height * 0.8) / contentHeight;
     const targetScale = Math.min(1.5, Math.max(0.3, Math.min(scaleX, scaleY)));
     
-    setCanvasTransform({
-      x: targetX,
-      y: targetY,
-      scale: targetScale,
+    updateCanvas2D({
+      pan: { x: targetX, y: targetY },
+      zoom: targetScale,
     });
     
     console.log(`🎯 Centered view on ${nodesToCenter.length} nodes`);
@@ -188,17 +253,16 @@ export function Canvas2D() {
         const mouseY = e.clientY - rect.top;
         
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        const newScale = Math.max(0.1, Math.min(3, canvasTransform.scale * zoomFactor));
+        const newScale = Math.max(0.1, Math.min(3, canvas2D.zoom * zoomFactor));
         
         // Zoom toward mouse position
-        const scaleDiff = newScale - canvasTransform.scale;
-        const newX = canvasTransform.x - (mouseX * scaleDiff);
-        const newY = canvasTransform.y - (mouseY * scaleDiff);
+        const scaleDiff = newScale - canvas2D.zoom;
+        const newX = canvas2D.pan.x - (mouseX * scaleDiff);
+        const newY = canvas2D.pan.y - (mouseY * scaleDiff);
         
-        setCanvasTransform({
-          x: newX,
-          y: newY,
-          scale: newScale,
+        updateCanvas2D({
+          pan: { x: newX, y: newY },
+          zoom: newScale,
         });
       }
     };
@@ -210,7 +274,7 @@ export function Canvas2D() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [deselectAll, canvasTransform]);
+  }, [deselectAll, canvas2D, updateCanvas2D]);
   
   return (
     <div 
@@ -226,7 +290,7 @@ export function Canvas2D() {
       <div
         className="canvas-background absolute inset-0"
         style={{
-          transform: `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`,
+          transform: `translate(${canvas2D.pan.x}px, ${canvas2D.pan.y}px) scale(${canvas2D.zoom})`,
           transformOrigin: '0 0',
         }}
       >
@@ -261,7 +325,7 @@ export function Canvas2D() {
           <Node2D
             key={node.id}
             node={node}
-            scale={canvasTransform.scale}
+            scale={canvas2D.zoom}
             onClick={(e) => handleNodeClick(node, e)}
             onDragStart={handleNodeDragStart}
             onDragEnd={(info) => handleNodeDragEnd(node, info)}
@@ -289,35 +353,35 @@ export function Canvas2D() {
           <CanvasControl 
             icon="📊" 
             label="Grid Layout"
-            onClick={() => applyLayout('grid')}
+            onClick={() => applyLayout('grid', nodes)}
           />
           <CanvasControl 
             icon="🔄" 
             label="Circular Layout"
-            onClick={() => applyLayout('circular')}
+            onClick={() => applyLayout('circular', nodes)}
           />
           <CanvasControl 
             icon="🌐" 
             label="Force Layout"
-            onClick={() => applyLayout('force')}
+            onClick={() => applyLayout('force', nodes)}
           />
           <CanvasControl 
             icon="📋" 
             label="Hierarchical"
-            onClick={() => applyLayout('hierarchical')}
+            onClick={() => applyLayout('hierarchical', nodes)}
           />
         </div>
         
         <CanvasControl 
           icon="🔄" 
           label="Reset Positions"
-          onClick={() => setCanvasTransform({ x: 0, y: 0, scale: 1 })}
+          onClick={() => updateCanvas2D({ pan: { x: 0, y: 0 }, zoom: 1 })}
         />
       </div>
       
       {/* Canvas Info */}
       <div className="absolute top-4 left-4 text-xs text-gray-400 font-mono">
-        Zoom: {(canvasTransform.scale * 100).toFixed(0)}% | 
+        Zoom: {(canvas2D.zoom * 100).toFixed(0)}% | 
         Nodes: {nodes.filter(n => !n.state.filtered).length} | 
         Connections: {connections.filter(c => c.state.visible).length}
       </div>

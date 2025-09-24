@@ -176,7 +176,7 @@ async function dispatchEventToTool(
         title: `Response: ${toolName}`,
         tags: [workspace, 'tool:response'],
         context: {
-          request_id: breadcrumb.id,
+          request_id: breadcrumb.context?.requestId || breadcrumb.id,  // Use requestId from request if available
           tool: toolName,
           status: 'success',
           output: result,
@@ -202,7 +202,7 @@ async function dispatchEventToTool(
           title: `Error: ${eventData.context?.tool || 'unknown'}`,
           tags: [workspace, 'tool:response'],
           context: {
-            request_id: eventData.breadcrumb_id,
+            request_id: eventData.context?.requestId || eventData.breadcrumb_id,  // Use requestId from request if available
             tool: eventData.context?.tool || 'unknown',
             status: 'error',
             error: String(error),

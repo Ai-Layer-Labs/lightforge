@@ -1,24 +1,39 @@
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Grid } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scene3D } from './Scene3D';
 import { Scene3DControls } from '../panels/Scene3DControls';
 import { use3DConfig } from '../../hooks/use3DConfig';
+import { useCamera, useDashboardStore } from '../../stores/DashboardStore';
 
 export function Canvas3D() {
   const { config, updateConfig, cleanupDuplicates, isLoading, isSaving, lastSaved } = use3DConfig();
   const [showControls, setShowControls] = useState(false); // Hidden by default
+  const camera = useCamera();
+  const updateCamera = useDashboardStore((state) => state.updateCamera);
+  const controlsRef = useRef<any>(null);
   
   // Debug logging when config changes
   React.useEffect(() => {
     console.log('🎛️ 3D Config updated:', config);
   }, [config]);
+  
+  // Save camera state when OrbitControls changes
+  const handleControlsChange = () => {
+    if (controlsRef.current) {
+      const controls = controlsRef.current;
+      updateCamera({
+        position: controls.object.position.toArray() as any,
+        target: controls.target.toArray() as any,
+      });
+    }
+  };
   return (
     <div className="canvas-3d w-full h-full relative">
       <Canvas
         camera={{ 
-          position: [0, 0, 500], 
+          position: [camera.position.x, camera.position.y, camera.position.z], 
           fov: 75,
           near: 0.1,
           far: 2000 
@@ -26,8 +41,7 @@ export function Canvas3D() {
         gl={{ 
           antialias: true,
           alpha: false,
-          powerPreference: "high-performance",
-          clearColor: 0x000000,
+          powerPreference: "high-performance"
         }}
         style={{ background: '#000000' }}
       >
@@ -40,12 +54,15 @@ export function Canvas3D() {
         
         {/* Controls */}
         <OrbitControls 
+          ref={controlsRef}
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
           minDistance={50}
           maxDistance={1000}
           maxPolarAngle={Math.PI}
+          target={[camera.target.x, camera.target.y, camera.target.z]}
+          onChange={handleControlsChange}
         />
         
         {/* 3D Scene Content */}

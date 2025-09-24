@@ -28,7 +28,7 @@ export default function Panel() {
   const [conversationId] = useState<string>(`ext-conv-${Date.now()}`);
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<SSEFilter>({
-    tags: ['tool:response']
+    tags: ['agent:response']
   });
   const [customTag, setCustomTag] = useState('');
   
@@ -97,64 +97,57 @@ export default function Panel() {
             try {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               
-              // Check if it's an agent response for our conversation
-              if (breadcrumb.tags?.includes('agent:response') && 
-                  (breadcrumb.context?.conversation_id === conversationId ||
-                   breadcrumb.tags?.includes('extension:chat'))) {
+              // Check if it's an agent response (the actual chat response)
+              if (breadcrumb.tags?.includes('agent:response')) {
+                console.log('🤖 Agent response received:', breadcrumb);
                 
-                const content = breadcrumb.context?.content || 
-                               breadcrumb.context?.response_text ||
-                               breadcrumb.context?.message ||
-                               'Agent responded but no content found';
+                let messageContent = breadcrumb.context?.message || 
+                                   breadcrumb.context?.response_text ||
+                                   breadcrumb.context?.content ||
+                                   'Agent responded but no content found';
+                
+                // If the content looks like JSON or has json code block, try to parse it
+                if (typeof messageContent === 'string') {
+                  // Check if it starts with ```json or just {
+                  const trimmed = messageContent.trim();
+                  if (trimmed.startsWith('```json') || trimmed.startsWith('{')) {
+                    try {
+                      // Remove ```json wrapper if present
+                      const jsonContent = messageContent
+                        .replace(/^```json\s*\n?/, '')
+                        .replace(/\n?```\s*$/, '')
+                        .trim();
+                      
+                      const parsed = JSON.parse(jsonContent);
+                      
+                      // Extract the actual message from the agent's JSON response
+                      if (parsed.breadcrumb?.context?.message) {
+                        messageContent = parsed.breadcrumb.context.message;
+                      } else if (parsed.action === 'create' && parsed.breadcrumb?.context?.message) {
+                        messageContent = parsed.breadcrumb.context.message;
+                      } else if (parsed.message) {
+                        // Sometimes the message might be at the top level
+                        messageContent = parsed.message;
+                      }
+                      
+                      console.log('Successfully parsed agent response:', messageContent);
+                    } catch (e) {
+                      console.error('Could not parse agent response as JSON:', e);
+                      console.log('Raw content:', messageContent);
+                    }
+                  }
+                }
                 
                 const assistantMessage: ChatMessage = {
                   id: `agent-${Date.now()}`,
                   role: 'assistant',
-                  content: content,
+                  content: messageContent,
                   timestamp: new Date(),
                   breadcrumbId: breadcrumb.id
                 };
                 
                 setMessages(prev => [...prev, assistantMessage]);
                 setIsLoading(false);
-              }
-              
-              // Handle tool responses (which contain LLM output)
-              if (breadcrumb.tags?.includes('tool:response')) {
-                console.log('🛠️ Tool response:', breadcrumb);
-                console.log('Tool context:', breadcrumb.context);
-                
-                // Check if it's a successful OpenRouter response
-                if (breadcrumb.context?.tool === 'openrouter' && 
-                    breadcrumb.context?.status === 'success' &&
-                    breadcrumb.context?.output?.content) {
-                  
-                  // Parse the LLM's JSON response to extract the actual message
-                  let messageContent = breadcrumb.context.output.content;
-                  try {
-                    // Remove markdown code blocks if present
-                    const jsonContent = messageContent.replace(/```json\n?|```/g, '').trim();
-                    const parsed = JSON.parse(jsonContent);
-                    
-                    // Extract the message from the agent response structure
-                    if (parsed.breadcrumb?.context?.message) {
-                      messageContent = parsed.breadcrumb.context.message;
-                    }
-                  } catch (e) {
-                    console.log('Using raw content, could not parse JSON:', e);
-                  }
-                  
-                  const assistantMessage: ChatMessage = {
-                    id: `assistant-${Date.now()}`,
-                    role: 'assistant',
-                    content: messageContent,
-                    timestamp: new Date(),
-                    breadcrumbId: breadcrumb.id
-                  };
-                  
-                  setMessages(prev => [...prev, assistantMessage]);
-                  setIsLoading(false);
-                }
               }
               
               if (breadcrumb.tags?.includes('agent:error')) {
