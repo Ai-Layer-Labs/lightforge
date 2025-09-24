@@ -19,10 +19,6 @@
           "summary": {
             "type": "template",
             "template": "{{items.length}} items: {{#each items}}{{name}} ({{role}}){{#unless @last}}, {{/unless}}{{/each}}"
-          },
-          "count_by_role": {
-            "type": "jq",
-            "query": ".items | group_by(.role) | map({key: .[0].role, value: length}) | from_entries"
           }
         },
         "output": {
@@ -66,14 +62,6 @@
           "health_summary": {
             "type": "template",
             "template": "{{#each services}}{{name}}: {{status}} {{/each}}"
-          },
-          "overall_status": {
-            "type": "jq",
-            "query": "if .services | map(.status) | contains([\"unhealthy\"]) then \"unhealthy\" elif contains([\"degraded\"]) then \"degraded\" else \"healthy\" end"
-          },
-          "average_uptime": {
-            "type": "jq",
-            "query": ".services | map(.uptime) | add / length"
           }
         },
         "output": {
@@ -101,10 +89,6 @@
           }
         },
         "transform": {
-          "order_summary": {
-            "type": "jq",
-            "query": "{order_id: .order.id, customer: .order.customer.name, contact_email: .order.customer.contact.email, item_count: .order.items | length}"
-          }
         },
         "output": {
           "order_summary": {

@@ -108,6 +108,11 @@ export const ExtensionAPI = {
     return rcrtAdapter.getSupervisors();
   },
 
+  async listenForAgentResponses(sessionId: string, onResponse: (content: string) => void) {
+    const { rcrtAdapter } = await import('./rcrt-adapter');
+    return rcrtAdapter.listenForAgentResponses(sessionId, onResponse);
+  },
+
   // Browser state integration
   async createBrowserStateBreadcrumb(pageData: {
     url: string;

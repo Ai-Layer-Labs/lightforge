@@ -68,11 +68,7 @@
         }
       },
       "provide_checklist": {
-        "pattern": "Create actionable checklist",
-        "example": {
-          "type": "jq",
-          "query": ".creation_workflow | map(\"[ ] \" + .)"
-        }
+        "pattern": "Create actionable checklist"
       }
     }
   },
@@ -81,10 +77,6 @@
       "summary": {
         "type": "template",
         "template": "Meta-guide for creating templates. Key insight: {{context.purpose}}. Covers {{context.template_types.length}} template types and {{context.creation_workflow.length}}-step workflow."
-      },
-      "quick_checklist": {
-        "type": "jq",
-        "query": ".creation_workflow | map(\"- \" + .) | join(\"\\n\")"
       },
       "template_types": {
         "type": "extract",

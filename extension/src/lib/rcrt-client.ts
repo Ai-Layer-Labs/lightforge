@@ -136,6 +136,23 @@ export class RCRTExtensionClient {
     });
   }
 
+  async createBrowserStateBreadcrumb(pageData: {
+    url: string;
+    title: string;
+    viewport: { width: number; height: number };
+    snapshot?: unknown;
+  }): Promise<{ id: string }> {
+    return this.createBreadcrumb({
+      schema_name: 'browser.state.v1',
+      title: `Browser State: ${pageData.title}`,
+      tags: ['browser:state', 'extension:capture'],
+      context: {
+        ...pageData,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
   async getBreadcrumb(id: string): Promise<any> {
     if (!this.authenticated || !this.token) {
       throw new Error('Not authenticated with RCRT');

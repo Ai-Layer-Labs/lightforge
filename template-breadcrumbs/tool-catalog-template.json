@@ -24,10 +24,6 @@
           "quick_list": {
             "type": "extract",
             "value": "$.tools[*].name"
-          },
-          "by_category": {
-            "type": "jq",
-            "query": ".tools | group_by(.category) | map({key: .[0].category, value: map(.name)}) | from_entries"
           }
         },
         "mode": "replace"

@@ -99,10 +99,6 @@
       "available_tools": {
         "type": "extract",
         "value": "$.tools[*].name"
-      },
-      "categories": {
-        "type": "jq",
-        "query": ".tools | map(.category) | unique"
       }
     },
     "mode": "replace"

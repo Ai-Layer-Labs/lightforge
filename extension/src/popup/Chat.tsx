@@ -92,6 +92,35 @@ export function Chat() {
     loadSavedCrew();
     loadSession();
   }, []);
+
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+
+    const setupSSE = async () => {
+      try {
+        cleanup = await ExtensionAPI.listenForAgentResponses(sessionId || '', (response) => {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: response,
+            timestamp: new Date(),
+            crew: selectedCrew,
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        });
+      } catch (error) {
+        console.error('Failed to setup SSE:', error);
+      }
+    };
+
+    setupSSE();
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [sessionId]);
   const loadSession = async () => {
     const sid = await ExtensionStorage.getSessionId();
     setSessionId(sid);

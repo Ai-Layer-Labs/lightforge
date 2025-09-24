@@ -41,10 +41,6 @@
                 "type": "extract",
                 "value": "$.items.length"
               },
-              "categories": {
-                "type": "jq",
-                "query": ".items | map(.category) | unique"
-              },
               "usage": {
                 "type": "literal",
                 "literal": "Use this data to make decisions"

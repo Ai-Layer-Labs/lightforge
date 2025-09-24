@@ -294,6 +294,19 @@ class RCRTAdapter {
     };
   }
 
+  listenForAgentResponses(sessionId: string, onResponse: (content: string) => void): () => void {
+    const handler = (response: any) => {
+      if (response.session_id === sessionId) {
+        onResponse(response.answer);
+      }
+    };
+    this.messageHandlers.set(sessionId, handler);
+
+    return () => {
+      this.messageHandlers.delete(sessionId);
+    };
+  }
+
   // ============ Agent & Crew Discovery ============
 
   async getCrews(): Promise<CrewConfig[]> {
@@ -303,8 +316,8 @@ class RCRTAdapter {
       // Group agents by roles/workspace to simulate "crews"
       const crewMap = new Map<string, string[]>();
       
-      agents.forEach(agent => {
-        agent.roles.forEach(role => {
+      agents.forEach((agent: any) => {
+        agent.roles.forEach((role: string) => {
           if (!crewMap.has(role)) {
             crewMap.set(role, []);
           }
@@ -329,16 +342,16 @@ class RCRTAdapter {
       const agents = await rcrtClient.listAgents();
       // Filter agents with supervisor/curator roles
       return agents
-        .filter(agent => agent.roles.some(role => 
-          role.includes('supervisor') || 
-          role.includes('curator') || 
+        .filter((agent: any) => agent.roles.some((role: string) =>
+          role.includes('supervisor') ||
+          role.includes('curator') ||
           role.includes('manager')
         ))
-        .map(agent => ({
+        .map((agent: any) => ({
           id: agent.id,
-          name: agent.roles.find(role => 
-            role.includes('supervisor') || 
-            role.includes('curator') || 
+          name: agent.roles.find((role: string) =>
+            role.includes('supervisor') ||
+            role.includes('curator') ||
             role.includes('manager')
           ) || agent.id,
         }));
