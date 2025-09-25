@@ -9,6 +9,14 @@
    ```
 
 2. **Run the setup script**:
+   
+   **For Mac users (especially Apple Silicon)**:
+   ```bash
+   chmod +x setup-mac.sh
+   ./setup-mac.sh
+   ```
+   
+   **For Linux/Windows/WSL**:
    ```bash
    ./setup.sh
    ```

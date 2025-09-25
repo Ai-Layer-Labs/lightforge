@@ -1,0 +1,92 @@
+# syntax=docker/dockerfile:1
+# Multi-architecture Dockerfile with proper ONNX Runtime support
+
+FROM --platform=$BUILDPLATFORM rust:1.85 as builder
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG FEATURES="embed-onnx nats"
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY Cargo.toml ./
+COPY crates/rcrt-core/Cargo.toml crates/rcrt-core/Cargo.toml
+COPY crates/rcrt-server/Cargo.toml crates/rcrt-server/Cargo.toml
+COPY migrations migrations
+COPY docs docs
+COPY crates/ crates/
+
+# Pre-fetch dependencies
+RUN cargo fetch
+
+# Download embedding model and tokenizer
+RUN mkdir -p /app/models && \
+    curl -fsSL -o /app/models/model.onnx https://huggingface.co/onnx-models/all-MiniLM-L6-v2-onnx/resolve/main/model.onnx && \
+    curl -fsSL -o /app/models/tokenizer.json https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json
+
+# Download ONNX Runtime based on platform
+RUN mkdir -p /app/onnx && \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        echo "Downloading ONNX Runtime for ARM64..." && \
+        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-aarch64-1.16.3.tgz; \
+    else \
+        echo "Downloading ONNX Runtime for x64..." && \
+        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-x64-1.16.3.tgz; \
+    fi && \
+    tar -xzf /tmp/onnxruntime.tgz -C /app/onnx --strip-components=1 && \
+    rm /tmp/onnxruntime.tgz
+
+# Ensure ONNX Runtime libs are in standard locations
+RUN cp /app/onnx/lib/libonnxruntime.so* /usr/local/lib/ && \
+    ldconfig
+
+# Set environment for build
+ENV LD_LIBRARY_PATH=/usr/local/lib:/app/onnx/lib:$LD_LIBRARY_PATH
+ENV ORT_DYLIB_PATH=/usr/local/lib/libonnxruntime.so
+
+# Build with features
+RUN cargo clean && \
+    if [ -n "$FEATURES" ]; then \
+      cargo build -p rcrt-server --release --features "$FEATURES"; \
+    else \
+      cargo build -p rcrt-server --release; \
+    fi
+
+# Runtime stage - use debian instead of distroless for better debugging
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy built binary and resources
+COPY --from=builder /app/target/release/rcrt-server /app/rcrt-server
+COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/models /app/models
+COPY --from=builder /app/onnx /app/onnx
+COPY --from=builder /usr/local/lib/libonnxruntime.so* /usr/local/lib/
+
+# Update library cache
+RUN ldconfig
+
+# Set environment
+ENV RUST_LOG=info
+ENV EMBED_MODEL=/app/models/model.onnx
+ENV EMBED_TOKENIZER=/app/models/tokenizer.json
+ENV LD_LIBRARY_PATH=/usr/local/lib:/app/onnx/lib
+ENV ORT_DYLIB_PATH=/usr/local/lib/libonnxruntime.so
+
+EXPOSE 8080
+ENTRYPOINT ["/app/rcrt-server"]
