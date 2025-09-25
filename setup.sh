@@ -1,9 +1,30 @@
 #!/bin/bash
-# Simple RCRT Setup Script - Just Works™
+# Universal RCRT Setup Script - Works on Mac, Linux, and Windows!
 
 set -e
 
 echo "🚀 Starting RCRT Setup..."
+echo ""
+
+# Detect OS and Architecture
+OS_TYPE="unknown"
+ARCH_TYPE="unknown"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS_TYPE="mac"
+    ARCH_TYPE=$(uname -m)
+    echo "🍎 Detected: macOS on $ARCH_TYPE"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS_TYPE="linux"
+    ARCH_TYPE=$(uname -m)
+    echo "🐧 Detected: Linux on $ARCH_TYPE"
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    OS_TYPE="windows"
+    ARCH_TYPE="x86_64"
+    echo "🪟 Detected: Windows"
+else
+    echo "⚠️  Unknown OS: $OSTYPE"
+fi
 
 # Check Docker
 if ! docker info >/dev/null 2>&1; then
@@ -12,6 +33,20 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 echo "✅ Docker is running"
+
+# Mac-specific setup
+if [[ "$OS_TYPE" == "mac" ]]; then
+    echo ""
+    if [[ "$ARCH_TYPE" == "arm64" ]]; then
+        echo "🔧 Apple Silicon detected - optimizing build for ARM64"
+        echo "💡 Note: We'll build natively for better performance!"
+    else
+        echo "🔧 Intel Mac detected - optimizing build for x64"
+    fi
+    
+    # Enable buildx for better multi-arch support
+    docker buildx create --use --name rcrt-builder 2>/dev/null || docker buildx use rcrt-builder || true
+fi
 
 # Generate .env if missing
 if [ ! -f ".env" ]; then
@@ -41,8 +76,27 @@ else
     echo "   You can build it later with: cd extension && npm install && npm run build"
 fi
 
-# Build core services first (WITHOUT agent-runner)
+# Build core services with platform-specific options
 echo "🔨 Building core services..."
+
+if [[ "$OS_TYPE" == "mac" ]]; then
+    # Mac: Build with buildx for native architecture
+    echo "   Using native build for $ARCH_TYPE..."
+    
+    # Translate Mac arch names to Docker arch names
+    if [[ "$ARCH_TYPE" == "arm64" ]]; then
+        DOCKER_ARCH="arm64"
+    elif [[ "$ARCH_TYPE" == "x86_64" ]]; then
+        DOCKER_ARCH="amd64"
+    else
+        DOCKER_ARCH="amd64"  # Default fallback
+    fi
+    
+    export DOCKER_DEFAULT_PLATFORM=linux/$DOCKER_ARCH
+    docker compose build --build-arg TARGETARCH=$DOCKER_ARCH rcrt
+fi
+
+# Start services
 docker compose up -d db nats rcrt dashboard tools-runner
 
 # Wait for core services to be ready

@@ -7,9 +7,21 @@ On Mac (especially Apple Silicon), the RCRT server fails with:
 An error occurred while attempting to load the ONNX Runtime binary at `libonnxruntime.so`
 ```
 
-## Solutions
+## Solution
 
-### Option 1: Disable ONNX Embeddings (Quick Fix)
+The main `setup.sh` script now automatically handles Mac builds:
+
+```bash
+./setup.sh
+```
+
+This automatically:
+- ✅ Detects your Mac architecture (Intel or Apple Silicon)
+- ✅ Builds native binaries (no emulation)
+- ✅ Uses the correct ONNX Runtime for your architecture
+- ✅ Keeps ALL features enabled
+
+### Alternative: Disable ONNX Embeddings (If Issues Persist)
 
 If you don't need AI-powered semantic search, disable ONNX:
 
@@ -30,23 +42,19 @@ docker compose build rcrt
 docker compose up -d
 ```
 
-### Option 2: Use Mac-Optimized Build (Recommended)
+### Manual Troubleshooting
 
-We provide a Mac-optimized setup that properly handles ONNX Runtime:
+If the automatic detection doesn't work, you can manually specify the platform:
 
 ```bash
-# First, make the script executable
-chmod +x setup-mac.sh
+# For Apple Silicon Macs
+export DOCKER_DEFAULT_PLATFORM=linux/arm64
+./setup.sh
 
-# Then run the Mac-specific setup script
-./setup-mac.sh
+# For Intel Macs
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+./setup.sh
 ```
-
-This script:
-- Uses a multi-architecture Dockerfile
-- Properly configures ONNX Runtime for both x64 and ARM64
-- Enables Rosetta emulation on Apple Silicon for compatibility
-- Sets up all required library paths
 
 ### Option 3: Fix ONNX Runtime in Dockerfile
 

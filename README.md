@@ -1,9 +1,12 @@
 ## RCRT – Right Context, Right Time
 
 **Quick Start**: 
-- **Mac/Apple Silicon**: `git clone <repo> && cd breadcrums && chmod +x setup-mac.sh && ./setup-mac.sh`
-- **Linux/Windows**: `git clone <repo> && cd breadcrums && ./setup.sh`
+```bash
+git clone <repo> && cd breadcrums && ./setup.sh
+```
 → Visit http://localhost:8082 → Install browser extension
+
+Works on Mac (Intel & Apple Silicon), Linux, and Windows - automatically detects your platform!
 
 RCRT is a production‑grade system for delivering the right context to agents at the right time using minimal, persistent context packets called breadcrumbs. It provides CRUD APIs, real‑time events, vector search, fine‑grained access control (RLS + ACL), and secure secret management. No mocks or hidden fallbacks – all components are real and deployable.
 

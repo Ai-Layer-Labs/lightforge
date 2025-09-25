@@ -9,17 +9,14 @@
    ```
 
 2. **Run the setup script**:
-   
-   **For Mac users (especially Apple Silicon)**:
-   ```bash
-   chmod +x setup-mac.sh
-   ./setup-mac.sh
-   ```
-   
-   **For Linux/Windows/WSL**:
    ```bash
    ./setup.sh
    ```
+   
+   The script automatically detects your platform:
+   - 🍎 **Mac**: Native ARM64 build on Apple Silicon, x64 on Intel
+   - 🐧 **Linux**: Optimized for your architecture
+   - 🪟 **Windows**: Full support via WSL or Git Bash
 
 That's it! The script will:
 - ✅ Check all prerequisites
