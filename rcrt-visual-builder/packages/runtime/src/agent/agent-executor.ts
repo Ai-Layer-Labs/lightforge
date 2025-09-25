@@ -407,7 +407,7 @@ export class AgentExecutor {
       schema_name: 'agent.metrics.v1',
       title: `Metrics: ${this.agentDef.context.agent_id}`,
       tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:metrics', this.workspace],
-      ttl: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      ttl: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
       context: {
         agent_id: this.agentDef.context.agent_id,
         status: this.state.status,

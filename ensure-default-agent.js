@@ -10,7 +10,7 @@ const path = require('path');
 
 const CONFIG = {
   rcrtBaseUrl: process.env.RCRT_BASE_URL || 'http://localhost:8081',
-  maxRetries: 30,
+  maxRetries: 60,  // Increased from 30 to allow 2 minutes for ONNX model loading
   retryDelay: 2000
 };
 
@@ -20,6 +20,7 @@ async function sleep(ms) {
 
 async function waitForService(url, maxRetries = 30) {
   console.log(`⏳ Waiting for ${url} to be ready...`);
+  console.log(`   (RCRT loads ONNX embedding models on first start, this can take 1-2 minutes)`);
   
   for (let i = 0; i < maxRetries; i++) {
     try {

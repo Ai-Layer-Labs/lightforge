@@ -42,8 +42,8 @@
                 "value": "$.items.length"
               },
               "categories": {
-                "type": "jq",
-                "query": ".items | map(.category) | unique"
+                "type": "template",
+                "template": "Categories: {{#each context.items}}{{#unless @first}}, {{/unless}}{{this.category}}{{/each}}"
               },
               "usage": {
                 "type": "literal",

@@ -16,12 +16,6 @@ export type ChatSessionData = {
   updated_at: string;
 };
 
-export type CrewConfig = {
-  id: string;
-  name: string;
-  description: string;
-  agents: string[];
-};
 
 class RCRTAdapter {
   private authenticated: boolean = false;
@@ -184,8 +178,6 @@ class RCRTAdapter {
   async chat(options: {
     session_id?: string;
     messages: ExtMessage[];
-    crew_id?: string;
-    supervisor_id?: string;
   }): Promise<any> {
     // Create tool request breadcrumb using OpenRouter (like dashboard LLM test)
     const result = await rcrtClient.createBreadcrumb({
@@ -200,8 +192,6 @@ class RCRTAdapter {
         },
         source: 'chrome_extension',
         session_id: options.session_id,
-        crew_id: options.crew_id,
-        supervisor_id: options.supervisor_id,
       },
       tags: ['workspace:tools', 'tool:request', 'chrome:extension'], // Use tools workspace
       schema_name: 'tool.request.v1',
@@ -242,8 +232,6 @@ class RCRTAdapter {
   chatStream(options: {
     session_id?: string;
     messages: ExtMessage[];
-    crew_id?: string;
-    supervisor_id?: string;
   }) {
     const controller = new AbortController();
     
@@ -294,59 +282,6 @@ class RCRTAdapter {
     };
   }
 
-  // ============ Agent & Crew Discovery ============
-
-  async getCrews(): Promise<CrewConfig[]> {
-    try {
-      const agents = await rcrtClient.listAgents();
-      
-      // Group agents by roles/workspace to simulate "crews"
-      const crewMap = new Map<string, string[]>();
-      
-      agents.forEach(agent => {
-        agent.roles.forEach(role => {
-          if (!crewMap.has(role)) {
-            crewMap.set(role, []);
-          }
-          crewMap.get(role)!.push(agent.id);
-        });
-      });
-
-      return Array.from(crewMap.entries()).map(([role, agentIds]) => ({
-        id: role,
-        name: role.charAt(0).toUpperCase() + role.slice(1),
-        description: `Agents with ${role} role`,
-        agents: agentIds,
-      }));
-    } catch (error) {
-      console.warn('Failed to get crews from RCRT:', error);
-      return [];
-    }
-  }
-
-  async getSupervisors(): Promise<{ id: string; name: string }[]> {
-    try {
-      const agents = await rcrtClient.listAgents();
-      // Filter agents with supervisor/curator roles
-      return agents
-        .filter(agent => agent.roles.some(role => 
-          role.includes('supervisor') || 
-          role.includes('curator') || 
-          role.includes('manager')
-        ))
-        .map(agent => ({
-          id: agent.id,
-          name: agent.roles.find(role => 
-            role.includes('supervisor') || 
-            role.includes('curator') || 
-            role.includes('manager')
-          ) || agent.id,
-        }));
-    } catch (error) {
-      console.warn('Failed to get supervisors from RCRT:', error);
-      return [];
-    }
-  }
 
   // ============ Configuration ============
 

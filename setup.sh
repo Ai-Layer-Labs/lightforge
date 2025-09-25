@@ -62,12 +62,21 @@ sleep 30
 echo ""
 echo "🌱 Bootstrapping RCRT system..."
 
+# Ensure system agents exist first
+echo "🔧 Ensuring system agents exist..."
+if command -v psql >/dev/null 2>&1; then
+    psql "postgresql://postgres:postgres@localhost/rcrt" < scripts/ensure-system-agent.sql 2>/dev/null || echo "⚠️  Could not ensure system agents (database might handle this automatically)"
+else
+    echo "⚠️  psql not found - skipping system agent creation (database will handle on first use)"
+fi
+
 # Wait a bit more for tools-runner to register tools
 echo "⏳ Waiting for tool catalog to be created..."
 sleep 10
 
 # Load default agent using robust script
 echo "🤖 Ensuring default chat agent..."
+echo "   Note: First startup loads AI models and can take 1-2 minutes"
 node ensure-default-agent.js || echo "⚠️  Failed to load default agent (run 'node ensure-default-agent.js' manually)"
 
 # Add OpenRouter key if .env has been updated

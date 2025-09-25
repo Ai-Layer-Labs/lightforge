@@ -31,7 +31,8 @@
       "32": "icons/think-os-agent.png",
       "48": "icons/think-os-agent.png",
       "128": "icons/think-os-agent.png"
-    }
+    },
+    "default_title": "Open RCRT Chat"
   },
   "side_panel": {
     "default_path": "src/sidepanel/index.html"

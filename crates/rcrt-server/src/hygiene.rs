@@ -561,32 +561,40 @@ impl HygieneRunner {
         let owner_id = std::env::var("OWNER_ID")
             .ok()
             .and_then(|s| Uuid::parse_str(&s).ok())
-            .unwrap_or_else(|| Uuid::nil());
+            .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
         
         let system_agent_id = std::env::var("AGENT_ID")
             .ok()
             .and_then(|s| Uuid::parse_str(&s).ok()) 
-            .unwrap_or_else(|| Uuid::nil());
+            .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-0000000000aa").unwrap());
         
-        if !owner_id.is_nil() {
-            let _result = self.state.db.create_breadcrumb_with_embedding_for(
-                owner_id,
-                Some(system_agent_id),
-                Some(system_agent_id),
-                rcrt_core::models::BreadcrumbCreate {
-                    title: stats_breadcrumb["title"].as_str().unwrap().to_string(),
-                    context: stats_breadcrumb["context"].clone(),
-                    tags: stats_breadcrumb["tags"].as_array().unwrap().iter()
-                        .map(|v| v.as_str().unwrap().to_string())
-                        .collect(),
-                    schema_name: Some(stats_breadcrumb["schema_name"].as_str().unwrap().to_string()),
-                    visibility: None,
-                    sensitivity: None,
-                    ttl: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                },
-                None // No embedding needed for stats
-            ).await?;
+        // Ensure the system agent exists (upsert will create if needed)
+        if let Err(e) = self.state.db.upsert_agent(
+            owner_id,
+            system_agent_id,
+            vec!["emitter".to_string(), "curator".to_string()]
+        ).await {
+            warn!("Unable to ensure system agent exists for hygiene stats: {}. Skipping stats emission.", e);
+            return Ok(());
         }
+        
+        let _result = self.state.db.create_breadcrumb_with_embedding_for(
+            owner_id,
+            Some(system_agent_id),
+            Some(system_agent_id),
+            rcrt_core::models::BreadcrumbCreate {
+                title: stats_breadcrumb["title"].as_str().unwrap().to_string(),
+                context: stats_breadcrumb["context"].clone(),
+                tags: stats_breadcrumb["tags"].as_array().unwrap().iter()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect(),
+                schema_name: Some(stats_breadcrumb["schema_name"].as_str().unwrap().to_string()),
+                visibility: None,
+                sensitivity: None,
+                ttl: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
+            },
+            None // No embedding needed for stats
+        ).await?;
         
         Ok(())
     }

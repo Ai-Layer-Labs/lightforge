@@ -161,6 +161,15 @@ export class RcrtClientEnhanced {
     }
   }
 
+  // Get current token
+  getToken(): string | undefined {
+    const authHeader = this.defaultHeaders['Authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+    return undefined;
+  }
+  
   // Simple token setter for JWT/key after construction
   setToken(token: string | null | undefined, mode: 'jwt' | 'key' = 'jwt'): void {
     if (!token) {
@@ -177,7 +186,7 @@ export class RcrtClientEnhanced {
   }
 
   // Auto-refresh token when getting 401 responses
-  private async refreshTokenIfNeeded(): Promise<boolean> {
+  public async refreshTokenIfNeeded(): Promise<boolean> {
     if (!this.autoRefresh || !this.tokenEndpoint) return false;
     
     try {

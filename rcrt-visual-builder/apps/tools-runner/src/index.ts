@@ -18,66 +18,103 @@ async function startCentralizedSSEDispatcher(
   client: RcrtClientEnhanced, 
   registry: ToolRegistry, 
   workspace: string, 
-  jwtToken: string
+  jwtToken?: string
 ): Promise<void> {
-  try {
-    console.log('📡 Starting centralized SSE dispatcher...');
-    console.log(`🔌 Connecting to SSE: ${client.baseUrl}/events/stream`);
-    
-    const response = await fetch(`${client.baseUrl}/events/stream`, {
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`SSE connection failed: ${response.status}`);
-    }
-    
-    console.log('✅ Centralized SSE dispatcher connected');
-    
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('No SSE stream reader available');
-    }
-    
-    // Process SSE events and dispatch to appropriate tools
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+  let retryAttempts = 0;
+  const maxRetries = 3;
+  
+  const connect = async (): Promise<void> => {
+    try {
+      console.log('📡 Starting centralized SSE dispatcher...');
+      console.log(`🔌 Connecting to SSE: ${client.baseUrl}/events/stream`);
       
-      const chunk = new TextDecoder().decode(value);
-      const lines = chunk.split('\n');
+      // Get current token from client (it may have been refreshed)
+      const currentToken = client.getToken() || jwtToken;
       
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const eventData = JSON.parse(line.slice(6));
-            
-            // 🔧 DEBUG: Log all incoming events for diagnosis
-            if (eventData.type !== 'ping') {
-              console.log(`📡 SSE Event received:`, {
-                type: eventData.type,
-                schema_name: eventData.schema_name,
-                tags: eventData.tags,
-                breadcrumb_id: eventData.breadcrumb_id
-              });
-            }
-            
-            await dispatchEventToTool(eventData, client, registry, workspace);
-          } catch (error) {
-            console.warn('Failed to parse SSE event:', line, error);
-          }
+      const response = await fetch(`${client.baseUrl}/events/stream`, {
+        headers: {
+          'Authorization': currentToken ? `Bearer ${currentToken}` : '',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (response.status === 401 && retryAttempts < maxRetries) {
+        // Try to refresh token
+        console.log('🔄 SSE got 401, attempting to refresh token...');
+        const refreshed = await client.refreshTokenIfNeeded();
+        if (refreshed) {
+          retryAttempts++;
+          return connect(); // Retry with new token
         }
       }
+      
+      if (!response.ok) {
+        throw new Error(`SSE connection failed: ${response.status}`);
+      }
+      
+      retryAttempts = 0; // Reset on success
+      
+      console.log('✅ Centralized SSE dispatcher connected');
+      
+      // Set up periodic token refresh (every 10 minutes)
+      const tokenRefreshInterval = setInterval(async () => {
+        console.log('🔄 Proactively refreshing token...');
+        try {
+          await client.refreshTokenIfNeeded();
+        } catch (error) {
+          console.warn('Failed to refresh token:', error);
+        }
+      }, 10 * 60 * 1000); // 10 minutes
+      
+      const reader = response.body?.getReader();
+      if (!reader) {
+        clearInterval(tokenRefreshInterval);
+        throw new Error('No SSE stream reader available');
+      }
+      
+      try {
+        // Process SSE events and dispatch to appropriate tools
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const eventData = JSON.parse(line.slice(6));
+                
+                // 🔧 DEBUG: Log all incoming events for diagnosis
+                if (eventData.type !== 'ping') {
+                  console.log(`📡 SSE Event received:`, {
+                    type: eventData.type,
+                    schema_name: eventData.schema_name,
+                    tags: eventData.tags,
+                    breadcrumb_id: eventData.breadcrumb_id
+                  });
+                }
+                
+                await dispatchEventToTool(eventData, client, registry, workspace);
+              } catch (error) {
+                console.warn('Failed to parse SSE event:', line, error);
+              }
+            }
+          }
+        }
+      } finally {
+        clearInterval(tokenRefreshInterval);
+      }
+    } catch (error) {
+      console.error('❌ Centralized SSE dispatcher error:', error);
+      // Retry connection after delay
+      setTimeout(() => connect(), 5000);
     }
-  } catch (error) {
-    console.error('❌ Centralized SSE dispatcher error:', error);
-    // Retry connection after delay
-    setTimeout(() => startCentralizedSSEDispatcher(client, registry, workspace, jwtToken), 5000);
-  }
+  };
+  
+  await connect();
 }
 
 // Dispatch SSE events to appropriate tools
@@ -296,9 +333,14 @@ async function main() {
           client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'disabled');
         } else {
         jwtToken = token; // Store for centralized SSE dispatcher
+        const tokenRequest = {
+          owner_id: process.env.OWNER_ID || '00000000-0000-0000-0000-000000000001',
+          agent_id: process.env.AGENT_ID || '00000000-0000-0000-0000-0000000000aa'
+        };
         client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'jwt', token, {
           tokenEndpoint: config.tokenEndpoint,
-          autoRefresh: true
+          autoRefresh: true,
+          tokenRequestBody: tokenRequest
         });
         // applyClient should target the builder proxy so /api/forge/apply works
         // In docker mode, use the builder proxy for UI operations
@@ -387,7 +429,7 @@ async function main() {
     console.log('💡 Centralized SSE dispatcher routes requests to individual tools');
     
     // Start centralized SSE dispatcher
-    if (jwtToken) {
+    if (config.rcrtAuthMode === 'jwt' || jwtToken) {
       console.log('🎯 Starting centralized SSE dispatcher...');
       await startCentralizedSSEDispatcher(client, registry, config.workspace, jwtToken);
     } else {

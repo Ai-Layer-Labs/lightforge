@@ -378,8 +378,8 @@ export class ToolRegistry {
             value: '$.tools[*].name'
           },
           categories: {
-            type: 'jq',
-            query: '.tools | map(.category) | unique'
+            type: 'template',
+            template: '{{#each context.tools}}{{#unless @first}}, {{/unless}}{{this.category}}{{/each}}'
           }
         },
         mode: 'replace'
@@ -436,8 +436,8 @@ export class ToolRegistry {
             value: '$.tools[*].name'
           },
           categories: {
-            type: 'jq',
-            query: '.tools | map(.category) | unique'
+            type: 'template',
+            template: '{{#each context.tools}}{{#unless @first}}, {{/unless}}{{this.category}}{{/each}}'
           }
         },
         mode: 'replace'

@@ -250,7 +250,7 @@ export class ModernAgentRegistry {
       rcrtClient: this.client,
       workspace: this.workspace,
       autoStart: true,
-      metricsInterval: 60000 // Report metrics every minute
+      metricsInterval: 3600000 // Report metrics every hour
     };
     
     const executor = new AgentExecutor(executorOptions);
