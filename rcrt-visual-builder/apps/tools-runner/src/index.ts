@@ -8,6 +8,7 @@
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { createToolRegistry, ToolRegistry } from '@rcrt-builder/tools/registry';
+import { jsonrepair } from 'jsonrepair';
 
 // Track processing status to prevent legitimate RCRT duplicate events (created + updated)
 const processingStatus = new Map<string, 'processing' | 'completed'>();
@@ -85,7 +86,9 @@ async function startCentralizedSSEDispatcher(
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const eventData = JSON.parse(line.slice(6));
+                // Use jsonrepair to handle malformed JSON
+                const repairedData = jsonrepair(line.slice(6));
+                const eventData = JSON.parse(repairedData);
                 
                 // 🔧 DEBUG: Log all incoming events for diagnosis
                 if (eventData.type !== 'ping') {
@@ -271,6 +274,7 @@ const config = {
   enableBuiltins: process.env.ENABLE_BUILTIN_TOOLS !== 'false',
   enableLangChain: process.env.ENABLE_LANGCHAIN_TOOLS === 'true',
   enableUI: process.env.ENABLE_TOOL_UI === 'true',
+  enableLLMTools: process.env.ENABLE_LLM_TOOLS !== 'false', // Default to enabled
   
   // Deployment mode
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local', // 'docker', 'local', 'electron'
@@ -402,7 +406,8 @@ async function main() {
       enableLangChain: config.enableLangChain,
       langchainConfig: {
         serpApiKey,
-        openaiApiKey
+        openaiApiKey,
+        enableLLMTools: config.enableLLMTools
       },
       applyClient
     });

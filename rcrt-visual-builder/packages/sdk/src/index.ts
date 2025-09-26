@@ -5,6 +5,7 @@
 
 import EventSource from 'eventsource';
 import { BreadcrumbEvent } from '@rcrt-builder/core';
+import { jsonrepair } from 'jsonrepair';
 
 // Enhanced type definitions
 export interface BreadcrumbContext {
@@ -743,10 +744,13 @@ export class RcrtClientEnhanced {
 
       es.onmessage = (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data);
+          // Try to repair and parse JSON if needed
+          const repairedData = jsonrepair(event.data);
+          const data = JSON.parse(repairedData);
           onEvent(data);
         } catch (error) {
           console.error('Failed to parse SSE event:', error);
+          console.error('Event data:', event.data);
         }
       };
 

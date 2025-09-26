@@ -5,6 +5,7 @@ import { useAuthentication } from '../../hooks/useAuthentication';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { RenderNode, Breadcrumb } from '../../types/rcrt';
 import { UIVariable, ToolConfigValue } from '../../types/toolConfig';
+import { useModelsFromCatalog } from '../../hooks/useModelsFromCatalog';
 
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
@@ -832,6 +833,9 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const [secrets, setSecrets] = useState<any[]>([]);
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
   const queryClient = useQueryClient();
+  
+  // Fetch models from catalog for OpenRouter
+  const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
 
   // Get tool UI variables based on tool name
   const getToolUIVariables = (toolName: string): UIVariable[] => {
@@ -852,12 +856,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
             type: 'select',
             description: 'Default model when none specified',
             defaultValue: 'google/gemini-2.5-flash',
-            options: [
-              { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-              { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku' },
-              { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
-              { value: 'openai/gpt-4o', label: 'GPT-4o' },
-            ],
+            options: modelOptions,
           },
           {
             key: 'maxTokens',
@@ -1113,18 +1112,32 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
               </label>
             )}
             
-            {variable.type === 'select' && variable.options && (
-              <select
-                value={config[variable.key] || variable.defaultValue || ''}
-                onChange={(e) => updateConfigValue(variable.key, e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-green-400 focus:outline-none"
-              >
-                {variable.options.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            {variable.type === 'select' && (
+              <div>
+                <select
+                  value={config[variable.key] || variable.defaultValue || ''}
+                  onChange={(e) => updateConfigValue(variable.key, e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-green-400 focus:outline-none"
+                  disabled={variable.key === 'defaultModel' && isLoadingModels}
+                >
+                  {variable.key === 'defaultModel' && isLoadingModels ? (
+                    <option>Loading models...</option>
+                  ) : variable.options && variable.options.length > 0 ? (
+                    variable.options.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option>No models available</option>
+                  )}
+                </select>
+                {variable.key === 'defaultModel' && !isLoadingModels && (!variable.options || variable.options.length === 0) && (
+                  <p className="text-xs text-yellow-400 mt-1">
+                    💡 Models catalog will be created when the tools service starts
+                  </p>
+                )}
+              </div>
             )}
             
             {variable.type === 'secret' && (

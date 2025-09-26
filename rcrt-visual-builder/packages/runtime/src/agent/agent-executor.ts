@@ -7,11 +7,11 @@ import {
   AgentDefinitionV1,
   BreadcrumbEvent,
   AgentState,
-  AgentMetricsV1,
   Selector
 } from '@rcrt-builder/core';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { ToolPromptAdapter } from './tool-prompt-adapter';
+import { extractAndParseJSON } from '../utils/json-repair';
 
 export interface AgentExecutorOptions {
   agentDef: AgentDefinitionV1;
@@ -25,9 +25,8 @@ export class AgentExecutor {
   private agentDef: AgentDefinitionV1;
   private rcrtClient: RcrtClientEnhanced;
   private workspace: string;
-  private sseCleanup?: () => void;
   private state: AgentState;
-  private metricsTimer?: NodeJS.Timer;
+  private metricsTimer?: NodeJS.Timeout;
   
   // Track pending LLM requests
   private pendingLLMRequests = new Map<string, {
@@ -63,7 +62,7 @@ export class AgentExecutor {
     // NOTE: SSE subscription is handled by the centralized dispatcher in AgentRegistry
     // We don't start our own SSE connection here to avoid duplicate events
     
-    this.state.status = 'active';
+    this.state.status = 'processing';
     
     // Start metrics reporting if interval specified
     if (this.options.metricsInterval) {
@@ -100,16 +99,17 @@ export class AgentExecutor {
         return;
       }
       
-      // Handle different event types
-      if (event.schema_name === 'tool.response.v1') {
-        await this.handleToolResponse(event);
-      } else if (event.schema_name === 'chat.message.v1' || event.schema_name === 'user.message.v1') {
-        await this.handleChatMessage(event);
-      } else if (event.schema_name === 'tool.catalog.v1') {
+      // Handle different event types based on breadcrumb schema
+      const schemaName = triggeringBreadcrumb.schema_name;
+      if (schemaName === 'tool.response.v1') {
+        await this.handleToolResponse(event, triggeringBreadcrumb);
+      } else if (schemaName === 'chat.message.v1' || schemaName === 'user.message.v1') {
+        await this.handleChatMessage(event, triggeringBreadcrumb);
+      } else if (schemaName === 'tool.catalog.v1') {
         console.log('📚 Tool catalog updated');
         // Just log it, no action needed
       } else {
-        console.log(`🔍 Received event: ${event.schema_name}`);
+        console.log(`🔍 Received event: ${schemaName}`);
       }
       
       this.state.metrics.events_processed++;
@@ -121,8 +121,7 @@ export class AgentExecutor {
     }
   }
   
-  private async handleChatMessage(event: BreadcrumbEvent): Promise<void> {
-    const breadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id!);
+  private async handleChatMessage(event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
     // Check for message in both 'message' and 'content' fields for compatibility
     const userMessage = breadcrumb.context?.message || breadcrumb.context?.content;
     
@@ -152,12 +151,12 @@ export class AgentExecutor {
       timestamp: new Date()
     });
     
-    // Get LLM configuration
-    const llmTool = this.agentDef.context.llm_tool || 'openrouter';
-    const llmConfig = this.agentDef.context.llm_config || {
-      model: 'google/gemini-2.0-flash-exp',
-      temperature: 0.7,
-      max_tokens: 2000
+    // Get LLM configuration from agent definition
+    const llmTool = 'openrouter'; // Default to openrouter
+    const llmConfig = {
+      model: this.agentDef.context.model || 'google/gemini-2.5-flash',
+      temperature: this.agentDef.context.temperature ?? 0.7,
+      max_tokens: this.agentDef.context.max_tokens ?? 2000
     };
     
     // Create tool request breadcrumb
@@ -184,16 +183,15 @@ export class AgentExecutor {
     console.log(`🔧 Created LLM tool request: ${requestId} for tool: ${llmTool}`);
   }
   
-  private async handleToolResponse(event: BreadcrumbEvent): Promise<void> {
-    const breadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id!);
+  private async handleToolResponse(_event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
     const context = breadcrumb.context || {};
     // Handle both camelCase and snake_case for compatibility
     const requestId = context.requestId || context.request_id;
-    const { output, error } = context;
+    const { output, error, tool } = context;
     
     console.log(`🔨 Tool response received with request_id: ${requestId}`);
     
-    // Check if this is a response to our LLM request
+    // Check if this is a response to our request
     const pendingRequest = this.pendingLLMRequests.get(requestId);
     if (!pendingRequest) {
       console.log(`⚠️ No pending request found for ${requestId}`);
@@ -208,23 +206,84 @@ export class AgentExecutor {
     
     if (error) {
       console.error(`❌ Tool error: ${error}`);
-      await this.createErrorResponse(pendingRequest.context.userMessage, error);
+      await this.createErrorResponse(pendingRequest.context.userMessage || '', error);
       return;
     }
     
-    // Parse LLM response
+    // Check if this is a response from a tool request the agent made (not LLM)
+    if (pendingRequest.context.fromToolRequest && pendingRequest.context.tool !== 'openrouter') {
+      console.log(`🔧 Handling non-LLM tool response from ${pendingRequest.context.tool}`);
+      
+      // Generic tool response handling - let the tool's output speak for itself
+      let responseMessage = '';
+      
+      // Priority order for extracting a human-readable message:
+      // 1. If output has a 'message' field, use it
+      // 2. If output has a 'result' field, format it
+      // 3. If output is a string, use it directly
+      // 4. If output is an object with a single key, use that
+      // 5. Otherwise, format the entire output
+      
+      if (output && typeof output === 'object') {
+        if (output.message) {
+          responseMessage = output.message;
+        } else if (output.result !== undefined) {
+          responseMessage = `Result: ${typeof output.result === 'object' ? JSON.stringify(output.result, null, 2) : output.result}`;
+        } else if (output.error) {
+          responseMessage = `Error: ${output.error}`;
+        } else {
+          // Check if it's a simple object with one main value
+          const keys = Object.keys(output);
+          if (keys.length === 1) {
+            const key = keys[0];
+            const value = output[key];
+            responseMessage = `${key}: ${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}`;
+          } else if (keys.length === 2 && output.status) {
+            // Common pattern: {status: "success", data: ...}
+            const dataKey = keys.find(k => k !== 'status');
+            if (dataKey) {
+              responseMessage = `${output[dataKey]}`;
+            }
+          } else {
+            // Format the whole output nicely
+            responseMessage = JSON.stringify(output, null, 2);
+          }
+        }
+      } else if (typeof output === 'string') {
+        responseMessage = output;
+      } else if (output === null || output === undefined) {
+        responseMessage = `${tool} completed successfully`;
+      } else {
+        responseMessage = String(output);
+      }
+      
+      // Create a response with the tool result
+      await this.createSimpleResponse(responseMessage);
+      return;
+    }
+    
+    // Otherwise, it's an LLM response - parse it
     console.log(`🧠 Processing LLM response:`, JSON.stringify(output).substring(0, 200));
     
     try {
-      const llmContent = output?.content || '';
-      console.log(`📝 LLM content to parse:`, llmContent.substring(0, 200));
+      // Use safe JSON parsing with automatic repair
+      const parsedResponse = extractAndParseJSON(output?.content || '', {
+        allowFailure: false,
+        onError: (error, input) => {
+          console.error(`❌ Failed to parse LLM response:`, error);
+          console.log(`📝 LLM content that failed to parse:`, input.substring(0, 200));
+        }
+      });
       
-      const parsedResponse = JSON.parse(llmContent);
-      console.log(`✅ Parsed LLM response successfully`);
-      
-      // Execute the LLM's decision
-      await this.executeDecision(parsedResponse);
-      
+      if (parsedResponse) {
+        console.log(`✅ Parsed LLM response successfully`);
+        // Execute the LLM's decision
+        await this.executeDecision(parsedResponse);
+      } else {
+        // If LLM didn't return valid JSON, create a simple text response
+        const responseText = output?.content || 'I encountered an error processing your request.';
+        await this.createSimpleResponse(responseText);
+      }
     } catch (parseError) {
       console.error(`❌ Failed to parse LLM response:`, parseError);
       // If LLM didn't return valid JSON, create a simple text response
@@ -264,13 +323,11 @@ export class AgentExecutor {
     // Add recent chat history - use enhanced search API to get context directly
     const userMessages = await this.rcrtClient.searchBreadcrumbsWithContext({
       schema_name: 'user.message.v1',
-      limit: 10,
       include_context: true
     });
     
     const agentResponses = await this.rcrtClient.searchBreadcrumbsWithContext({
       schema_name: 'agent.response.v1',
-      limit: 10,
       include_context: true
     });
     
@@ -354,6 +411,56 @@ export class AgentExecutor {
           timestamp: new Date()
         });
       }
+      
+      // NEW: Process tool_requests array if present in agent response
+      if (breadcrumb.schema_name === 'agent.response.v1' && 
+          breadcrumb.context?.tool_requests && 
+          Array.isArray(breadcrumb.context.tool_requests) &&
+          breadcrumb.context.tool_requests.length > 0) {
+        
+        console.log(`🔧 Processing ${breadcrumb.context.tool_requests.length} tool requests from agent response`);
+        
+        for (const toolRequest of breadcrumb.context.tool_requests) {
+          if (!toolRequest.tool || !toolRequest.input) {
+            console.warn(`⚠️ Skipping invalid tool request:`, toolRequest);
+            continue;
+          }
+          
+          const toolRequestBreadcrumb = {
+            schema_name: 'tool.request.v1',
+            title: `Tool Request: ${toolRequest.tool}`,
+            tags: ['tool:request', 'workspace:tools', this.workspace],
+            ttl: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour TTL
+            context: {
+              tool: toolRequest.tool,
+              input: toolRequest.input,
+              requestId: toolRequest.requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              requestedBy: this.agentDef.context.agent_id,
+              creator: {
+                type: 'agent',
+                agent_id: this.agentDef.context.agent_id
+              }
+            }
+          };
+          
+          console.log(`🔨 Creating tool request for ${toolRequest.tool} with requestId: ${toolRequestBreadcrumb.context.requestId}`);
+          await this.rcrtClient.createBreadcrumb(toolRequestBreadcrumb);
+          
+          // Track this request so we can correlate the response
+          if (toolRequestBreadcrumb.context.requestId) {
+            this.pendingLLMRequests.set(toolRequestBreadcrumb.context.requestId, {
+              context: { 
+                fromToolRequest: true,
+                tool: toolRequest.tool,
+                parentResponseId: breadcrumbWithCreator.id
+              },
+              timestamp: new Date()
+            });
+          }
+        }
+        
+        console.log(`✅ Created ${breadcrumb.context.tool_requests.length} tool request breadcrumbs`);
+      }
     } else {
       console.log(`⚠️ Unhandled decision action: ${action}`);
     }
@@ -403,42 +510,33 @@ export class AgentExecutor {
   }
   
   private async reportMetrics(): Promise<void> {
-    const metrics: AgentMetricsV1 = {
-      schema_name: 'agent.metrics.v1',
+    const metrics = {
+      schema_name: 'agent.metrics.v1' as const,
       title: `Metrics: ${this.agentDef.context.agent_id}`,
       tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:metrics', this.workspace],
       ttl: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
       context: {
         agent_id: this.agentDef.context.agent_id,
-        status: this.state.status,
-        metrics: {
-          events_processed: this.state.metrics.events_processed,
-          errors: this.state.metrics.errors,
-          last_activity: this.state.metrics.last_activity.toISOString(),
-          uptime_seconds: Math.floor((Date.now() - this.state.metrics.last_activity.getTime()) / 1000),
-        },
         timestamp: new Date().toISOString(),
-        creator: {
-          type: 'agent',
-          agent_id: this.agentDef.context.agent_id
-        }
+        metrics: {
+          total_events_processed: this.state.metrics.events_processed,
+          breadcrumbs_created: 0, // TODO: Track these metrics
+          breadcrumbs_updated: 0,
+          breadcrumbs_deleted: 0,
+          llm_calls: 0,
+          tool_calls: 0,
+          avg_processing_time_ms: 0,
+          error_count: this.state.metrics.errors,
+          success_rate: this.state.metrics.errors > 0 ? 
+            (this.state.metrics.events_processed - this.state.metrics.errors) / this.state.metrics.events_processed : 1
+        },
+        period: 'hour' as const
       },
     };
     
     await this.rcrtClient.createBreadcrumb(metrics);
   }
   
-  // Clean up pending requests older than 5 minutes
-  private cleanupPendingRequests(): void {
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    
-    for (const [requestId, request] of this.pendingLLMRequests.entries()) {
-      if (request.timestamp.getTime() < fiveMinutesAgo) {
-        this.pendingLLMRequests.delete(requestId);
-        console.log(`🧹 Cleaned up expired request: ${requestId}`);
-      }
-    }
-  }
   
   // Update token method for JWT refresh
   updateToken(token: string): void {

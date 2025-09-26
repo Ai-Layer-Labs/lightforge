@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { AgentExecutor, AgentExecutorOptions } from '@rcrt-builder/runtime';
 import { AgentDefinitionV1 } from '@rcrt-builder/core';
+import { jsonrepair } from 'jsonrepair';
 
 dotenv.config();
 
@@ -121,7 +122,9 @@ export class ModernAgentRegistry {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const eventData = JSON.parse(line.slice(6));
+              // Use jsonrepair to handle malformed JSON
+              const repairedData = jsonrepair(line.slice(6));
+              const eventData = JSON.parse(repairedData);
               
               if (eventData.type !== 'ping') {
                 await this.routeEventToAgent(eventData);

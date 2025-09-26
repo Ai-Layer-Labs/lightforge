@@ -11,11 +11,16 @@ export class OpenRouterTool extends SimpleLLMTool {
   description = 'OpenRouter - Access to 100+ LLM models via unified API';
   requiredSecrets = ['OPENROUTER_API_KEY'];
   
+  async initialize(context: ToolExecutionContext): Promise<void> {
+    console.log('[OpenRouter] Initializing OpenRouter tool...');
+    await this.ensureModelsCatalog(context);
+  }
+  
   async execute(input: any, context: ToolExecutionContext): Promise<any> {
     // Validate input
     const validation = this.validateInput(input);
     if (validation !== true) {
-      throw new Error(validation);
+      throw new Error(validation as string);
     }
     
     // Load tool configuration from breadcrumb
@@ -80,7 +85,7 @@ export class OpenRouterTool extends SimpleLLMTool {
     try {
       // Get real pricing from models catalog breadcrumb
       const modelsCatalog = await context.rcrtClient.searchBreadcrumbs({
-        tags: ['openrouter:models', 'models:catalog']
+        tag: 'openrouter:models'
       });
       
       if (modelsCatalog.length > 0) {
@@ -112,7 +117,7 @@ export class OpenRouterTool extends SimpleLLMTool {
     const totalTokens = usage?.total_tokens || 0;
     
     // Conservative estimates for common models
-    const estimatedCosts = {
+    const estimatedCosts: Record<string, number> = {
       'google/gemini-2.5-flash': 0.009,      // $9 per 1M tokens average
       'anthropic/claude-3-haiku': 0.0015,        // $1.5 per 1M tokens average  
       'openai/gpt-4o': 0.015,                    // $15 per 1M tokens average
@@ -126,11 +131,90 @@ export class OpenRouterTool extends SimpleLLMTool {
   }
   
   /**
+   * Ensure models catalog exists - creates it if missing
+   */
+  private async ensureModelsCatalog(context: ToolExecutionContext): Promise<void> {
+    try {
+      // Check if models catalog already exists
+      const existingCatalogs = await context.rcrtClient.searchBreadcrumbs({
+        tag: 'openrouter:models'
+      });
+      
+      if (existingCatalogs.length > 0) {
+        console.log('[OpenRouter] Models catalog already exists');
+        return;
+      }
+      
+      console.log('[OpenRouter] Creating models catalog...');
+      
+      // Fetch models from OpenRouter public API (no auth needed)
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status}`);
+      }
+      
+      const modelsData = await response.json();
+      
+      // Filter to useful models
+      const usefulModels = modelsData.data.filter((model: any) => {
+        const promptCost = parseFloat(model.pricing?.prompt || '0');
+        const completionCost = parseFloat(model.pricing?.completion || '0');
+        return promptCost > 0 && (promptCost + completionCost) < 0.05;
+      });
+      
+      // Create models catalog breadcrumb
+      await context.rcrtClient.createBreadcrumb({
+        schema_name: 'openrouter.models.catalog.v1',
+        title: 'OpenRouter Available Models',
+        tags: ['workspace:tools', 'openrouter:models', 'models:catalog'],
+        context: {
+          models: usefulModels.map((model: any) => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            pricing: {
+              prompt: model.pricing.prompt,
+              completion: model.pricing.completion,
+              currency: 'USD'
+            },
+            context_length: model.context_length,
+            capabilities: {
+              input_modalities: model.architecture?.input_modalities || ['text'],
+              output_modalities: model.architecture?.output_modalities || ['text'],
+              supports_tools: model.supported_parameters?.includes('tools') || false,
+              supports_vision: model.architecture?.input_modalities?.includes('image') || false
+            },
+            provider: model.id.split('/')[0],
+            performance: {
+              max_completion_tokens: model.top_provider?.max_completion_tokens || 4096,
+              is_moderated: model.top_provider?.is_moderated || false
+            },
+            updated_at: new Date().toISOString()
+          })),
+          total_models: usefulModels.length,
+          total_available: modelsData.data.length,
+          last_updated: new Date().toISOString(),
+          source: 'https://openrouter.ai/api/v1/models',
+          update_interval: '24 hours',
+          filtering: 'Excluded models with cost > $50/1M tokens or no pricing'
+        }
+      });
+      
+      console.log(`[OpenRouter] Created models catalog with ${usefulModels.length} models`);
+    } catch (error) {
+      console.error('[OpenRouter] Failed to ensure models catalog:', error);
+    }
+  }
+  
+  /**
    * Load tool configuration from RCRT breadcrumb
    */
   private async loadToolConfiguration(context: ToolExecutionContext): Promise<any> {
     try {
       console.log('[OpenRouter] Loading tool configuration from breadcrumb...');
+      
+      // Ensure models catalog exists first
+      await this.ensureModelsCatalog(context);
       
       // Search for tool config breadcrumb
       const configBreadcrumbs = await context.rcrtClient.searchBreadcrumbs({

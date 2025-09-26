@@ -42,7 +42,7 @@ export class SimpleLLMChooser {
     try {
       // Try to get recommendations from real model catalog
       const modelsCatalog = await this.client.searchBreadcrumbs({
-        tags: ['openrouter:models', 'models:catalog']
+        tag: 'openrouter:models'
       });
       
       if (modelsCatalog.length > 0) {

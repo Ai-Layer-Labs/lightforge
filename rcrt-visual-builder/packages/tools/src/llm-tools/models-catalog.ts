@@ -18,7 +18,7 @@ export class OpenRouterModelsCatalog {
     try {
       // Check for existing model catalog
       const existing = await this.client.searchBreadcrumbs({
-        tags: ['openrouter:models', 'models:catalog']
+        tag: 'openrouter:models'
       });
       
       if (existing.length === 0 || this.shouldUpdateCatalog(existing[0])) {
@@ -115,7 +115,7 @@ export class OpenRouterModelsCatalog {
    */
   async getModelRecommendations(taskType: string): Promise<any[]> {
     const modelsCatalog = await this.client.searchBreadcrumbs({
-      tags: ['openrouter:models', 'models:catalog']
+      tag: 'openrouter:models'
     });
     
     if (modelsCatalog.length === 0) {

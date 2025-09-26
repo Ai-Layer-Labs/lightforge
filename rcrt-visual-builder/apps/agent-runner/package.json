@@ -17,7 +17,8 @@
     "@rcrt-builder/runtime": "workspace:*",
     "@rcrt-builder/core": "workspace:*",
     "tsx": "^4.7.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "jsonrepair": "^3.10.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3",

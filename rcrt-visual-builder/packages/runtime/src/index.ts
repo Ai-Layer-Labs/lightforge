@@ -11,3 +11,6 @@ export { ToolPromptAdapter, ToolInfo, ToolCatalogBreadcrumb } from './agent/tool
 
 // Re-export SSE client wrapper
 export { SSEClient } from './sse/sse-client';
+
+// Export JSON repair utilities
+export { safeParseJSON, extractAndParseJSON, parseJSONWithLogging, SafeParseOptions } from './utils/json-repair';

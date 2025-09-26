@@ -33,6 +33,9 @@ export interface RCRTTool {
   
   // Optional: cleanup resources
   cleanup?(): Promise<void>;
+  
+  // Optional: initialize tool (e.g., create catalogs, load data)
+  initialize?(context: ToolExecutionContext): Promise<void>;
 }
 
 // Context passed to tools from breadcrumb events
@@ -86,6 +89,23 @@ export class RCRTToolWrapper {
 
   async start(): Promise<void> {
     console.log(`[${this.tool.name}] Starting tool wrapper for workspace: ${this.workspace}`);
+    
+    // Initialize tool if it has an initialize method
+    if (this.tool.initialize) {
+      console.log(`[${this.tool.name}] Running tool initialization...`);
+      try {
+        const initContext: ToolExecutionContext = {
+          requestId: `init-${Date.now()}`,
+          workspace: this.workspace,
+          agentId: 'system',
+          rcrtClient: this.client
+        };
+        await this.tool.initialize(initContext);
+        console.log(`[${this.tool.name}] Initialization complete`);
+      } catch (error) {
+        console.error(`[${this.tool.name}] Initialization failed:`, error);
+      }
+    }
     
     // 🔧 ARCHITECTURE CHANGE: Centralized SSE dispatcher handles tool requests
     // Individual wrappers no longer maintain separate SSE connections
@@ -424,6 +444,93 @@ export const builtinTools = {
         Math.floor(Math.random() * (max - min + 1)) + min
       );
       return { numbers };
+    }
+  ),
+
+  // Calculator tool
+  calculator: createTool(
+    'calculator',
+    'Perform mathematical calculations - supports basic arithmetic, parentheses, and common math functions',
+    {
+      type: 'object',
+      properties: {
+        expression: { 
+          type: 'string', 
+          description: 'Mathematical expression to evaluate (e.g., "2 + 2", "(5 * 3) / 2", "Math.sqrt(16)")' 
+        }
+      },
+      required: ['expression']
+    },
+    {
+      type: 'object',
+      properties: {
+        result: { type: 'number', description: 'The calculated result' },
+        expression: { type: 'string', description: 'The original expression' },
+        formatted: { type: 'string', description: 'Formatted result string' }
+      },
+      required: ['result', 'expression']
+    },
+    async (input) => {
+      const { expression } = input;
+      
+      try {
+        // Create a safer eval context with Math functions
+        const mathContext = {
+          // Basic Math constants
+          PI: Math.PI,
+          E: Math.E,
+          // Basic Math functions
+          abs: Math.abs,
+          acos: Math.acos,
+          asin: Math.asin,
+          atan: Math.atan,
+          atan2: Math.atan2,
+          ceil: Math.ceil,
+          cos: Math.cos,
+          exp: Math.exp,
+          floor: Math.floor,
+          log: Math.log,
+          max: Math.max,
+          min: Math.min,
+          pow: Math.pow,
+          random: Math.random,
+          round: Math.round,
+          sin: Math.sin,
+          sqrt: Math.sqrt,
+          tan: Math.tan
+        };
+        
+        // Build function with math context
+        const mathKeys = Object.keys(mathContext);
+        const mathValues = Object.values(mathContext);
+        
+        // Sanitize expression - remove potentially dangerous patterns
+        const sanitized = expression
+          .replace(/[^0-9+\-*/().,\s\w]/g, '') // Only allow basic math chars
+          .replace(/\bMath\./g, ''); // Remove Math. prefix for cleaner syntax
+        
+        // Create function with math context
+        const evalFunction = new Function(...mathKeys, `"use strict"; return (${sanitized})`);
+        const result = evalFunction(...mathValues);
+        
+        // Validate result
+        if (typeof result !== 'number' || !isFinite(result)) {
+          throw new Error('Expression did not evaluate to a valid number');
+        }
+        
+        // Format result nicely
+        const formatted = result % 1 === 0 
+          ? result.toString() 
+          : result.toFixed(10).replace(/\.?0+$/, ''); // Remove trailing zeros
+        
+        return {
+          result,
+          expression,
+          formatted: `${expression} = ${formatted}`
+        };
+      } catch (error: any) {
+        throw new Error(`Failed to evaluate expression: ${error.message}`);
+      }
     }
   ),
 

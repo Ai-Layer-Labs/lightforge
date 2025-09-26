@@ -19,7 +19,8 @@
   "dependencies": {
     "@rcrt-builder/tools": "workspace:*",
     "@rcrt-builder/sdk": "workspace:*",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "jsonrepair": "^3.10.0"
   },
   "optionalDependencies": {
     "langchain": "^0.3.0",

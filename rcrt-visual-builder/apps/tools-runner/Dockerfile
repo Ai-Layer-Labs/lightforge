@@ -32,6 +32,13 @@ FROM base AS runtime
 # Copy built output with dependencies embedded
 COPY --from=build /app/apps/tools-runner/dist ./apps/tools-runner/dist
 COPY --from=build /app/apps/tools-runner/package.json ./apps/tools-runner/
+# Copy workspace structure and dependencies
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+# Install production dependencies in runtime
+RUN pnpm install --prod --filter @rcrt-builder/tools-runner...
 
 # Environment
 ENV NODE_ENV=production

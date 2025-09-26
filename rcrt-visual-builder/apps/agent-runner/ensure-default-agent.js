@@ -49,12 +49,9 @@ async function loadDefaultAgentDefinition() {
     "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
     "context": {
       "agent_id": "default-chat-assistant",
-      "llm_tool": "openrouter",
-      "llm_config": {
-        "model": "google/gemini-2.0-flash-exp",
-        "temperature": 0.7,
-        "max_tokens": 2000
-      },
+      "model": "google/gemini-2.5-flash",
+      "temperature": 0.7,
+      "max_tokens": 2000,
       "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou dynamically discover available tools from the tool catalog breadcrumb. When you need to use a tool:\n1. Check the tool catalog in your context for available tools\n2. Create a tool.request.v1 breadcrumb with the appropriate parameters\n3. Wait for the tool.response.v1 breadcrumb with results\n\nAlways be helpful, concise, and clear. Explain what you're doing when invoking tools.\n\nIMPORTANT: Respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response\",\n      \"tool_requests\": [...]\n    }\n  }\n}",
       "capabilities": {
         "can_create_breadcrumbs": true,

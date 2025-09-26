@@ -22,7 +22,8 @@
     "@rcrt-builder/core": "workspace:*",
     "@rcrt-builder/sdk": "workspace:*",
     "@rcrt-builder/node-sdk": "workspace:*",
-    "eventsource": "^2.0.2"
+    "eventsource": "^2.0.2",
+    "jsonrepair": "^3.10.0"
   },
   "devDependencies": {
     "@types/eventsource": "^1.1.15",
