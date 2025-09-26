@@ -481,7 +481,7 @@ export class ToolRegistry {
     } catch (error) {
       console.error('[ToolRegistry] Failed to update catalog:', error);
       // Try to recreate if update failed (maybe breadcrumb was deleted)
-      if (error.message?.includes('404') || error.message?.includes('not found')) {
+      if (error instanceof Error && (error.message?.includes('404') || error.message?.includes('not found'))) {
         console.log('[ToolRegistry] Catalog breadcrumb not found, recreating...');
         this.catalogBreadcrumbId = undefined;
         await this.createCatalogBreadcrumb();
