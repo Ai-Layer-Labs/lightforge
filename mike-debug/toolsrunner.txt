@@ -1,0 +1,1026 @@
+2025-09-25 17:28:54 🔧 RCRT Tools Runner starting...
+2025-09-25 17:28:54 Configuration: {
+2025-09-25 17:28:54   rcrtBaseUrl: 'http://rcrt:8080',
+2025-09-25 17:28:54   workspace: 'workspace:tools',
+2025-09-25 17:28:54   deploymentMode: 'docker',
+2025-09-25 17:28:54   enableBuiltins: true,
+2025-09-25 17:28:54   enableLangChain: true,
+2025-09-25 17:28:54   enableUI: false,
+2025-09-25 17:28:54   tokenEndpoint: 'http://rcrt:8080/auth/token'
+2025-09-25 17:28:54 }
+2025-09-25 17:28:54 Waiting for services to be ready...
+2025-09-25 17:29:00 ✅ Fetched JWT token from http://rcrt:8080/auth/token
+2025-09-25 17:29:00 ✅ Connected to RCRT
+2025-09-25 17:29:00 [ToolRegistry] Starting for workspace: workspace:tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Searching for existing catalogs in workspace:tools...
+2025-09-25 17:29:00 🔍 SDK searchBreadcrumbs called with: { tag: 'workspace:tools' } object
+2025-09-25 17:29:00 🔍 Checking if selector: { tag: 'workspace:tools' } object true
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Found 4 total breadcrumbs in workspace:tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Sample breadcrumbs: [
+2025-09-25 17:29:00   {
+2025-09-25 17:29:00     id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00     title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00     schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00     tags: [ 'workspace:tools', 'tool:catalog' ]
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   {
+2025-09-25 17:29:00     id: '99793fc9-eab8-45ad-8c17-cca0d2e6d836',
+2025-09-25 17:29:00     title: 'Missing secret: SERPAPI_API_KEY',
+2025-09-25 17:29:00     schema_name: 'tool.config.request.v1',
+2025-09-25 17:29:00     tags: [
+2025-09-25 17:29:00       'workspace:tools',
+2025-09-25 17:29:00       'tool:config',
+2025-09-25 17:29:00       'tool:config:request',
+2025-09-25 17:29:00       'tool:serpapi'
+2025-09-25 17:29:00     ]
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   {
+2025-09-25 17:29:00     id: 'd6efb0c2-73a5-46ac-960b-99eb4040e096',
+2025-09-25 17:29:00     title: 'Missing secret: SERPAPI_API_KEY',
+2025-09-25 17:29:00     schema_name: 'tool.config.request.v1',
+2025-09-25 17:29:00     tags: [
+2025-09-25 17:29:00       'workspace:tools',
+2025-09-25 17:29:00       'tool:config',
+2025-09-25 17:29:00       'tool:config:request',
+2025-09-25 17:29:00       'tool:serpapi'
+2025-09-25 17:29:00     ]
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] Found 1 existing catalog(s) for workspace:tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Existing catalogs: [
+2025-09-25 17:29:00   {
+2025-09-25 17:29:00     id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00     title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00     version: 29,
+2025-09-25 17:29:00     updated_at: '2025-09-26T00:28:02.134125Z'
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] Using latest catalog: 1ed3f7e9-6e54-44be-925b-fe0aacdd865d (v29)
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Loading full catalog from ID: 1ed3f7e9-6e54-44be-925b-fe0aacdd865d
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Full catalog loaded: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context_exists: true,
+2025-09-25 17:29:00   context_tools_exists: false,
+2025-09-25 17:29:00   context_tools_length: 0,
+2025-09-25 17:29:00   context_sample: [ 'tool_summary', 'available_tools', 'categories' ]
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ❌ Catalog has no tools array - context.tools is missing or empty
+2025-09-25 17:29:00 [ToolRegistry] Catalog context: {
+2025-09-25 17:29:00   tool_summary: '10 tools available:\n' +
+2025-09-25 17:29:00     '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00     '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00     '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00     '- random (general): Generate random numbers\n' +
+2025-09-25 17:29:00     '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:29:00     '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:29:00     '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:29:00     '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:29:00     '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:29:00     '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:29:00     '\n' +
+2025-09-25 17:29:00     'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00     '- tool: the tool name\n' +
+2025-09-25 17:29:00     '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00     '- requestId: unique identifier',
+2025-09-25 17:29:00   available_tools: [
+2025-09-25 17:29:00     'agent-helper',
+2025-09-25 17:29:00     'echo',
+2025-09-25 17:29:00     'timer',
+2025-09-25 17:29:00     'random',
+2025-09-25 17:29:00     'file-storage',
+2025-09-25 17:29:00     'agent-loader',
+2025-09-25 17:29:00     'calculator',
+2025-09-25 17:29:00     'web_browser',
+2025-09-25 17:29:00     'openrouter',
+2025-09-25 17:29:00     'ollama_local'
+2025-09-25 17:29:00   ],
+2025-09-25 17:29:00   categories: 'general, general, general, general, storage, agents, math, web, llm, llm'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: agent-helper
+2025-09-25 17:29:00 [agent-helper] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [agent-helper] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 1
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [ { name: 'agent-helper', status: 'active' } ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object] ],
+2025-09-25 17:29:00     totalTools: 1,
+2025-09-25 17:29:00     activeTools: 1,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.172Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 29
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     tool_summary: '1 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier',
+2025-09-25 17:29:00     available_tools: 'agent-helper',
+2025-09-25 17:29:00     categories: 'general'
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 30,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.176221Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 1 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 1
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: echo
+2025-09-25 17:29:00 [echo] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [echo] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 2
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [
+2025-09-25 17:29:00   { name: 'agent-helper', status: 'active' },
+2025-09-25 17:29:00   { name: 'echo', status: 'active' }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object], [Object] ],
+2025-09-25 17:29:00     totalTools: 2,
+2025-09-25 17:29:00     activeTools: 2,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.191Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 30
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     categories: 'general, general',
+2025-09-25 17:29:00     available_tools: [ 'agent-helper', 'echo' ],
+2025-09-25 17:29:00     tool_summary: '2 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier'
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 31,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.194763Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 2 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 2
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: timer
+2025-09-25 17:29:00 [timer] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [timer] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 3
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [
+2025-09-25 17:29:00   { name: 'agent-helper', status: 'active' },
+2025-09-25 17:29:00   { name: 'echo', status: 'active' },
+2025-09-25 17:29:00   { name: 'timer', status: 'active' }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object], [Object], [Object] ],
+2025-09-25 17:29:00     totalTools: 3,
+2025-09-25 17:29:00     activeTools: 3,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.207Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 31
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     categories: 'general, general, general',
+2025-09-25 17:29:00     tool_summary: '3 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier',
+2025-09-25 17:29:00     available_tools: [ 'agent-helper', 'echo', 'timer' ]
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 32,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.214514Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 3 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 3
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: random
+2025-09-25 17:29:00 [random] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [random] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 4
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [
+2025-09-25 17:29:00   { name: 'agent-helper', status: 'active' },
+2025-09-25 17:29:00   { name: 'echo', status: 'active' },
+2025-09-25 17:29:00   { name: 'timer', status: 'active' },
+2025-09-25 17:29:00   { name: 'random', status: 'active' }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object], [Object], [Object], [Object] ],
+2025-09-25 17:29:00     totalTools: 4,
+2025-09-25 17:29:00     activeTools: 4,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.258Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 32
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     tool_summary: '4 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier',
+2025-09-25 17:29:00     categories: 'general, general, general, general',
+2025-09-25 17:29:00     available_tools: [ 'agent-helper', 'echo', 'timer', 'random' ]
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 33,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.263717Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 4 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 4
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: file-storage
+2025-09-25 17:29:00 [file-storage] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [file-storage] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 5
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [
+2025-09-25 17:29:00   { name: 'agent-helper', status: 'active' },
+2025-09-25 17:29:00   { name: 'echo', status: 'active' },
+2025-09-25 17:29:00   { name: 'timer', status: 'active' },
+2025-09-25 17:29:00   { name: 'random', status: 'active' },
+2025-09-25 17:29:00   { name: 'file-storage', status: 'active' }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object], [Object], [Object], [Object], [Object] ],
+2025-09-25 17:29:00     totalTools: 5,
+2025-09-25 17:29:00     activeTools: 5,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.282Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 33
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     available_tools: [ 'agent-helper', 'echo', 'timer', 'random', 'file-storage' ],
+2025-09-25 17:29:00     categories: 'general, general, general, general, storage',
+2025-09-25 17:29:00     tool_summary: '5 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:29:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier'
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 34,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.285376Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 5 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 5
+2025-09-25 17:29:00 [ToolRegistry] Registering tool: agent-loader
+2025-09-25 17:29:00 [agent-loader] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [agent-loader] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to update catalog. Current catalog length: 6
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Tools in catalog: [
+2025-09-25 17:29:00   { name: 'agent-helper', status: 'active' },
+2025-09-25 17:29:00   { name: 'echo', status: 'active' },
+2025-09-25 17:29:00   { name: 'timer', status: 'active' },
+2025-09-25 17:29:00   { name: 'random', status: 'active' },
+2025-09-25 17:29:00   { name: 'file-storage', status: 'active' },
+2025-09-25 17:29:00   { name: 'agent-loader', status: 'active' }
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+2025-09-25 17:29:00     totalTools: 6,
+2025-09-25 17:29:00     activeTools: 6,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.296Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 34
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     tool_summary: '6 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:29:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:29:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier',
+2025-09-25 17:29:00     categories: 'general, general, general, general, storage, agents',
+2025-09-25 17:29:00     available_tools: [
+2025-09-25 17:29:00       'agent-helper',
+2025-09-25 17:29:00       'echo',
+2025-09-25 17:29:00       'timer',
+2025-09-25 17:29:00       'random',
+2025-09-25 17:29:00       'file-storage',
+2025-09-25 17:29:00       'agent-loader'
+2025-09-25 17:29:00     ]
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 35,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.298052Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 6 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Catalog update completed. Catalog length: 6
+2025-09-25 17:29:00 [calculator] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [calculator] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [web_browser] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [web_browser] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 Registered 2 LangChain tools for workspace: workspace:tools
+2025-09-25 17:29:00 [LLM Tools] Initializing OpenRouter models catalog...
+2025-09-25 17:29:00 [OpenRouter] Initializing models catalog...
+2025-09-25 17:29:00 🔍 SDK searchBreadcrumbs called with: { tags: [ 'openrouter:models', 'models:catalog' ] } object
+2025-09-25 17:29:00 🔍 Checking if selector: { tags: [ 'openrouter:models', 'models:catalog' ] } object true
+2025-09-25 17:29:00 [LLM Tools] Registering OpenRouter tool...
+2025-09-25 17:29:00 [openrouter] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [openrouter] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [LLM Tools] Registering Ollama tool...
+2025-09-25 17:29:00 [ToolRegistry] SERPAPI_API_KEY missing; SerpAPI tool will be skipped until provisioned.
+2025-09-25 17:29:00 [OpenRouter] ❌ Failed to initialize models catalog: Error: Failed to search breadcrumbs: Failed to deserialize query string: duplicate field `tag`
+2025-09-25 17:29:00     at _RcrtClientEnhanced.searchBreadcrumbs (/app/apps/tools-runner/dist/index.js:973:13)
+2025-09-25 17:29:00     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-25 17:29:00     at async OpenRouterModelsCatalog.initializeModelsCatalog (/app/apps/tools-runner/dist/index.js:2485:28)
+2025-09-25 17:29:00     at async registerLLMTools (/app/apps/tools-runner/dist/index.js:2754:5)
+2025-09-25 17:29:00     at async registerAllToolsWithLLM (/app/apps/tools-runner/dist/index.js:2723:25)
+2025-09-25 17:29:00     at async ToolRegistry.registerLangChainTools (/app/apps/tools-runner/dist/index.js:3180:24)
+2025-09-25 17:29:00     at async createToolRegistry (/app/apps/tools-runner/dist/index.js:3472:5)
+2025-09-25 17:29:00     at async main (/app/apps/tools-runner/dist/index.js:3776:22)
+2025-09-25 17:29:00 [ollama_local] Starting tool wrapper for workspace: workspace:tools
+2025-09-25 17:29:00 [ollama_local] ✅ Tool ready - centralized dispatcher will route requests
+2025-09-25 17:29:00 [LLM Tools] ✅ Ollama tool registered successfully
+2025-09-25 17:29:00 [LLM Tools] ✅ Registered 2 LLM tools
+2025-09-25 17:29:00 Registered 4 total tools (LangChain + LLM) for workspace: workspace:tools
+2025-09-25 17:29:00 [ToolRegistry] ✅ Added new math tool calculator to catalog
+2025-09-25 17:29:00 [ToolRegistry] ✅ Added new web tool web_browser to catalog
+2025-09-25 17:29:00 [ToolRegistry] ✅ Added new llm tool openrouter to catalog
+2025-09-25 17:29:00 [ToolRegistry] ✅ Added new llm tool ollama_local to catalog
+2025-09-25 17:29:00 [ToolRegistry] Registered 4 tools (LangChain + LLM)
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Total catalog now has 10 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     workspace: 'workspace:tools',
+2025-09-25 17:29:00     tools: [
+2025-09-25 17:29:00       [Object], [Object],
+2025-09-25 17:29:00       [Object], [Object],
+2025-09-25 17:29:00       [Object], [Object],
+2025-09-25 17:29:00       [Object], [Object],
+2025-09-25 17:29:00       [Object], [Object]
+2025-09-25 17:29:00     ],
+2025-09-25 17:29:00     totalTools: 10,
+2025-09-25 17:29:00     activeTools: 10,
+2025-09-25 17:29:00     lastUpdated: '2025-09-26T00:29:00.947Z',
+2025-09-25 17:29:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:29:00   }
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 35
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:29:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:29:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:29:00   context: {
+2025-09-25 17:29:00     available_tools: [
+2025-09-25 17:29:00       'agent-helper',
+2025-09-25 17:29:00       'echo',
+2025-09-25 17:29:00       'timer',
+2025-09-25 17:29:00       'random',
+2025-09-25 17:29:00       'file-storage',
+2025-09-25 17:29:00       'agent-loader',
+2025-09-25 17:29:00       'calculator',
+2025-09-25 17:29:00       'web_browser',
+2025-09-25 17:29:00       'openrouter',
+2025-09-25 17:29:00       'ollama_local'
+2025-09-25 17:29:00     ],
+2025-09-25 17:29:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:29:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:29:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:29:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:29:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:29:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:29:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:29:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:29:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:29:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:29:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:29:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:29:00       '\n' +
+2025-09-25 17:29:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:29:00       '- tool: the tool name\n' +
+2025-09-25 17:29:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:29:00       '- requestId: unique identifier'
+2025-09-25 17:29:00   },
+2025-09-25 17:29:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:29:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:29:00   version: 36,
+2025-09-25 17:29:00   updated_at: '2025-09-26T00:29:00.950454Z'
+2025-09-25 17:29:00 }
+2025-09-25 17:29:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:29:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:29:00 ✅ Tool registry initialized
+2025-09-25 17:29:00 🎯 Registered tools: [
+2025-09-25 17:29:00   'agent-helper',
+2025-09-25 17:29:00   'echo',
+2025-09-25 17:29:00   'timer',
+2025-09-25 17:29:00   'random',
+2025-09-25 17:29:00   'file-storage',
+2025-09-25 17:29:00   'agent-loader',
+2025-09-25 17:29:00   'calculator',
+2025-09-25 17:29:00   'web_browser',
+2025-09-25 17:29:00   'openrouter',
+2025-09-25 17:29:00   'ollama_local'
+2025-09-25 17:29:00 ]
+2025-09-25 17:29:00 🚀 Tools runner is ready and listening for requests
+2025-09-25 17:29:00 📡 Workspace: workspace:tools
+2025-09-25 17:29:00 💡 Centralized SSE dispatcher routes requests to individual tools
+2025-09-25 17:29:00 🎯 Starting centralized SSE dispatcher...
+2025-09-25 17:29:00 📡 Starting centralized SSE dispatcher...
+2025-09-25 17:29:00 🔌 Connecting to SSE: http://rcrt:8080/events/stream
+2025-09-25 17:29:00 ✅ Centralized SSE dispatcher connected
+2025-09-25 17:30:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:30:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:30:00   context: {
+2025-09-25 17:30:00     workspace: 'workspace:tools',
+2025-09-25 17:30:00     tools: [
+2025-09-25 17:30:00       [Object], [Object],
+2025-09-25 17:30:00       [Object], [Object],
+2025-09-25 17:30:00       [Object], [Object],
+2025-09-25 17:30:00       [Object], [Object],
+2025-09-25 17:30:00       [Object], [Object]
+2025-09-25 17:30:00     ],
+2025-09-25 17:30:00     totalTools: 10,
+2025-09-25 17:30:00     activeTools: 10,
+2025-09-25 17:30:00     lastUpdated: '2025-09-26T00:30:00.197Z',
+2025-09-25 17:30:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:30:00   }
+2025-09-25 17:30:00 }
+2025-09-25 17:30:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 36
+2025-09-25 17:30:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:30:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:30:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:30:00   context: {
+2025-09-25 17:30:00     available_tools: [
+2025-09-25 17:30:00       'agent-helper',
+2025-09-25 17:30:00       'echo',
+2025-09-25 17:30:00       'timer',
+2025-09-25 17:30:00       'random',
+2025-09-25 17:30:00       'file-storage',
+2025-09-25 17:30:00       'agent-loader',
+2025-09-25 17:30:00       'calculator',
+2025-09-25 17:30:00       'web_browser',
+2025-09-25 17:30:00       'openrouter',
+2025-09-25 17:30:00       'ollama_local'
+2025-09-25 17:30:00     ],
+2025-09-25 17:30:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:30:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:30:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:30:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:30:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:30:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:30:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:30:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:30:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:30:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:30:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:30:00       '\n' +
+2025-09-25 17:30:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:30:00       '- tool: the tool name\n' +
+2025-09-25 17:30:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:30:00       '- requestId: unique identifier',
+2025-09-25 17:30:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm'
+2025-09-25 17:30:00   },
+2025-09-25 17:30:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:30:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:30:00   version: 37,
+2025-09-25 17:30:00   updated_at: '2025-09-26T00:30:00.205563Z'
+2025-09-25 17:30:00 }
+2025-09-25 17:30:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:30:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:31:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:31:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:31:00   context: {
+2025-09-25 17:31:00     workspace: 'workspace:tools',
+2025-09-25 17:31:00     tools: [
+2025-09-25 17:31:00       [Object], [Object],
+2025-09-25 17:31:00       [Object], [Object],
+2025-09-25 17:31:00       [Object], [Object],
+2025-09-25 17:31:00       [Object], [Object],
+2025-09-25 17:31:00       [Object], [Object]
+2025-09-25 17:31:00     ],
+2025-09-25 17:31:00     totalTools: 10,
+2025-09-25 17:31:00     activeTools: 10,
+2025-09-25 17:31:00     lastUpdated: '2025-09-26T00:31:00.244Z',
+2025-09-25 17:31:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:31:00   }
+2025-09-25 17:31:00 }
+2025-09-25 17:31:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 37
+2025-09-25 17:31:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:31:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:31:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:31:00   context: {
+2025-09-25 17:31:00     available_tools: [
+2025-09-25 17:31:00       'agent-helper',
+2025-09-25 17:31:00       'echo',
+2025-09-25 17:31:00       'timer',
+2025-09-25 17:31:00       'random',
+2025-09-25 17:31:00       'file-storage',
+2025-09-25 17:31:00       'agent-loader',
+2025-09-25 17:31:00       'calculator',
+2025-09-25 17:31:00       'web_browser',
+2025-09-25 17:31:00       'openrouter',
+2025-09-25 17:31:00       'ollama_local'
+2025-09-25 17:31:00     ],
+2025-09-25 17:31:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:31:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:31:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:31:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:31:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:31:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:31:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:31:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:31:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:31:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:31:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:31:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:31:00       '\n' +
+2025-09-25 17:31:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:31:00       '- tool: the tool name\n' +
+2025-09-25 17:31:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:31:00       '- requestId: unique identifier'
+2025-09-25 17:31:00   },
+2025-09-25 17:31:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:31:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:31:00   version: 38,
+2025-09-25 17:31:00   updated_at: '2025-09-26T00:31:00.270050Z'
+2025-09-25 17:31:00 }
+2025-09-25 17:31:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:31:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:32:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:32:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:32:00   context: {
+2025-09-25 17:32:00     workspace: 'workspace:tools',
+2025-09-25 17:32:00     tools: [
+2025-09-25 17:32:00       [Object], [Object],
+2025-09-25 17:32:00       [Object], [Object],
+2025-09-25 17:32:00       [Object], [Object],
+2025-09-25 17:32:00       [Object], [Object],
+2025-09-25 17:32:00       [Object], [Object]
+2025-09-25 17:32:00     ],
+2025-09-25 17:32:00     totalTools: 10,
+2025-09-25 17:32:00     activeTools: 10,
+2025-09-25 17:32:00     lastUpdated: '2025-09-26T00:32:00.217Z',
+2025-09-25 17:32:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:32:00   }
+2025-09-25 17:32:00 }
+2025-09-25 17:32:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 38
+2025-09-25 17:32:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:32:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:32:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:32:00   context: {
+2025-09-25 17:32:00     available_tools: [
+2025-09-25 17:32:00       'agent-helper',
+2025-09-25 17:32:00       'echo',
+2025-09-25 17:32:00       'timer',
+2025-09-25 17:32:00       'random',
+2025-09-25 17:32:00       'file-storage',
+2025-09-25 17:32:00       'agent-loader',
+2025-09-25 17:32:00       'calculator',
+2025-09-25 17:32:00       'web_browser',
+2025-09-25 17:32:00       'openrouter',
+2025-09-25 17:32:00       'ollama_local'
+2025-09-25 17:32:00     ],
+2025-09-25 17:32:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:32:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:32:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:32:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:32:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:32:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:32:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:32:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:32:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:32:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:32:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:32:00       '\n' +
+2025-09-25 17:32:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:32:00       '- tool: the tool name\n' +
+2025-09-25 17:32:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:32:00       '- requestId: unique identifier',
+2025-09-25 17:32:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm'
+2025-09-25 17:32:00   },
+2025-09-25 17:32:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:32:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:32:00   version: 39,
+2025-09-25 17:32:00   updated_at: '2025-09-26T00:32:00.241779Z'
+2025-09-25 17:32:00 }
+2025-09-25 17:32:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:32:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:33:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:33:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:33:00   context: {
+2025-09-25 17:33:00     workspace: 'workspace:tools',
+2025-09-25 17:33:00     tools: [
+2025-09-25 17:33:00       [Object], [Object],
+2025-09-25 17:33:00       [Object], [Object],
+2025-09-25 17:33:00       [Object], [Object],
+2025-09-25 17:33:00       [Object], [Object],
+2025-09-25 17:33:00       [Object], [Object]
+2025-09-25 17:33:00     ],
+2025-09-25 17:33:00     totalTools: 10,
+2025-09-25 17:33:00     activeTools: 10,
+2025-09-25 17:33:00     lastUpdated: '2025-09-26T00:33:00.212Z',
+2025-09-25 17:33:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:33:00   }
+2025-09-25 17:33:00 }
+2025-09-25 17:33:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 39
+2025-09-25 17:33:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:33:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:33:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:33:00   context: {
+2025-09-25 17:33:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:33:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:33:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:33:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:33:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:33:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:33:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:33:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:33:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:33:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:33:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:33:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:33:00       '\n' +
+2025-09-25 17:33:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:33:00       '- tool: the tool name\n' +
+2025-09-25 17:33:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:33:00       '- requestId: unique identifier',
+2025-09-25 17:33:00     available_tools: [
+2025-09-25 17:33:00       'agent-helper',
+2025-09-25 17:33:00       'echo',
+2025-09-25 17:33:00       'timer',
+2025-09-25 17:33:00       'random',
+2025-09-25 17:33:00       'file-storage',
+2025-09-25 17:33:00       'agent-loader',
+2025-09-25 17:33:00       'calculator',
+2025-09-25 17:33:00       'web_browser',
+2025-09-25 17:33:00       'openrouter',
+2025-09-25 17:33:00       'ollama_local'
+2025-09-25 17:33:00     ]
+2025-09-25 17:33:00   },
+2025-09-25 17:33:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:33:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:33:00   version: 40,
+2025-09-25 17:33:00   updated_at: '2025-09-26T00:33:00.252777Z'
+2025-09-25 17:33:00 }
+2025-09-25 17:33:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:33:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:34:00 [ToolRegistry] Performing health check...
+2025-09-25 17:34:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:34:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:34:00   context: {
+2025-09-25 17:34:00     workspace: 'workspace:tools',
+2025-09-25 17:34:00     tools: [
+2025-09-25 17:34:00       [Object], [Object],
+2025-09-25 17:34:00       [Object], [Object],
+2025-09-25 17:34:00       [Object], [Object],
+2025-09-25 17:34:00       [Object], [Object],
+2025-09-25 17:34:00       [Object], [Object]
+2025-09-25 17:34:00     ],
+2025-09-25 17:34:00     totalTools: 10,
+2025-09-25 17:34:00     activeTools: 10,
+2025-09-25 17:34:00     lastUpdated: '2025-09-26T00:34:00.272Z',
+2025-09-25 17:34:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:34:00   }
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 40
+2025-09-25 17:34:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:34:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:34:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:34:00   context: {
+2025-09-25 17:34:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:34:00     available_tools: [
+2025-09-25 17:34:00       'agent-helper',
+2025-09-25 17:34:00       'echo',
+2025-09-25 17:34:00       'timer',
+2025-09-25 17:34:00       'random',
+2025-09-25 17:34:00       'file-storage',
+2025-09-25 17:34:00       'agent-loader',
+2025-09-25 17:34:00       'calculator',
+2025-09-25 17:34:00       'web_browser',
+2025-09-25 17:34:00       'openrouter',
+2025-09-25 17:34:00       'ollama_local'
+2025-09-25 17:34:00     ],
+2025-09-25 17:34:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:34:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:34:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:34:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:34:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:34:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:34:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:34:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:34:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:34:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:34:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:34:00       '\n' +
+2025-09-25 17:34:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:34:00       '- tool: the tool name\n' +
+2025-09-25 17:34:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:34:00       '- requestId: unique identifier'
+2025-09-25 17:34:00   },
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:34:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:34:00   version: 41,
+2025-09-25 17:34:00   updated_at: '2025-09-26T00:34:00.303849Z'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:34:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: '9f73511a-237d-41c2-a2dd-3aca49ba75e9'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: '14a4fe0a-5151-4861-b87b-3878c0c5cb84'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: '24074fce-52b6-46ac-a20a-7ef7a027de6d'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: '35a39a40-59f7-442a-961c-8297dedc1065'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: 'aff8da99-8fe0-479a-a194-763917122561'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:00 📡 SSE Event received: {
+2025-09-25 17:34:00   type: 'breadcrumb.updated',
+2025-09-25 17:34:00   schema_name: 'tool.request.v1',
+2025-09-25 17:34:00   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:00   breadcrumb_id: '000bddb5-a6c8-4694-959a-2ffb03627147'
+2025-09-25 17:34:00 }
+2025-09-25 17:34:01 📡 SSE Event received: {
+2025-09-25 17:34:01   type: 'breadcrumb.updated',
+2025-09-25 17:34:01   schema_name: 'tool.request.v1',
+2025-09-25 17:34:01   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:01   breadcrumb_id: '3a0b67aa-c5bd-4ce7-bfe2-b2af0961de5f'
+2025-09-25 17:34:01 }
+2025-09-25 17:34:01 📡 SSE Event received: {
+2025-09-25 17:34:01   type: 'breadcrumb.updated',
+2025-09-25 17:34:01   schema_name: 'tool.request.v1',
+2025-09-25 17:34:01   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:01   breadcrumb_id: 'a109caa9-88a9-4ca0-aa3b-f1c2a1184e98'
+2025-09-25 17:34:01 }
+2025-09-25 17:34:01 📡 SSE Event received: {
+2025-09-25 17:34:01   type: 'breadcrumb.updated',
+2025-09-25 17:34:01   schema_name: 'tool.request.v1',
+2025-09-25 17:34:01   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:01   breadcrumb_id: 'b2312738-14cc-4c85-853a-96ce08c5a44e'
+2025-09-25 17:34:01 }
+2025-09-25 17:34:01 📡 SSE Event received: {
+2025-09-25 17:34:01   type: 'breadcrumb.updated',
+2025-09-25 17:34:01   schema_name: 'tool.request.v1',
+2025-09-25 17:34:01   tags: [ 'workspace:tools', 'tool:request', 'health:check' ],
+2025-09-25 17:34:01   breadcrumb_id: '274e2426-c89c-4190-89bd-b453dc0663b1'
+2025-09-25 17:34:01 }
+2025-09-25 17:35:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:35:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:35:00   context: {
+2025-09-25 17:35:00     workspace: 'workspace:tools',
+2025-09-25 17:35:00     tools: [
+2025-09-25 17:35:00       [Object], [Object],
+2025-09-25 17:35:00       [Object], [Object],
+2025-09-25 17:35:00       [Object], [Object],
+2025-09-25 17:35:00       [Object], [Object],
+2025-09-25 17:35:00       [Object], [Object]
+2025-09-25 17:35:00     ],
+2025-09-25 17:35:00     totalTools: 10,
+2025-09-25 17:35:00     activeTools: 10,
+2025-09-25 17:35:00     lastUpdated: '2025-09-26T00:35:00.231Z',
+2025-09-25 17:35:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:35:00   }
+2025-09-25 17:35:00 }
+2025-09-25 17:35:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 41
+2025-09-25 17:35:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:35:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:35:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:35:00   context: {
+2025-09-25 17:35:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:35:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:35:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:35:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:35:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:35:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:35:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:35:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:35:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:35:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:35:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:35:00       '\n' +
+2025-09-25 17:35:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:35:00       '- tool: the tool name\n' +
+2025-09-25 17:35:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:35:00       '- requestId: unique identifier',
+2025-09-25 17:35:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:35:00     available_tools: [
+2025-09-25 17:35:00       'agent-helper',
+2025-09-25 17:35:00       'echo',
+2025-09-25 17:35:00       'timer',
+2025-09-25 17:35:00       'random',
+2025-09-25 17:35:00       'file-storage',
+2025-09-25 17:35:00       'agent-loader',
+2025-09-25 17:35:00       'calculator',
+2025-09-25 17:35:00       'web_browser',
+2025-09-25 17:35:00       'openrouter',
+2025-09-25 17:35:00       'ollama_local'
+2025-09-25 17:35:00     ]
+2025-09-25 17:35:00   },
+2025-09-25 17:35:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:35:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:35:00   version: 42,
+2025-09-25 17:35:00   updated_at: '2025-09-26T00:35:00.240792Z'
+2025-09-25 17:35:00 }
+2025-09-25 17:35:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:35:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:36:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:36:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:36:00   context: {
+2025-09-25 17:36:00     workspace: 'workspace:tools',
+2025-09-25 17:36:00     tools: [
+2025-09-25 17:36:00       [Object], [Object],
+2025-09-25 17:36:00       [Object], [Object],
+2025-09-25 17:36:00       [Object], [Object],
+2025-09-25 17:36:00       [Object], [Object],
+2025-09-25 17:36:00       [Object], [Object]
+2025-09-25 17:36:00     ],
+2025-09-25 17:36:00     totalTools: 10,
+2025-09-25 17:36:00     activeTools: 10,
+2025-09-25 17:36:00     lastUpdated: '2025-09-26T00:36:00.325Z',
+2025-09-25 17:36:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:36:00   }
+2025-09-25 17:36:00 }
+2025-09-25 17:36:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 42
+2025-09-25 17:36:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:36:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:36:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:36:00   context: {
+2025-09-25 17:36:00     available_tools: [
+2025-09-25 17:36:00       'agent-helper',
+2025-09-25 17:36:00       'echo',
+2025-09-25 17:36:00       'timer',
+2025-09-25 17:36:00       'random',
+2025-09-25 17:36:00       'file-storage',
+2025-09-25 17:36:00       'agent-loader',
+2025-09-25 17:36:00       'calculator',
+2025-09-25 17:36:00       'web_browser',
+2025-09-25 17:36:00       'openrouter',
+2025-09-25 17:36:00       'ollama_local'
+2025-09-25 17:36:00     ],
+2025-09-25 17:36:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:36:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:36:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:36:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:36:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:36:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:36:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:36:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:36:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:36:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:36:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:36:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:36:00       '\n' +
+2025-09-25 17:36:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:36:00       '- tool: the tool name\n' +
+2025-09-25 17:36:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:36:00       '- requestId: unique identifier'
+2025-09-25 17:36:00   },
+2025-09-25 17:36:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:36:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:36:00   version: 43,
+2025-09-25 17:36:00   updated_at: '2025-09-26T00:36:00.364030Z'
+2025-09-25 17:36:00 }
+2025-09-25 17:36:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:36:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database
+2025-09-25 17:37:00 [ToolRegistry] DEBUG: Updating catalog breadcrumb with payload: {
+2025-09-25 17:37:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:37:00   context: {
+2025-09-25 17:37:00     workspace: 'workspace:tools',
+2025-09-25 17:37:00     tools: [
+2025-09-25 17:37:00       [Object], [Object],
+2025-09-25 17:37:00       [Object], [Object],
+2025-09-25 17:37:00       [Object], [Object],
+2025-09-25 17:37:00       [Object], [Object],
+2025-09-25 17:37:00       [Object], [Object]
+2025-09-25 17:37:00     ],
+2025-09-25 17:37:00     totalTools: 10,
+2025-09-25 17:37:00     activeTools: 10,
+2025-09-25 17:37:00     lastUpdated: '2025-09-26T00:37:00.236Z',
+2025-09-25 17:37:00     llm_hints: { transform: [Object], mode: 'replace' }
+2025-09-25 17:37:00   }
+2025-09-25 17:37:00 }
+2025-09-25 17:37:00 [ToolRegistry] DEBUG: About to call updateBreadcrumb with version 43
+2025-09-25 17:37:00 [ToolRegistry] DEBUG: Update result: {
+2025-09-25 17:37:00   id: '1ed3f7e9-6e54-44be-925b-fe0aacdd865d',
+2025-09-25 17:37:00   title: 'workspace:tools Tool Catalog',
+2025-09-25 17:37:00   context: {
+2025-09-25 17:37:00     categories: 'general, general, general, general, storage, agents, math, web, llm, llm',
+2025-09-25 17:37:00     tool_summary: '10 tools available:\n' +
+2025-09-25 17:37:00       '- agent-helper (general): Provides system guidance and documentation for LLM-based agents\n' +
+2025-09-25 17:37:00       '- echo (general): Returns the input unchanged\n' +
+2025-09-25 17:37:00       '- timer (general): Wait for a specified number of seconds\n' +
+2025-09-25 17:37:00       '- random (general): Generate random numbers\n' +
+2025-09-25 17:37:00       '- file-storage (storage): Store and retrieve files as RCRT breadcrumbs with base64 encoding\n' +
+2025-09-25 17:37:00       '- agent-loader (agents): Load JavaScript files as executable agent definitions\n' +
+2025-09-25 17:37:00       '- calculator (math): Perform mathematical calculations\n' +
+2025-09-25 17:37:00       '- web_browser (web): Browse and extract content from web pages\n' +
+2025-09-25 17:37:00       '- openrouter (llm): OpenRouter - Access to 100+ LLM models via unified API\n' +
+2025-09-25 17:37:00       '- ollama_local (llm): Ollama - Fast, free, private local models\n' +
+2025-09-25 17:37:00       '\n' +
+2025-09-25 17:37:00       'To use a tool, create a tool.request.v1 breadcrumb with:\n' +
+2025-09-25 17:37:00       '- tool: the tool name\n' +
+2025-09-25 17:37:00       '- input: parameters matching the inputSchema\n' +
+2025-09-25 17:37:00       '- requestId: unique identifier',
+2025-09-25 17:37:00     available_tools: [
+2025-09-25 17:37:00       'agent-helper',
+2025-09-25 17:37:00       'echo',
+2025-09-25 17:37:00       'timer',
+2025-09-25 17:37:00       'random',
+2025-09-25 17:37:00       'file-storage',
+2025-09-25 17:37:00       'agent-loader',
+2025-09-25 17:37:00       'calculator',
+2025-09-25 17:37:00       'web_browser',
+2025-09-25 17:37:00       'openrouter',
+2025-09-25 17:37:00       'ollama_local'
+2025-09-25 17:37:00     ]
+2025-09-25 17:37:00   },
+2025-09-25 17:37:00   tags: [ 'workspace:tools', 'tool:catalog' ],
+2025-09-25 17:37:00   schema_name: 'tool.catalog.v1',
+2025-09-25 17:37:00   version: 44,
+2025-09-25 17:37:00   updated_at: '2025-09-26T00:37:00.257021Z'
+2025-09-25 17:37:00 }
+2025-09-25 17:37:00 [ToolRegistry] ✅ Updated catalog breadcrumb with 10 tools
+2025-09-25 17:37:00 [ToolRegistry] DEBUG: Verification - catalog now has 0 tools in database

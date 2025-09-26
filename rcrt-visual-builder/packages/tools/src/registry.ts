@@ -382,7 +382,7 @@ export class ToolRegistry {
             template: '{{#each context.tools}}{{#unless @first}}, {{/unless}}{{this.category}}{{/each}}'
           }
         },
-        mode: 'replace'
+        mode: 'merge'  // Changed from 'replace' to preserve the tools array
       };
 
       const catalogBreadcrumb = await this.client.createBreadcrumb({
@@ -440,7 +440,7 @@ export class ToolRegistry {
             template: '{{#each context.tools}}{{#unless @first}}, {{/unless}}{{this.category}}{{/each}}'
           }
         },
-        mode: 'replace'
+        mode: 'merge'  // Changed from 'replace' to preserve the tools array
       };
 
       const updatePayload = {
