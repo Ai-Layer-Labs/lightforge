@@ -1,11 +1,20 @@
 # Mac Troubleshooting Guide for RCRT
 
-## Issue: Missing ONNX Runtime Library
+## Common Issues
 
+### 1. Missing ONNX Runtime Library
 On Mac (especially Apple Silicon), the RCRT server fails with:
 ```
 An error occurred while attempting to load the ONNX Runtime binary at `libonnxruntime.so`
 ```
+
+### 2. ONNX Runtime Version Mismatch
+The Rust ort crate expects a specific ONNX Runtime version:
+```
+ort 2.0.0-rc.10 is not compatible with the ONNX Runtime binary found at `/usr/local/lib/libonnxruntime.so`; expected GetVersionString to return '1.22.x', but got '1.16.3'
+```
+
+**Quick Fix**: Run `./fix-onnx-version.sh` or rebuild with the updated Dockerfile.
 
 ## Solution
 

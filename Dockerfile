@@ -33,13 +33,14 @@ RUN mkdir -p /app/models && \
     curl -fsSL -o /app/models/tokenizer.json https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json
 
 # Download ONNX Runtime for the target architecture
+# Using v1.22.0 to match the ort crate requirements
 RUN mkdir -p /app/onnx && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "📱 Building for ARM64..." && \
-        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-aarch64-1.16.3.tgz; \
+        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz; \
     else \
         echo "💻 Building for x64..." && \
-        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-x64-1.16.3.tgz; \
+        wget -q -O /tmp/onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz; \
     fi && \
     tar -xzf /tmp/onnxruntime.tgz -C /app/onnx --strip-components=1 && \
     rm /tmp/onnxruntime.tgz
