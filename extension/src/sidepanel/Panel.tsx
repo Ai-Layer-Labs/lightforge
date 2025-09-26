@@ -4,7 +4,6 @@ import {
   PaperAirplaneIcon, 
   TrashIcon,
   Cog6ToothIcon,
-  PlusIcon,
   ChatBubbleLeftIcon,
   CpuChipIcon,
   FunnelIcon,
@@ -222,7 +221,7 @@ export default function Panel() {
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: `Error: ${error.message}`,
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
       }]);
     }
@@ -234,7 +233,7 @@ export default function Panel() {
   }
 
   function openDashboard() {
-    window.open('http://localhost:5173', '_blank');
+    window.open('http://localhost:8082', '_blank');
   }
 
   function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) { 
@@ -244,51 +243,49 @@ export default function Panel() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-900 text-white">
+    <div className="main-container">
       {/* Header */}
-      <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/icons/think-os-agent.png" alt="RCRT Agent" className="h-8 w-8" />
-            <div>
-              <h1 className="text-sm font-semibold">RCRT Chat</h1>
-              <div className="flex items-center gap-2 text-xs">
-                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
-                <span className="text-gray-400">
-                  {connected ? 'Connected to Dashboard v2' : 'Disconnected'}
-                </span>
+      <div className="header">
+        <div className="header-content">
+          <div className="header-flex">
+            <div className="header-left">
+              <img src="../../icons/think-os-agent.png" alt="RCRT Agent" className="logo" />
+              <div>
+                <h1 className="app-title">RCRT Chat</h1>
+                <div className="connection-status">
+                  <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
+                  <span className="status-text">
+                    {connected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={clearChat}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-700"
-              title="Clear chat"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
             
-            <button
-              onClick={openDashboard}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-700"
-              title="Open Dashboard v2"
-            >
-              <Cog6ToothIcon className="h-4 w-4" />
-            </button>
-            
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 transition-colors rounded-lg ${
-                showFilters 
-                  ? 'text-blue-400 bg-blue-500/20 hover:bg-blue-500/30' 
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-              title="Configure SSE filters"
-            >
-              <FunnelIcon className="h-4 w-4" />
-            </button>
+            <div className="header-actions">
+              <button
+                onClick={clearChat}
+                className="icon-button"
+                title="Clear chat"
+              >
+                <TrashIcon />
+              </button>
+              
+              <button
+                onClick={openDashboard}
+                className="icon-button"
+                title="Open Dashboard v2"
+              >
+                <Cog6ToothIcon />
+              </button>
+              
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`icon-button ${showFilters ? 'active' : ''}`}
+                title="Configure SSE filters"
+              >
+                <FunnelIcon />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -301,14 +298,14 @@ export default function Panel() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            style={{ overflow: 'hidden' }}
           >
-            <div className="px-4 py-3 bg-gray-850 border-b border-gray-700">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">SSE Event Filters</h3>
+            <div className="filter-panel">
+              <h3 className="filter-title">SSE Event Filters</h3>
               
-              <div className="space-y-2">
+              <div>
                 {/* Preset tag filters */}
-                <div className="flex flex-wrap gap-2">
+                <div className="filter-tags">
                   {['agent:response', 'tool:response', 'user:message', 'agent:error'].map(tag => (
                     <button
                       key={tag}
@@ -319,20 +316,16 @@ export default function Panel() {
                           : [...currentTags, tag];
                         setActiveFilters({ ...activeFilters, tags: newTags });
                       }}
-                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                        activeFilters.tags?.includes(tag)
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-400/50'
-                          : 'bg-gray-700 text-gray-400 hover:text-gray-200 border border-gray-600'
-                      }`}
+                      className={`tag-button ${activeFilters.tags?.includes(tag) ? 'active' : ''}`}
                     >
-                      <TagIcon className="h-3 w-3 inline mr-1" />
+                      <TagIcon className="tag-icon" />
                       {tag}
                     </button>
                   ))}
                 </div>
                 
                 {/* Custom tag input */}
-                <div className="flex gap-2">
+                <div className="custom-tag-input">
                   <input
                     type="text"
                     value={customTag}
@@ -350,7 +343,6 @@ export default function Panel() {
                       }
                     }}
                     placeholder="Add custom tag filter..."
-                    className="flex-1 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                   <button
                     onClick={() => {
@@ -365,7 +357,6 @@ export default function Panel() {
                         setCustomTag('');
                       }
                     }}
-                    className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 rounded text-white"
                   >
                     Add
                   </button>
@@ -373,7 +364,7 @@ export default function Panel() {
                 
                 {/* Active filters display */}
                 {activeFilters.tags && activeFilters.tags.length > 0 && (
-                  <div className="text-xs text-gray-400">
+                  <div className="active-filters">
                     Active: {activeFilters.tags.join(', ')}
                   </div>
                 )}
@@ -384,15 +375,15 @@ export default function Panel() {
       </AnimatePresence>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="messages-container">
         {!connected && (
-          <div className="text-center py-8">
-            <CpuChipIcon className="h-12 w-12 mx-auto mb-4 text-red-400" />
-            <p className="text-red-400 mb-2">Not connected to RCRT</p>
-            <p className="text-gray-400 text-sm">Make sure Dashboard v2 is running</p>
+          <div className="empty-state">
+            <CpuChipIcon className="empty-icon error" />
+            <p className="empty-title">Not connected to RCRT</p>
+            <p className="empty-subtitle">Make sure Dashboard v2 is running</p>
             <button
               onClick={initializeRCRT}
-              className="mt-4 px-4 py-2 bg-blue-500/20 border border-blue-400/50 rounded-lg text-blue-300 hover:bg-blue-500/30 transition-colors"
+              className="retry-button"
             >
               Retry Connection
             </button>
@@ -400,15 +391,15 @@ export default function Panel() {
         )}
         
         {connected && messages.length === 0 && (
-          <div className="text-center py-8">
-            <ChatBubbleLeftIcon className="h-12 w-12 mx-auto mb-4 text-blue-400" />
-            <p className="text-gray-300 mb-2">Start a conversation</p>
-            <p className="text-gray-500 text-sm">Messages will trigger your Dashboard v2 chat agents</p>
+          <div className="empty-state">
+            <ChatBubbleLeftIcon className="empty-icon chat" />
+            <p className="empty-title">Start a conversation</p>
+            <p className="empty-subtitle">Messages will trigger your Dashboard v2 chat agents</p>
           </div>
         )}
 
-        {connected && (
-          <div className="space-y-4">
+        {connected && messages.length > 0 && (
+          <div className="messages-list">
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
@@ -417,19 +408,13 @@ export default function Panel() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`message ${message.role}`}
                 >
-                  <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-700 text-gray-100'
-                  }`}>
-                    <div className="text-sm whitespace-pre-wrap break-words">
+                  <div className="message-bubble">
+                    <div className="message-content">
                       {message.content}
                     </div>
-                    <div className={`text-xs mt-1 ${
-                      message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
-                    }`}>
+                    <div className="message-time">
                       {message.timestamp.toLocaleTimeString('en-US', { 
                         hour: 'numeric', 
                         minute: '2-digit',
@@ -445,12 +430,12 @@ export default function Panel() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex justify-start"
+                className="loading-message"
               >
-                <div className="bg-gray-700 rounded-lg px-4 py-2">
-                  <div className="flex items-center gap-2 text-gray-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                    <span className="text-sm">Agent is thinking...</span>
+                <div className="loading-bubble">
+                  <div className="loading-content">
+                    <div className="loading-dot" />
+                    <span>Agent is thinking...</span>
                   </div>
                 </div>
               </motion.div>
@@ -462,8 +447,8 @@ export default function Panel() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700">
-        <div className="flex gap-2">
+      <div className="input-area">
+        <div className="input-flex">
           <textarea 
             ref={composerRef} 
             value={input} 
@@ -475,7 +460,7 @@ export default function Panel() {
               } 
             }} 
             placeholder={connected ? "Message your RCRT agents..." : "Connect to RCRT first"}
-            className="flex-1 px-3 py-2 text-sm bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+            className="input-textarea"
             style={{ minHeight: '40px', maxHeight: '120px' }}
             rows={1} 
             disabled={isLoading || !connected} 
@@ -484,15 +469,15 @@ export default function Panel() {
           <button 
             onClick={sendMessage} 
             disabled={!input.trim() || isLoading || !connected} 
-            className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+            className={`send-button ${(!input.trim() || isLoading || !connected) ? 'disabled' : 'enabled'}`}
             title="Send message"
           >
-            <PaperAirplaneIcon className="h-5 w-5 text-white" style={{transform: 'rotate(-45deg)'}} />
+            <PaperAirplaneIcon style={{transform: 'rotate(-45deg)'}} />
           </button>
         </div>
         
-        <div className="mt-2 text-xs text-gray-400 text-center">
-          Conversation ID: {conversationId}
+        <div className="conversation-id">
+          ID: {conversationId.slice(-8)}
         </div>
       </div>
     </div>
