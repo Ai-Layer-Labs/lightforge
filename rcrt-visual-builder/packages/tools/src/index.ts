@@ -275,6 +275,9 @@ export function createTool(
 // Import file tools
 import { FileStorageTool, AgentLoaderTool } from './file-tools/index.js';
 
+// Import workflow orchestrator
+import { workflowOrchestrator } from './workflow-orchestrator.js';
+
 // Built-in simple tools
 export const builtinTools = {
   // Agent Helper tool for system guidance
@@ -538,5 +541,8 @@ export const builtinTools = {
   'file-storage': new FileStorageTool(),
 
   // Agent Loader Tool  
-  'agent-loader': new AgentLoaderTool()
+  'agent-loader': new AgentLoaderTool(),
+
+  // Workflow Orchestrator Tool
+  'workflow': workflowOrchestrator
 };
