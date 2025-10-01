@@ -10,16 +10,6 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./langchain": {
-      "import": "./dist/langchain.mjs",
-      "require": "./dist/langchain.js",
-      "types": "./dist/langchain.d.ts"
-    },
-    "./registry": {
-      "import": "./dist/registry.mjs",
-      "require": "./dist/registry.js",
-      "types": "./dist/registry.d.ts"
     }
   },
   "scripts": {
@@ -31,14 +21,6 @@
   "dependencies": {
     "@rcrt-builder/core": "workspace:*",
     "@rcrt-builder/sdk": "workspace:*"
-  },
-  "peerDependencies": {
-    "langchain": "^0.3.0"
-  },
-  "peerDependenciesMeta": {
-    "langchain": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/node": "^20.10.5",

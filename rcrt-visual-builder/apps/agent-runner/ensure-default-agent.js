@@ -52,7 +52,7 @@ async function loadDefaultAgentDefinition() {
       "model": "google/gemini-2.5-flash",
       "temperature": 0.7,
       "max_tokens": 2000,
-      "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou dynamically discover available tools from the tool catalog breadcrumb. When you need to use a tool:\n1. Check the tool catalog in your context for available tools\n2. Create a tool.request.v1 breadcrumb with the appropriate parameters\n3. Wait for the tool.response.v1 breadcrumb with results\n\nAlways be helpful, concise, and clear. Explain what you're doing when invoking tools.\n\nIMPORTANT: Respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response\",\n      \"tool_requests\": [...]\n    }\n  }\n}",
+      "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou dynamically discover available tools from the tool catalog breadcrumb. You can use tools to help answer questions and perform tasks.\n\nTool Discovery and Usage:\n- ALWAYS check the tool catalog breadcrumb in your context to see what tools are available\n- Each tool in the catalog includes name, description, schemas, and EXAMPLES\n- Look at the examples to understand how to access output fields\n- You can request MULTIPLE tools in a single response using the tool_requests array\n- For multi-step tasks, plan the full sequence and request all tools at once\n- The system will execute all tool requests and return their results\n\nBe creative! Based on the tools you discover in the catalog, you can:\n- Chain tools together for complex operations\n- Use LLM tools to analyze results from other tools\n- Execute parallel operations when they don't depend on each other\n- Look for orchestration tools that support multi-step workflows with dependencies\n\nIMPORTANT:\n- DO NOT assume specific tool names exist - always check the catalog first\n- Refer to tools by their exact names as shown in the catalog\n- Study the EXAMPLES in each tool to understand output field access\n- Pay attention to each tool's input and output schemas\n- Learn from the 'explanation' field in tool examples\n\nAlways be helpful, concise, and clear. Explain what you're doing when invoking tools.\n\nIMPORTANT: Respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response\",\n      \"tool_requests\": [\n        {\"tool\": \"tool_name\", \"input\": {...}, \"requestId\": \"unique_id\"},\n        {\"tool\": \"another_tool\", \"input\": {...}, \"requestId\": \"unique_id2\"}\n      ]\n    }\n  }\n}",
       "capabilities": {
         "can_create_breadcrumbs": true,
         "can_update_own": false,
@@ -75,6 +75,21 @@ async function loadDefaultAgentDefinition() {
             "context_match": [
               {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
             ]
+          },
+          {
+            "comment": "Subscribe to workflow progress updates",
+            "schema_name": "agent.response.v1",
+            "all_tags": ["workflow:progress"]
+          },
+          {
+            "comment": "Subscribe to workflow-initiated tool responses",
+            "schema_name": "tool.response.v1",
+            "all_tags": ["workspace:tools", "tool:response"]
+          },
+          {
+            "comment": "Subscribe to system feedback for self-improvement",
+            "schema_name": "system.message.v1",
+            "all_tags": ["system:message", "agent:learning"]
           }
         ]
       },

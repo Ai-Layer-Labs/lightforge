@@ -1,0 +1,85 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Tool Definition & Configuration",
+  "tags": ["tool", "tool:{name}", "category:{category}", "workspace:tools"],
+  "context": {
+    "name": "{tool-name}",
+    "version": "1.0.0",
+    "description": "Tool description for agents to understand purpose",
+    "category": "general|llm|storage|system|web",
+    
+    "implementation": {
+      "type": "builtin|module|http|breadcrumb|container",
+      "runtime": "nodejs|python|http|docker",
+      "module": "module-name-if-applicable",
+      "export": "exportedFunctionName",
+      "endpoint": "https://api.example.com/tool",
+      "breadcrumb_id": "tool-impl-{name}-v1"
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {},
+        "description": "IMPORTANT: Include field descriptions for agent understanding"
+      },
+      "examples": [
+        {
+          "title": "Basic usage",
+          "input": {},
+          "output": {},
+          "explanation": "How to access the output fields"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": true,
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "secret": true,
+            "description": "API key for service"
+          }
+        }
+      },
+      "defaults": {},
+      "currentConfig": {}
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 30000,
+      "retries": 0,
+      "rateLimit": null
+    },
+    
+    "metadata": {
+      "author": "system|user|agent",
+      "created": "ISO timestamp",
+      "lastActive": "ISO timestamp",
+      "executionCount": 0
+    }
+  },
+  
+  "llm_hints": {
+    "transform": {
+      "usage_guide": {
+        "type": "template",
+        "template": "{{name}}: {{description}}\nInput: {{definition.inputSchema | json}}\nOutput: {{definition.outputSchema | json}}\nExamples: {{#each definition.examples}}{{title}}: {{explanation}}\n{{/each}}"
+      },
+      "quick_ref": {
+        "type": "extract",
+        "value": "$.definition.examples[0]"
+      }
+    },
+    "mode": "merge"
+  }
+}

@@ -7,17 +7,20 @@
 
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { createToolRegistry, ToolRegistry } from '@rcrt-builder/tools/registry';
+import { ToolLoader, bootstrapTools } from '@rcrt-builder/tools';
 import { jsonrepair } from 'jsonrepair';
+import { EventBridge } from './event-bridge.js';
 
 // Track processing status to prevent legitimate RCRT duplicate events (created + updated)
 const processingStatus = new Map<string, 'processing' | 'completed'>();
+
+// Global event bridge for tools to wait for events
+const globalEventBridge = new EventBridge();
 
 // 🎯 CLEAN CENTRALIZED SSE DISPATCHER
 // Single SSE connection that routes to individual tools (more efficient than 14 connections)
 async function startCentralizedSSEDispatcher(
   client: RcrtClientEnhanced, 
-  registry: ToolRegistry, 
   workspace: string, 
   jwtToken?: string
 ): Promise<void> {
@@ -100,7 +103,21 @@ async function startCentralizedSSEDispatcher(
                   });
                 }
                 
-                await dispatchEventToTool(eventData, client, registry, workspace);
+                // Feed event to bridge BEFORE dispatching
+                if (eventData.type === 'breadcrumb.updated') {
+                  try {
+                    const breadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
+                    globalEventBridge.handleEvent(eventData, breadcrumb);
+                  } catch (e) {
+                    console.warn('[EventBridge] Failed to feed event:', e);
+                  }
+                }
+                
+                // Execute tools asynchronously (don't block SSE stream!)
+                dispatchEventToTool(eventData, client, workspace)
+                  .catch(error => {
+                    console.error('❌ Tool dispatch error:', error);
+                  });
               } catch (error) {
                 console.warn('Failed to parse SSE event:', line, error);
               }
@@ -124,7 +141,6 @@ async function startCentralizedSSEDispatcher(
 async function dispatchEventToTool(
   eventData: any, 
   client: RcrtClientEnhanced, 
-  registry: ToolRegistry, 
   workspace: string
 ): Promise<void> {
   // Only process tool.request.v1 breadcrumb events with deduplication
@@ -177,46 +193,54 @@ async function dispatchEventToTool(
         return;
       }
       
-      // Check if we have this tool
-      const tools = registry.listTools();
-      if (!tools.includes(toolName)) {
-        console.warn(`❌ Unknown tool: ${toolName}. Available: ${tools.join(', ')}`);
+      // RCRT-Native: Load tool from breadcrumbs ONLY
+      console.log(`🔍 Loading tool ${toolName} from breadcrumbs...`);
+      const { ToolLoader } = await import('@rcrt-builder/tools');
+      const loader = new ToolLoader(client, workspace);
+      const underlyingTool = await loader.loadToolByName(toolName);
+      
+      if (!underlyingTool) {
+        console.error(`❌ Tool ${toolName} not found in breadcrumbs`);
+        
+        // Create error response
+        await client.createBreadcrumb({
+          schema_name: 'tool.response.v1',
+          title: `Error: ${toolName}`,
+          tags: [workspace, 'tool:response', 'error'],
+          context: {
+            request_id: breadcrumb.context?.requestId || breadcrumb.id,
+            tool: toolName,
+            status: 'error',
+            error: `Tool ${toolName} not found. Ensure it has a tool.v1 breadcrumb.`,
+            timestamp: new Date().toISOString()
+          }
+        });
         return;
       }
       
-      console.log(`🛠️  Executing tool: ${toolName}`);
+      console.log(`🛠️  Executing tool: ${toolName} (from breadcrumb)`);
       
-      // Execute the tool via registry
+      
+      // Execute tool with proper context (including event bridge)
       const startTime = Date.now();
-      const toolWrapper = registry.getTool(toolName);
-      
-      if (!toolWrapper) {
-        throw new Error(`Tool wrapper not found: ${toolName}`);
-      }
-      
-      // Access underlying tool and execute
-      const underlyingTool = (toolWrapper as any).tool;
-      if (!underlyingTool || typeof underlyingTool.execute !== 'function') {
-        throw new Error(`Tool ${toolName} does not have execute method`);
-      }
-      
-      // Execute tool with proper context
       const result = await underlyingTool.execute(toolInput, {
         rcrtClient: client,
         agentId: breadcrumb.created_by || 'tools-runner',
         workspace: workspace,
-        metadata: { requestId: breadcrumb.id }
+        metadata: { requestId: breadcrumb.id },
+        waitForEvent: (criteria: any, timeout?: number) => globalEventBridge.waitForEvent(criteria, timeout)
       });
       
       const executionTime = Date.now() - startTime;
       
       // Create tool.response.v1 breadcrumb
+      const responseRequestId = breadcrumb.context?.requestId || breadcrumb.id;
       await client.createBreadcrumb({
         schema_name: 'tool.response.v1',
         title: `Response: ${toolName}`,
-        tags: [workspace, 'tool:response'],
+        tags: [workspace, 'tool:response', `request:${responseRequestId}`],
         context: {
-          request_id: breadcrumb.context?.requestId || breadcrumb.id,  // Use requestId from request if available
+          request_id: responseRequestId,  // Use requestId from request if available
           tool: toolName,
           status: 'success',
           output: result,
@@ -237,12 +261,13 @@ async function dispatchEventToTool(
       processingStatus.set(requestId, 'completed');
       
       try {
+        const errorRequestId = eventData.context?.requestId || eventData.breadcrumb_id;
         await client.createBreadcrumb({
           schema_name: 'tool.response.v1',
           title: `Error: ${eventData.context?.tool || 'unknown'}`,
-          tags: [workspace, 'tool:response'],
+          tags: [workspace, 'tool:response', `request:${errorRequestId}`],
           context: {
-            request_id: eventData.context?.requestId || eventData.breadcrumb_id,  // Use requestId from request if available
+            request_id: errorRequestId,  // Use requestId from request if available
             tool: eventData.context?.tool || 'unknown',
             status: 'error',
             error: String(error),
@@ -270,11 +295,8 @@ const config = {
   rcrtJwt: process.env.RCRT_JWT,
   workspace: process.env.WORKSPACE || 'workspace:tools',
   
-  // Tool configuration
-  enableBuiltins: process.env.ENABLE_BUILTIN_TOOLS !== 'false',
-  enableLangChain: process.env.ENABLE_LANGCHAIN_TOOLS === 'true',
+  // Tool configuration - RCRT-Native only, no legacy options
   enableUI: process.env.ENABLE_TOOL_UI === 'true',
-  enableLLMTools: process.env.ENABLE_LLM_TOOLS !== 'false', // Default to enabled
   
   // Deployment mode
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local', // 'docker', 'local', 'electron'
@@ -286,8 +308,6 @@ async function main() {
     rcrtBaseUrl: config.rcrtBaseUrl,
     workspace: config.workspace,
     deploymentMode: config.deploymentMode,
-    enableBuiltins: config.enableBuiltins,
-    enableLangChain: config.enableLangChain,
     enableUI: config.enableUI,
     tokenEndpoint: config.tokenEndpoint
   });
@@ -301,7 +321,6 @@ async function main() {
   try {
     // Create RCRT client (supports JWT in docker mode via RCRT_JWT or tokenEndpoint)
     let client: RcrtClientEnhanced;
-    let applyClient: RcrtClientEnhanced | undefined;
     let jwtToken: string | undefined; // Store JWT for centralized SSE dispatcher
     if (config.deploymentMode === 'docker') {
       if (config.rcrtAuthMode === 'jwt') {
@@ -346,22 +365,12 @@ async function main() {
           autoRefresh: true,
           tokenRequestBody: tokenRequest
         });
-        // applyClient should target the builder proxy so /api/forge/apply works
-        // In docker mode, use the builder proxy for UI operations
-        const builderUrl = process.env.BUILDER_URL || 'http://builder:3000';
-        applyClient = await createClient({ 
-          baseUrl: builderUrl + '/api/rcrt', 
-          tokenEndpoint: config.tokenEndpoint, // Use RCRT token service
-          authMode: 'jwt',
-          autoRefresh: true
-        });
         }
       } else {
         client = new RcrtClientEnhanced(config.rcrtBaseUrl, 'disabled');
       }
     } else {
       client = await createClient({ baseUrl: config.rcrtProxyUrl, tokenEndpoint: config.tokenEndpoint, authMode: 'jwt' });
-      applyClient = client;
     }
 
     console.log('✅ Connected to RCRT');
@@ -386,45 +395,43 @@ async function main() {
       return out;
     }
 
+    // Resolve secrets if needed for tools
     const desiredKeys = [
-      'SERPAPI_API_KEY',
-      'OPENAI_API_KEY',
+      'OPENROUTER_API_KEY',
       'ANTHROPIC_API_KEY',
-      'BRAVE_SEARCH_API_KEY',
-      'GOOGLE_SEARCH_API_KEY',
-      'GOOGLE_CSE_ID',
+      'OLLAMA_HOST'
     ];
 
-    const rcrtSecrets = await resolveSecrets(desiredKeys);
-    const serpApiKey = rcrtSecrets.SERPAPI_API_KEY;
-    const openaiApiKey = rcrtSecrets.OPENAI_API_KEY;
+    await resolveSecrets(desiredKeys);
 
-    // Create and configure tool registry
-    const registry = await createToolRegistry(client, config.workspace, {
-      enableUI: config.enableUI,
-      enableBuiltins: config.enableBuiltins,
-      enableLangChain: config.enableLangChain,
-      langchainConfig: {
-        serpApiKey,
-        openaiApiKey,
-        enableLLMTools: config.enableLLMTools
-      },
-      applyClient
-    });
+    // RCRT-Native: Bootstrap tools and create catalog
+    console.log('🔧 Bootstrapping RCRT tools...');
+    await bootstrapTools(client, config.workspace);
+    
+    // Discover available tools
+    const loader = new ToolLoader(client, config.workspace);
+    const tools = await loader.discoverTools();
+    console.log(`✅ ${tools.length} tools available`);
+    console.log('🎯 Available tools:', tools.map((t: any) => t.name).join(', '));
 
-    console.log('✅ Tool registry initialized');
-    console.log('🎯 Registered tools:', registry.listTools());
+    // Update catalog periodically
+    setInterval(async () => {
+      try {
+        const updatedTools = await loader.discoverTools();
+        console.log(`📊 Catalog refresh: ${updatedTools.length} tools available`);
+      } catch (error) {
+        console.error('Failed to refresh tool catalog:', error);
+      }
+    }, 30000); // Every 30 seconds
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
       console.log('\n🛑 Shutting down tools runner...');
-      await registry.stop();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
       console.log('\n🛑 Shutting down tools runner...');
-      await registry.stop();
       process.exit(0);
     });
 
@@ -436,7 +443,7 @@ async function main() {
     // Start centralized SSE dispatcher
     if (config.rcrtAuthMode === 'jwt' || jwtToken) {
       console.log('🎯 Starting centralized SSE dispatcher...');
-      await startCentralizedSSEDispatcher(client, registry, config.workspace, jwtToken);
+      await startCentralizedSSEDispatcher(client, config.workspace, jwtToken);
     } else {
       console.warn('⚠️  No JWT token available for SSE - tools will not receive requests');
       // Prevent process exit

@@ -27,6 +27,52 @@ export class WorkflowOrchestratorTool implements RCRTTool {
   category = 'orchestration';
   version = '1.0.0';
   
+  examples = [
+    {
+      title: 'Sequential calculation',
+      input: {
+        steps: [
+          { id: 'num1', tool: 'random', input: { min: 1, max: 10 } },
+          { id: 'num2', tool: 'random', input: { min: 1, max: 10 } },
+          { 
+            id: 'sum', 
+            tool: 'calculator', 
+            input: { expression: '${num1.numbers[0]} + ${num2.numbers[0]}' },
+            dependencies: ['num1', 'num2']
+          }
+        ]
+      },
+      output: {
+        results: {
+          num1: { numbers: [7] },
+          num2: { numbers: [3] },
+          sum: { result: 10, expression: '7 + 3', formatted: '7 + 3 = 10' }
+        },
+        executionOrder: ['num1', 'num2', 'sum']
+      },
+      explanation: 'Dependencies ensure correct execution order. Use ${stepId.field} for variables.'
+    },
+    {
+      title: 'Parallel execution',
+      input: {
+        steps: [
+          { id: 'task1', tool: 'timer', input: { seconds: 1 } },
+          { id: 'task2', tool: 'echo', input: { message: 'Running in parallel' } },
+          { id: 'task3', tool: 'random', input: { min: 0, max: 100 } }
+        ]
+      },
+      output: {
+        results: {
+          task1: { waited: 1, message: 'Waited 1 seconds' },
+          task2: { echo: 'Running in parallel' },
+          task3: { numbers: [42] }
+        },
+        executionOrder: ['task1', 'task2', 'task3']
+      },
+      explanation: 'Steps without dependencies run in parallel for better performance'
+    }
+  ];
+  
   inputSchema = {
     type: 'object',
     properties: {
@@ -82,9 +128,18 @@ export class WorkflowOrchestratorTool implements RCRTTool {
     
     console.log(`[Workflow] Starting workflow with ${steps.length} steps`);
     
+    // Auto-detect dependencies from variable references
+    const stepsWithAutoDeps = steps.map(step => ({
+      ...step,
+      dependencies: step.dependencies || this.extractDependencies(step.input, steps.map(s => s.id))
+    }));
+    
+    console.log('[Workflow] Dependencies resolved:', 
+      stepsWithAutoDeps.map(s => ({ id: s.id, deps: s.dependencies || [] })));
+    
     // Validate dependencies
-    const stepIds = new Set(steps.map(s => s.id));
-    for (const step of steps) {
+    const stepIds = new Set(stepsWithAutoDeps.map(s => s.id));
+    for (const step of stepsWithAutoDeps) {
       if (step.dependencies) {
         for (const dep of step.dependencies) {
           if (!stepIds.has(dep)) {
@@ -95,7 +150,7 @@ export class WorkflowOrchestratorTool implements RCRTTool {
     }
     
     // Group steps by dependency level
-    const levels = this.topologicalSort(steps);
+    const levels = this.topologicalSort(stepsWithAutoDeps);
     
     // Execute each level
     for (const level of levels) {
@@ -138,11 +193,12 @@ export class WorkflowOrchestratorTool implements RCRTTool {
             }
           });
           
-          // Wait for response
+          // Wait for response (RCRT-Native: via event bridge)
           const response = await this.waitForToolResponse(
             context.rcrtClient,
             requestId,
-            30000 // 30 second timeout
+            60000, // 60 second timeout
+            context.waitForEvent // Pass event listener from context
           );
           
           if (response.status === 'error') {
@@ -168,11 +224,15 @@ export class WorkflowOrchestratorTool implements RCRTTool {
           });
           
         } catch (error) {
-          console.error(`[Workflow] Step ${step.id} failed:`, error);
-          errors.set(step.id, String(error));
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[Workflow] Step ${step.id} failed:`, errorMessage);
+          errors.set(step.id, errorMessage);
+          
+          // Create instructional feedback for agents (RCRT self-teaching!)
+          await this.createSystemFeedback(step, errorMessage, results, context);
           
           if (!continueOnError) {
-            throw new Error(`Workflow failed at step ${step.id}: ${error}`);
+            throw new Error(`Workflow failed at step ${step.id}: ${errorMessage}`);
           }
         }
       });
@@ -202,45 +262,269 @@ export class WorkflowOrchestratorTool implements RCRTTool {
   }
   
   /**
-   * Wait for a tool response with the given requestId
+   * Wait for a tool response with the given requestId (RCRT-Native: Event-Driven)
    */
   private async waitForToolResponse(
     client: RcrtClientEnhanced,
     requestId: string,
-    timeout: number = 30000
+    timeout: number = 60000,
+    waitForEvent?: (criteria: any, timeout?: number) => Promise<any>
+  ): Promise<any> {
+    // RCRT-Native: Use event bridge if available
+    console.log(`[Workflow] waitForEvent available: ${!!waitForEvent}`);
+    
+    if (waitForEvent) {
+      console.log(`[Workflow] ✅ Using event bridge to wait for ${requestId}`);
+      
+      try {
+        const breadcrumb = await waitForEvent({
+          schema_name: 'tool.response.v1',
+          request_id: requestId
+        }, timeout);
+        
+        console.log(`[Workflow] ✅ Received event for ${requestId}`);
+        return breadcrumb.context;
+      } catch (error) {
+        console.error(`[Workflow] ⏰ Timeout waiting for ${requestId}:`, error);
+        throw new Error(`Timeout waiting for tool response ${requestId}`);
+      }
+    }
+    
+    // Fallback to polling (should never happen if system is working correctly!)
+    console.warn(`[Workflow] ⚠️  No event bridge available, falling back to polling (NOT RCRT-NATIVE!)`);
+    return this.waitForToolResponsePolling(client, requestId, timeout);
+  }
+  
+  /**
+   * DEPRECATED: Polling-based wait (not RCRT-native, kept only as emergency fallback)
+   */
+  private async waitForToolResponsePolling(
+    client: RcrtClientEnhanced,
+    requestId: string,
+    timeout: number = 60000
   ): Promise<any> {
     const startTime = Date.now();
     
+    // Initial delay to allow for indexing
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    let attemptCount = 0;
     while (Date.now() - startTime < timeout) {
-      // Search for response breadcrumb
-      const responses = await client.searchBreadcrumbs({
-        schema_name: 'tool.response.v1',
-        tag: `request:${requestId}`
-      });
-      
-      // Also check by context.request_id
-      if (responses.length === 0) {
-        const allResponses = await client.searchBreadcrumbs({
+      attemptCount++;
+      try {
+        // Primary search: by tag
+        console.log(`[Workflow] Attempt ${attemptCount}: Searching for response with request_id: ${requestId}`);
+        
+        // Search by tag (SDK uses 'tag' for single tag search)
+        const responsesByTag = await client.searchBreadcrumbs({
+          schema_name: 'tool.response.v1',
+          tag: `request:${requestId}`
+        });
+        
+        console.log(`[Workflow] Tag search returned ${responsesByTag.length} results`);
+        if (responsesByTag.length > 0) {
+          console.log(`[Workflow] Response breadcrumb found:`, {
+            id: responsesByTag[0].id,
+            tags: responsesByTag[0].tags,
+            schema: responsesByTag[0].schema_name
+          });
+        }
+        
+        if (responsesByTag.length > 0) {
+          const fullResp = await client.getBreadcrumb(responsesByTag[0].id);
+          console.log(`[Workflow] ✅ Found response for ${requestId} by tag on attempt ${attemptCount}`);
+          return fullResp.context;
+        }
+        
+        // Secondary search: check recent responses by context
+        console.log(`[Workflow] Tag search failed, trying context-based search...`);
+        const recentResponses = await client.searchBreadcrumbs({
           schema_name: 'tool.response.v1'
         });
         
-        for (const resp of allResponses) {
-          const fullResp = await client.getBreadcrumb(resp.id);
-          if (fullResp.context?.request_id === requestId || 
-              fullResp.context?.requestId === requestId) {
-            return fullResp.context;
+        console.log(`[Workflow] Got ${recentResponses.length} total tool responses`);
+        
+        // Sort by creation time (most recent first)
+        const sortedResponses = recentResponses.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        ).slice(0, 20); // Only check last 20
+        
+        console.log(`[Workflow] Checking ${sortedResponses.length} recent responses for request_id match`);
+        
+        for (const resp of sortedResponses) {
+          try {
+            const fullResp = await client.getBreadcrumb(resp.id);
+            console.log(`[Workflow] Checking breadcrumb ${resp.id}: request_id=${fullResp.context?.request_id}`);
+            
+            if (fullResp.context?.request_id === requestId || 
+                fullResp.context?.requestId === requestId) {
+              console.log(`[Workflow] ✅ Found response for ${requestId} by context search on attempt ${attemptCount}`);
+              return fullResp.context;
+            }
+          } catch (e) {
+            // Skip if breadcrumb fetch fails
+            console.warn(`[Workflow] Failed to fetch breadcrumb ${resp.id}:`, e);
+            continue;
           }
         }
-      } else {
-        const fullResp = await client.getBreadcrumb(responses[0].id);
-        return fullResp.context;
+      } catch (error) {
+        console.warn(`[Workflow] Error searching for response ${requestId}:`, error);
       }
       
-      // Wait a bit before checking again
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait before retry with exponential backoff
+      const waitTime = Math.min(500 * Math.pow(1.5, (Date.now() - startTime) / 5000), 2000);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
     
+    // Log diagnostic info on timeout
+    console.error(`[Workflow] Timeout waiting for response ${requestId} after ${timeout}ms`);
     throw new Error(`Timeout waiting for tool response ${requestId}`);
+  }
+  
+  /**
+   * Extract dependencies by scanning for variable references
+   */
+  private extractDependencies(input: any, allStepIds: string[]): string[] {
+    const deps = new Set<string>();
+    const json = JSON.stringify(input);
+    
+    // Match ${stepId} or {{stepId}} patterns
+    const varPattern = /[\$\{]{2}([^}]+)[\}]{2}/g;
+    const matches = json.matchAll(varPattern);
+    
+    for (const match of matches) {
+      const path = match[1];
+      // Get step ID (before any . or [ )
+      const stepId = path.split('.')[0].split('[')[0].trim();
+      
+      // Only add if it's a valid step ID
+      if (allStepIds.includes(stepId)) {
+        deps.add(stepId);
+      }
+    }
+    
+    const detected = Array.from(deps);
+    if (detected.length > 0) {
+      console.log(`[Workflow] Auto-detected dependencies for step:`, detected);
+    }
+    
+    return detected;
+  }
+  
+  /**
+   * Create system feedback to teach agents about errors (RCRT self-improving!)
+   */
+  private async createSystemFeedback(
+    step: any,
+    errorMessage: string,
+    results: Map<string, any>,
+    context: ToolExecutionContext
+  ): Promise<void> {
+    try {
+      // Analyze the error and provide guidance
+      let guidance = '';
+      let correctedExample = null;
+      
+      // Analyze error for any calculator or field access issues
+      const availableData = Array.from(results.entries()).map(([id, data]) => ({
+        stepId: id,
+        fields: Object.keys(data || {}),
+        data: data
+      }));
+      
+      // Check for calculator errors
+      if (step.tool === 'calculator' || errorMessage.includes('is not defined') || 
+          errorMessage.includes('undefined') || errorMessage.includes('not evaluate')) {
+        
+        guidance = `Workflow step "${step.id}" (${step.tool}) failed.\n\n` +
+          `Error: ${errorMessage}\n\n` +
+          `Available data from completed steps:\n` +
+          availableData.map(({ stepId, fields, data }) => {
+            const preview = JSON.stringify(data).slice(0, 100);
+            return `- \${${stepId}}: { ${fields.join(', ')} }\n  Preview: ${preview}`;
+          }).join('\n') + '\n\n' +
+          `Your input: ${JSON.stringify(step.input, null, 2)}\n\n` +
+          `Common issue: Check field access paths.\n` +
+          `Example: If random tool returns { numbers: [42] }, use \${stepId.numbers[0]} not \${stepId.output}`;
+        
+        // Try to auto-correct common mistakes
+        if (step.tool === 'calculator' && step.input?.expression) {
+          const expr = step.input.expression;
+          let corrected = expr;
+          
+          // Fix .output, .output.value, .result.number patterns
+          // This intelligently maps wrong field access to actual data structure
+          corrected = corrected.replace(/\$\{(\w+)\.output(\.[\w]+)?\}/g, (match, id, subfield) => {
+            const data = results.get(id);
+            if (!data) return match;
+            
+            console.log(`[Workflow] Auto-correcting: ${match} for stepId=${id}, data=`, data);
+            
+            // Check actual structure and map to correct field
+            if (data.numbers !== undefined) return `\${${id}.numbers[0]}`;
+            if (data.result !== undefined) return `\${${id}.result}`;
+            if (data.value !== undefined) return `\${${id}.value}`;
+            if (data.echo !== undefined) return `\${${id}.echo}`;
+            if (data.waited !== undefined) return `\${${id}.waited}`;
+            
+            // Return first number-like field
+            const firstNum = Object.entries(data).find(([k, v]) => typeof v === 'number');
+            if (firstNum) return `\${${id}.${firstNum[0]}}`;
+            
+            // Return first array field's first element
+            const firstArr = Object.entries(data).find(([k, v]) => Array.isArray(v));
+            if (firstArr) return `\${${id}.${firstArr[0]}[0]}`;
+            
+            return match;
+          });
+          
+          // Also fix .result.number patterns
+          corrected = corrected.replace(/\$\{(\w+)\.result\.number\}/g, (match, id) => {
+            const data = results.get(id);
+            if (!data) return match;
+            if (data.numbers) return `\${${id}.numbers[0]}`;
+            if (data.result !== undefined) return `\${${id}.result}`;
+            return match;
+          });
+          
+          if (corrected !== expr) {
+            correctedExample = corrected;
+            guidance += `\n\n✅ SUGGESTED FIX:\n"${corrected}"\n\n` +
+              `Explanation: The random tool returns { numbers: [array] }, not { output: value }.`;
+          }
+        }
+      }
+      
+      // Create system.message breadcrumb for agent to learn from
+      await context.rcrtClient.createBreadcrumb({
+        schema_name: 'system.message.v1',
+        title: 'Workflow Error Guidance',
+        tags: ['system:message', 'workflow:error', 'agent:learning', context.workspace],
+        context: {
+          type: 'error_guidance',
+          source: 'workflow-tool',
+          targetAgent: context.agentId,
+          error: {
+            step: step.id,
+            tool: step.tool,
+            message: errorMessage
+          },
+          guidance: guidance,
+          availableData: Array.from(results.entries()).map(([id, data]) => ({
+            stepId: id,
+            data: data
+          })),
+          correctedExample: correctedExample,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      console.log(`[Workflow] 📚 Created system feedback for agent learning`);
+      
+    } catch (feedbackError) {
+      console.warn('[Workflow] Failed to create system feedback:', feedbackError);
+      // Don't fail the workflow if feedback creation fails
+    }
   }
   
   /**
@@ -253,8 +537,15 @@ export class WorkflowOrchestratorTool implements RCRTTool {
   ): any {
     const interpolate = (value: any): any => {
       if (typeof value === 'string') {
+        // First, convert {{variable}} syntax to ${variable} for compatibility
+        let normalizedValue = value;
+        if (value.includes('{{')) {
+          normalizedValue = value.replace(/\{\{([^}]+)\}\}/g, '${$1}');
+          console.log(`[Workflow] Auto-converted variable syntax: "${value}" → "${normalizedValue}"`);
+        }
+        
         // Replace ${stepId} or ${stepId.field} with actual values
-        return value.replace(/\$\{([^}]+)\}/g, (match, path) => {
+        return normalizedValue.replace(/\$\{([^}]+)\}/g, (match, path) => {
           const parts = path.split('.');
           const stepId = parts[0];
           
@@ -267,7 +558,17 @@ export class WorkflowOrchestratorTool implements RCRTTool {
           // Navigate nested fields
           for (let i = 1; i < parts.length; i++) {
             if (result && typeof result === 'object') {
-              result = result[parts[i]];
+              // Handle array index notation like array[0]
+              const arrayMatch = parts[i].match(/^(.+)\[(\d+)\]$/);
+              if (arrayMatch) {
+                const [, fieldName, index] = arrayMatch;
+                result = result[fieldName];
+                if (Array.isArray(result)) {
+                  result = result[parseInt(index, 10)];
+                }
+              } else {
+                result = result[parts[i]];
+              }
             } else {
               return match;
             }
@@ -322,7 +623,7 @@ export class WorkflowOrchestratorTool implements RCRTTool {
     while (remaining.size > 0) {
       const currentLevel: WorkflowStep[] = [];
       
-      for (const [id, step] of remaining) {
+      for (const [, step] of remaining) {
         // Check if all dependencies are completed
         const ready = !step.dependencies || 
           step.dependencies.every(dep => completed.has(dep));

@@ -1,0 +1,171 @@
+{
+  "schema_name": "tool.v1",
+  "title": "OpenRouter LLM Tool",
+  "tags": ["tool", "tool:openrouter", "category:llm", "workspace:tools"],
+  "context": {
+    "name": "openrouter",
+    "version": "1.0.0",
+    "description": "Access to 100+ LLM models via OpenRouter API",
+    "category": "llm",
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Chat messages in OpenAI format",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {"type": "string", "enum": ["system", "user", "assistant"]},
+                "content": {"type": "string"}
+              },
+              "required": ["role", "content"]
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "Model to use (optional, uses configured default)"
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "description": "Response creativity (optional)"
+          },
+          "max_tokens": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Max response length (optional)"
+          }
+        },
+        "required": ["messages"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The generated response text"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model that was used"
+          },
+          "usage": {
+            "type": "object",
+            "description": "Token usage statistics",
+            "properties": {
+              "prompt_tokens": {"type": "number"},
+              "completion_tokens": {"type": "number"},
+              "total_tokens": {"type": "number"}
+            }
+          },
+          "cost_estimate": {
+            "type": "number",
+            "description": "Estimated cost in USD"
+          }
+        },
+        "required": ["content", "model"]
+      },
+      "examples": [
+        {
+          "title": "Simple question",
+          "input": {
+            "messages": [
+              {"role": "user", "content": "What is 2+2?"}
+            ]
+          },
+          "output": {
+            "content": "2 + 2 = 4",
+            "model": "google/gemini-2.5-flash",
+            "usage": {"total_tokens": 15}
+          },
+          "explanation": "Access response with result.content"
+        },
+        {
+          "title": "With system prompt",
+          "input": {
+            "messages": [
+              {"role": "system", "content": "You are a helpful assistant"},
+              {"role": "user", "content": "Hello"}
+            ],
+            "temperature": 0.7
+          },
+          "output": {
+            "content": "Hello! How can I help you today?",
+            "model": "google/gemini-2.5-flash"
+          },
+          "explanation": "System prompts guide behavior"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": true,
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "secret": true,
+            "required": true,
+            "description": "OpenRouter API key"
+          },
+          "defaultModel": {
+            "type": "string",
+            "default": "google/gemini-2.5-flash",
+            "description": "Default model when not specified"
+          },
+          "defaultTemperature": {
+            "type": "number",
+            "default": 0.7,
+            "minimum": 0,
+            "maximum": 2
+          },
+          "defaultMaxTokens": {
+            "type": "number",
+            "default": 4000,
+            "minimum": 1
+          }
+        },
+        "required": ["apiKey"]
+      },
+      "defaults": {
+        "defaultModel": "google/gemini-2.5-flash",
+        "defaultTemperature": 0.7,
+        "defaultMaxTokens": 4000
+      },
+      "currentConfig": {}
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 60000,
+      "retries": 1,
+      "rateLimit": {
+        "requests": 100,
+        "window": "1m"
+      }
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2025-09-30T00:00:00Z",
+      "lastActive": null,
+      "executionCount": 0,
+      "modelsCatalog": "openrouter.models.catalog.v1"
+    }
+  },
+  
+  "llm_hints": {
+    "transform": {
+      "usage": {
+        "type": "template",
+        "template": "OpenRouter returns {content: 'response text', model: 'used model', usage: {...}}. Main response in .content field."
+      }
+    },
+    "mode": "merge"
+  }
+}

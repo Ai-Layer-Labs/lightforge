@@ -1,124 +1,94 @@
-# RCRT Bootstrap System
+# Bootstrap Breadcrumbs
 
-## Overview
+This directory contains the essential breadcrumbs needed to bootstrap an RCRT system.
 
-The bootstrap system initializes RCRT with essential breadcrumbs on first run, providing:
-- Tool catalog with `llm_hints` transforms
-- Default chat agent using modern patterns
-- Template library for learning
-- Bootstrap tracking to prevent duplicates
-
-## Structure
+## Directory Structure
 
 ```
 bootstrap-breadcrumbs/
-├── system/                      # Core system breadcrumbs
-│   ├── tool-catalog-bootstrap.json    # Tools with llm_hints
-│   ├── default-chat-agent.json        # Ready-to-use chat agent
-│   └── bootstrap-marker.json          # Tracks bootstrap status
-├── templates/                   # Learning templates
-│   ├── llm-hints-guide.json          # How to use transforms
-│   └── agent-definition-template.json # Agent creation patterns
-└── bootstrap.js                # Bootstrap script
+├── system/                    # Core system breadcrumbs
+│   ├── bootstrap-marker.json  # Marks system as bootstrapped
+│   ├── default-chat-agent.json # Default chat agent definition
+│   ├── tool-catalog-bootstrap.json # Initial tool catalog (deprecated)
+│   ├── tool-definition-template.json # Template for tool.v1 breadcrumbs
+│   ├── tool-creation-guide.json # Guide for creating RCRT tools
+│   ├── random-tool-definition.json # Example tool definition
+│   └── openrouter-tool-definition.json # Example configurable tool
+└── templates/                 # Templates and guides
+    ├── agent-definition-template.json
+    └── llm-hints-guide.json
 ```
 
-## Features
+## New Tool System (RCRT-Native)
 
-### 1. Tool Catalog with Transforms
-The tool catalog includes `llm_hints` that will transform the view when server support is added:
+### Tool Breadcrumbs (tool.v1)
+
+Tools are now first-class breadcrumbs that combine definition and configuration:
+
 ```json
 {
-  "llm_hints": {
-    "transform": {
-      "tool_summary": {
-        "type": "template",
-        "template": "{{context.activeTools}} tools available..."
-      }
+  "schema_name": "tool.v1",
+  "tags": ["tool", "tool:{name}", "category:{category}"],
+  "context": {
+    "name": "tool-name",
+    "definition": {
+      "inputSchema": {},
+      "outputSchema": {},
+      "examples": []  // CRITICAL: Show field access patterns
     },
-    "mode": "replace"
+    "configuration": {
+      "configurable": true/false,
+      "configSchema": {},
+      "currentConfig": {}
+    }
   }
 }
 ```
 
-### 2. Modern Default Agent
-- Subscribes to tool catalog for discovery
-- Uses context-driven patterns
-- No hardcoded tool lists
+### Tool Discovery Flow
 
-### 3. Template Library
-- Teaches by example
-- Self-documenting with `llm_hints`
-- Agents can discover and learn
+1. **Tool Creation**: Create a `tool.v1` breadcrumb
+2. **Catalog Discovery**: Catalog aggregator finds new tools
+3. **Agent Usage**: Agents read catalog or search tool.v1 directly
+4. **Dynamic Updates**: Tools can be added/removed at runtime
 
-### 4. Idempotent Bootstrap
-- Checks for existing bootstrap marker
-- Skips already-created breadcrumbs
-- Version tracking for upgrades
+### Key Principles
 
-## Running Bootstrap
-
-### Standalone
-```bash
-cd bootstrap-breadcrumbs
-npm install node-fetch
-node bootstrap.js
-```
-
-### Integrated with Setup
-Add to `setup.sh`:
-```bash
-# After services are running
-echo "📚 Bootstrapping system data..."
-cd bootstrap-breadcrumbs && node bootstrap.js
-```
-
-### Docker Integration
-```yaml
-bootstrap:
-  image: node:18-alpine
-  volumes:
-    - ./bootstrap-breadcrumbs:/app
-  environment:
-    - RCRT_BASE_URL=http://rcrt:8081
-  command: |
-    cd /app && npm install node-fetch && node bootstrap.js
-  depends_on:
-    rcrt:
-      condition: service_healthy
-```
+1. **Everything is a breadcrumb** - No in-memory registries
+2. **Self-documenting** - Tools include examples showing field access
+3. **Configuration included** - Single breadcrumb for definition + config
+4. **Dynamic discovery** - Search breadcrumbs, not memory
 
 ## Bootstrap Process
 
-1. **Check Status** - Look for existing bootstrap marker
-2. **Load System** - Tool catalog, default agents
-3. **Load Templates** - Guides and patterns
-4. **Mark Complete** - Create bootstrap marker
+1. System creates core breadcrumbs from `system/` directory
+2. Tool definitions are created as `tool.v1` breadcrumbs
+3. Catalog is built by aggregating tool breadcrumbs
+4. Agents discover tools through catalog or direct search
 
-## Next Steps
+## Migration from Old System
 
-### Priority: Server Transform Support
+Old system:
+- Tools registered in memory
+- Catalog built from memory
+- No individual tool breadcrumbs
 
-Before expanding bootstrap, we need the server to process `llm_hints`:
+New system:
+- Tools are breadcrumbs
+- Catalog aggregates from breadcrumbs
+- Dynamic discovery
 
-1. **Implement in RCRT Server**
-   ```rust
-   fn apply_llm_hints(breadcrumb: &Breadcrumb) -> Value {
-     // Process transforms
-   }
-   ```
+## Creating a New Tool
 
-2. **Test with Bootstrap Data**
-   - Tool catalog should show concise view
-   - Templates should demonstrate transforms
+1. Copy `tool-definition-template.json`
+2. Fill in your tool's details
+3. Add examples showing output field access
+4. Create as `tool.v1` breadcrumb
+5. Tool is automatically discovered!
 
-3. **Expand Bootstrap**
-   - More default agents
-   - Transform pattern library
-   - Example workflows
+## Important Notes
 
-## Benefits
-
-- **Zero to Chat** - Working system immediately after setup
-- **Self-Teaching** - Templates show best practices
-- **Future-Ready** - llm_hints ready for server support
-- **Clean Start** - Consistent initial state
+- The `outputSchema` MUST include descriptions
+- Examples MUST show how to access output fields
+- For workflows, show ${stepId.field} syntax
+- Configuration is optional but included in same breadcrumb

@@ -11,6 +11,94 @@ export class OpenRouterTool extends SimpleLLMTool {
   description = 'OpenRouter - Access to 100+ LLM models via unified API';
   requiredSecrets = ['OPENROUTER_API_KEY'];
   
+  configSchema = {
+    type: 'object',
+    properties: {
+      apiKey: {
+        type: 'string',
+        description: 'OpenRouter API key',
+        secret: true
+      },
+      defaultModel: {
+        type: 'string',
+        description: 'Default model when not specified',
+        default: 'google/gemini-2.5-flash'
+      },
+      defaultTemperature: {
+        type: 'number',
+        description: 'Default temperature',
+        default: 0.7,
+        minimum: 0,
+        maximum: 2
+      },
+      defaultMaxTokens: {
+        type: 'number',
+        description: 'Default max tokens',
+        default: 4000,
+        minimum: 1
+      }
+    },
+    required: ['apiKey']
+  };
+  
+  configDefaults = {
+    defaultModel: 'google/gemini-2.5-flash',
+    defaultTemperature: 0.7,
+    defaultMaxTokens: 4000
+  };
+  
+  examples = [
+    {
+      title: 'Simple question',
+      input: {
+        messages: [
+          { role: 'user', content: 'What is 2+2?' }
+        ]
+      },
+      output: {
+        content: '2 + 2 equals 4.',
+        model: 'google/gemini-2.5-flash',
+        usage: { prompt_tokens: 10, completion_tokens: 8, total_tokens: 18 },
+        cost_estimate: 0.00001
+      },
+      explanation: 'Access the response with result.content. Model and usage info available.'
+    },
+    {
+      title: 'With system prompt and temperature',
+      input: {
+        messages: [
+          { role: 'system', content: 'You are a helpful coding assistant' },
+          { role: 'user', content: 'How do I create a list in Python?' }
+        ],
+        temperature: 0.7
+      },
+      output: {
+        content: 'In Python, you can create a list using square brackets: my_list = [1, 2, 3]',
+        model: 'google/gemini-2.5-flash',
+        usage: { total_tokens: 45 },
+        cost_estimate: 0.00003
+      },
+      explanation: 'System prompts guide behavior. Temperature controls creativity (0-2).'
+    },
+    {
+      title: 'Specify different model',
+      input: {
+        messages: [
+          { role: 'user', content: 'Explain quantum computing' }
+        ],
+        model: 'anthropic/claude-3-haiku',
+        max_tokens: 500
+      },
+      output: {
+        content: 'Quantum computing uses quantum mechanics principles...',
+        model: 'anthropic/claude-3-haiku',
+        usage: { total_tokens: 120 },
+        cost_estimate: 0.00015
+      },
+      explanation: 'Specify a different model with the model parameter. Check models catalog for available options.'
+    }
+  ];
+  
   async initialize(context: ToolExecutionContext): Promise<void> {
     console.log('[OpenRouter] Initializing OpenRouter tool...');
     await this.ensureModelsCatalog(context);

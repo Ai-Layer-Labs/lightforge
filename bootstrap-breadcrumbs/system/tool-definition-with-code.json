@@ -1,0 +1,61 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Random Number Generator",
+  "tags": ["tool", "tool:random", "category:general", "workspace:tools"],
+  "context": {
+    "name": "random",
+    "version": "1.0.0",
+    "description": "Generate random numbers with configurable range and count",
+    "category": "general",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.random",
+      "alternates": {
+        "typescript": "packages/tools/src/index.ts#random",
+        "javascript": "packages/tools/dist/index.js#random"
+      }
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "min": { "type": "number", "default": 0 },
+          "max": { "type": "number", "default": 100 },
+          "count": { "type": "number", "default": 1, "minimum": 1, "maximum": 10 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "type": "array",
+            "items": {"type": "number"},
+            "description": "Array of generated random numbers"
+          }
+        }
+      },
+      "examples": [
+        {
+          "title": "Single number",
+          "input": {"min": 1, "max": 10},
+          "output": {"numbers": [7]},
+          "explanation": "Access with result.numbers[0]"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 1000,
+      "retries": 0
+    }
+  }
+}

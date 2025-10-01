@@ -1,0 +1,32 @@
+{
+  "description": "Additional breadcrumb subscriptions for the default chat agent to improve workflow visibility",
+  "subscriptions": [
+    {
+      "comment": "Subscribe to workflow progress updates",
+      "selector": {
+        "schema_name": "agent.response.v1",
+        "all_tags": ["workflow:progress"],
+        "context_match": [
+          {"path": "$.workflowId", "op": "exists"}
+        ]
+      }
+    },
+    {
+      "comment": "Subscribe to all tool requests in the workspace for better visibility",
+      "selector": {
+        "schema_name": "tool.request.v1",
+        "all_tags": ["workspace:tools"]
+      }
+    },
+    {
+      "comment": "Subscribe to tool responses by workflow prefix",
+      "selector": {
+        "schema_name": "tool.response.v1",
+        "all_tags": ["workspace:tools"],
+        "context_match": [
+          {"path": "$.request_id", "op": "startsWith", "value": "workflow-"}
+        ]
+      }
+    }
+  ]
+}

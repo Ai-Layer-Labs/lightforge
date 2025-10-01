@@ -11,6 +11,61 @@ export class OllamaTool extends SimpleLLMTool {
   description = 'Ollama - Fast, free, private local models';
   requiredSecrets = []; // No API key needed for local models!
   
+  configSchema = {
+    type: 'object',
+    properties: {
+      ollamaHost: {
+        type: 'string',
+        description: 'Ollama host URL',
+        default: 'http://localhost:11434'
+      },
+      defaultModel: {
+        type: 'string',
+        description: 'Default Ollama model',
+        default: 'llama3.1:8b'
+      }
+    }
+  };
+  
+  configDefaults = {
+    ollamaHost: 'http://localhost:11434',
+    defaultModel: 'llama3.1:8b'
+  };
+  
+  examples = [
+    {
+      title: 'Simple local query',
+      input: {
+        messages: [
+          { role: 'user', content: 'What is the capital of France?' }
+        ]
+      },
+      output: {
+        content: 'The capital of France is Paris.',
+        model: 'llama3.1:8b',
+        usage: { total_tokens: 25 },
+        cost_estimate: 0
+      },
+      explanation: 'Free local inference. Access response with result.content.'
+    },
+    {
+      title: 'Code generation',
+      input: {
+        messages: [
+          { role: 'user', content: 'Write a Python function to reverse a string' }
+        ],
+        model: 'codellama:7b'
+      },
+      output: {
+        content: 'def reverse_string(s):\n    return s[::-1]',
+        model: 'codellama:7b',
+        usage: { total_tokens: 40 },
+        cost_estimate: 0
+      },
+      explanation: 'Use specialized models like codellama for coding tasks. Always free!'
+    }
+  ];
+  
   async execute(input: any, context: ToolExecutionContext): Promise<any> {
     // Validate input
     const validation = this.validateInput(input);

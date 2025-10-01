@@ -25,6 +25,24 @@ export interface RCRTTool {
   inputSchema: JSONSchema;
   outputSchema: JSONSchema;
   
+  // Examples showing tool usage and output field access
+  examples?: Array<{
+    title: string;
+    input: any;
+    output: any;
+    explanation: string;
+  }>;
+  
+  // Optional: configuration schema for tool settings
+  configSchema?: JSONSchema;
+  configDefaults?: Record<string, any>;
+  
+  // Optional: rate limit configuration
+  rateLimit?: {
+    requests: number;
+    window: string; // e.g., "1m", "1h"
+  };
+  
   // Execute the tool with given input and context
   execute(input: any, context?: any): Promise<any>;
   
@@ -45,215 +63,11 @@ export interface ToolExecutionContext {
   agentId?: string;
   metadata?: Record<string, any>;
   rcrtClient: RcrtClientEnhanced;
+  
+  // RCRT-Native: Wait for events instead of polling
+  waitForEvent?: (criteria: any, timeout?: number) => Promise<any>;
 }
 
-// Tool request/response schemas
-export interface ToolRequest {
-  tool: string;
-  input: any;
-  context?: any;
-  timeout?: number;
-}
-
-export interface ToolResponse {
-  tool: string;
-  requestId: string;
-  result: any;
-  executionTime?: number;
-  metadata?: Record<string, any>;
-}
-
-export interface ToolError {
-  tool: string;
-  requestId: string;
-  error: string;
-  code?: string;
-  metadata?: Record<string, any>;
-}
-
-// Main wrapper class that integrates tools with RCRT
-export class RCRTToolWrapper {
-  private stopStream?: () => void;
-
-  constructor(
-    private tool: RCRTTool,
-    private client: RcrtClientEnhanced,
-    private workspace: string,
-    private options: {
-      enableUI?: boolean;
-      timeout?: number;
-      retries?: number;
-      applyClient?: RcrtClientEnhanced;
-    } = {}  
-  ) {}
-
-  async start(): Promise<void> {
-    console.log(`[${this.tool.name}] Starting tool wrapper for workspace: ${this.workspace}`);
-    
-    // Initialize tool if it has an initialize method
-    if (this.tool.initialize) {
-      console.log(`[${this.tool.name}] Running tool initialization...`);
-      try {
-        const initContext: ToolExecutionContext = {
-          requestId: `init-${Date.now()}`,
-          workspace: this.workspace,
-          agentId: 'system',
-          rcrtClient: this.client
-        };
-        await this.tool.initialize(initContext);
-        console.log(`[${this.tool.name}] Initialization complete`);
-      } catch (error) {
-        console.error(`[${this.tool.name}] Initialization failed:`, error);
-      }
-    }
-    
-    // 🔧 ARCHITECTURE CHANGE: Centralized SSE dispatcher handles tool requests
-    // Individual wrappers no longer maintain separate SSE connections
-    console.log(`[${this.tool.name}] ✅ Tool ready - centralized dispatcher will route requests`);
-
-    // Tool availability is managed by the central registry catalog
-    // Individual tool definitions are no longer published
-
-    // Optionally create UI components
-    if (this.options.enableUI) {
-      await this.createToolUI();
-    }
-  }
-
-  async stop(): Promise<void> {
-    console.log(`[${this.tool.name}] Stopping tool wrapper`);
-    
-    // 🔧 ARCHITECTURE CHANGE: No individual SSE streams to stop
-    // Centralized dispatcher handles all SSE connections
-    
-    if (this.tool.cleanup) {
-      await this.tool.cleanup();
-    }
-  }
-
-  private async handleRequest(evt: any): Promise<void> {
-    const startTime = Date.now();
-    const requestId = evt.id || `req-${Date.now()}`;
-    const context: ToolExecutionContext = {
-      requestId,
-      workspace: this.workspace,
-      agentId: evt.context?.agentId,
-      metadata: evt.context?.metadata,
-      rcrtClient: this.client
-    };
-
-    console.log(`[${this.tool.name}] Handling request: ${requestId}`);
-
-    try {
-      // Validate input if tool provides validation
-      if (this.tool.validateInput) {
-        const validation = this.tool.validateInput(evt.context?.input);
-        if (validation !== true) {
-          throw new Error(typeof validation === 'string' ? validation : 'Invalid input');
-        }
-      }
-
-      // Execute with timeout
-      const timeout = this.options.timeout || 30000;
-      const result = await Promise.race([
-        this.tool.execute(evt.context?.input, context),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Tool execution timeout')), timeout)
-        )
-      ]);
-
-      const executionTime = Date.now() - startTime;
-
-      // Write success result
-      await this.client.createBreadcrumb({
-        schema_name: 'tool.response.v1',
-        title: `${this.tool.name} Result`,
-        tags: [this.workspace, 'tool:response', `tool:${this.tool.name}`],
-        context: {
-          tool: this.tool.name,
-          requestId,
-          result,
-          executionTime,
-          metadata: context.metadata
-        } as ToolResponse
-      });
-
-      console.log(`[${this.tool.name}] Request ${requestId} completed in ${executionTime}ms`);
-
-    } catch (error: any) {
-      const executionTime = Date.now() - startTime;
-      const errorMessage = error?.message || String(error);
-      
-      console.error(`[${this.tool.name}] Request ${requestId} failed:`, errorMessage);
-
-      // Write error result
-      await this.client.createBreadcrumb({
-        schema_name: 'tool.error.v1',
-        title: `${this.tool.name} Error`,
-        tags: [this.workspace, 'tool:error', `tool:${this.tool.name}`],
-        context: {
-          tool: this.tool.name,
-          requestId,
-          error: errorMessage,
-          code: error?.code || 'EXECUTION_ERROR',
-          metadata: { ...context.metadata, executionTime }
-        } as ToolError
-      });
-    }
-  }
-
-  // Tool definitions are now managed centrally by the ToolRegistry
-  // Individual tools no longer publish separate definition breadcrumbs
-
-  private async createToolUI(): Promise<void> {
-    // Create a UI component for this tool
-    const plan = {
-      schema_name: 'ui.plan.v1',
-      title: `Create ${this.tool.name} UI`,
-      tags: [this.workspace, 'ui:plan'],
-      context: {
-        actions: [{
-          type: 'create_instance',
-          region: 'tools',
-          instance: {
-            component_ref: 'ToolCard',
-            props: {
-              title: this.tool.name,
-              description: this.tool.description,
-              schema: this.tool.inputSchema,
-              onSubmit: {
-                action: 'emit_breadcrumb',
-                payload: {
-                  schema_name: 'tool.request.v1',
-                  tags: [this.workspace, 'tool:request'],
-                  context: {
-                    tool: this.tool.name,
-                    input: '${formData}'
-                  }
-                }
-              }
-            },
-            order: 0
-          }
-        }]
-      }
-    };
-
-    // Apply the plan to create UI (prefer a dedicated applyClient that targets builder proxy)
-    try {
-      const targetClient: any = this.options.applyClient || (this.client as any);
-      if (targetClient && typeof targetClient.applyPlan === 'function') {
-        await targetClient.applyPlan(plan);
-      } else {
-        // Fallback: create the plan as a breadcrumb for manual application
-        await this.client.createBreadcrumb(plan);
-      }
-      console.log(`[${this.tool.name}] UI component created`);
-    } catch (error) {
-      console.warn(`[${this.tool.name}] Failed to create UI:`, error);
-    }
-  }
-}
 
 // Helper to create a simple tool from a function
 export function createTool(
@@ -261,14 +75,31 @@ export function createTool(
   description: string,
   inputSchema: JSONSchema,
   outputSchema: JSONSchema,
-  execute: (input: any, context?: ToolExecutionContext) => Promise<any>
+  execute: (input: any, context?: ToolExecutionContext) => Promise<any>,
+  options?: {
+    examples?: Array<{
+      title: string;
+      input: any;
+      output: any;
+      explanation: string;
+    }>;
+    category?: string;
+    version?: string;
+    configSchema?: JSONSchema;
+    configDefaults?: Record<string, any>;
+    rateLimit?: {
+      requests: number;
+      window: string;
+    };
+  }
 ): RCRTTool {
   return {
     name,
     description,
     inputSchema,
     outputSchema,
-    execute
+    execute,
+    ...options
   };
 }
 
@@ -277,6 +108,16 @@ import { FileStorageTool, AgentLoaderTool } from './file-tools/index.js';
 
 // Import workflow orchestrator
 import { workflowOrchestrator } from './workflow-orchestrator.js';
+
+// Import LLM tools
+import { OpenRouterTool, OllamaTool } from './llm-tools/index.js';
+
+// Export tool loader for RCRT-native mode
+export { ToolLoader } from './tool-loader.js';
+export { bootstrapTools } from './bootstrap-tools.js';
+
+// Export LLM tools for external use
+export { OpenRouterTool, OllamaTool, SimpleLLMTool, OpenRouterModelsCatalog } from './llm-tools/index.js';
 
 // Built-in simple tools
 export const builtinTools = {
@@ -393,10 +234,27 @@ export const builtinTools = {
     {
       type: 'object',
       properties: {
-        echo: { type: 'string' }
+        echo: { type: 'string', description: 'The echoed message' }
       }
     },
-    async (input) => ({ echo: input.message })
+    async (input) => ({ echo: input.message }),
+    {
+      category: 'general',
+      examples: [
+        {
+          title: 'Simple echo',
+          input: { message: 'Hello, RCRT!' },
+          output: { echo: 'Hello, RCRT!' },
+          explanation: 'Access with result.echo'
+        },
+        {
+          title: 'For testing tool chains',
+          input: { message: 'Test message' },
+          output: { echo: 'Test message' },
+          explanation: 'Useful for testing tool communication'
+        }
+      ]
+    }
   ),
 
   // Timer tool
@@ -413,13 +271,30 @@ export const builtinTools = {
     {
       type: 'object',
       properties: {
-        waited: { type: 'number' },
-        message: { type: 'string' }
+        waited: { type: 'number', description: 'Number of seconds waited' },
+        message: { type: 'string', description: 'Confirmation message' }
       }
     },
     async (input) => {
       await new Promise(resolve => setTimeout(resolve, input.seconds * 1000));
       return { waited: input.seconds, message: `Waited ${input.seconds} seconds` };
+    },
+    {
+      category: 'general',
+      examples: [
+        {
+          title: 'Short delay',
+          input: { seconds: 2 },
+          output: { waited: 2, message: 'Waited 2 seconds' },
+          explanation: 'Access duration with result.waited'
+        },
+        {
+          title: 'For workflow delays',
+          input: { seconds: 5 },
+          output: { waited: 5, message: 'Waited 5 seconds' },
+          explanation: 'Useful for adding delays between workflow steps'
+        }
+      ]
     }
   ),
 
@@ -438,7 +313,7 @@ export const builtinTools = {
     {
       type: 'object',
       properties: {
-        numbers: { type: 'array', items: { type: 'number' } }
+        numbers: { type: 'array', items: { type: 'number' }, description: 'Array of generated random numbers' }
       }
     },
     async (input) => {
@@ -447,6 +322,29 @@ export const builtinTools = {
         Math.floor(Math.random() * (max - min + 1)) + min
       );
       return { numbers };
+    },
+    {
+      category: 'general',
+      examples: [
+        {
+          title: 'Single random number',
+          input: { min: 1, max: 10 },
+          output: { numbers: [7] },
+          explanation: 'Access the number with result.numbers[0]'
+        },
+        {
+          title: 'Multiple random numbers',
+          input: { min: 0, max: 100, count: 3 },
+          output: { numbers: [42, 73, 15] },
+          explanation: 'Access with result.numbers[0], result.numbers[1], etc.'
+        },
+        {
+          title: 'For use in workflows',
+          input: { min: 1, max: 100 },
+          output: { numbers: [84] },
+          explanation: 'In workflow steps, use ${stepId.numbers[0]}'
+        }
+      ]
     }
   ),
 
@@ -534,6 +432,29 @@ export const builtinTools = {
       } catch (error: any) {
         throw new Error(`Failed to evaluate expression: ${error.message}`);
       }
+    },
+    {
+      category: 'general',
+      examples: [
+        {
+          title: 'Basic arithmetic',
+          input: { expression: '2 + 2' },
+          output: { result: 4, expression: '2 + 2', formatted: '2 + 2 = 4' },
+          explanation: 'Access the result with result.result'
+        },
+        {
+          title: 'Complex expression',
+          input: { expression: '(10 * 5) + 25' },
+          output: { result: 75, expression: '(10 * 5) + 25', formatted: '(10 * 5) + 25 = 75' },
+          explanation: 'Supports parentheses and order of operations'
+        },
+        {
+          title: 'Math functions',
+          input: { expression: 'Math.sqrt(16)' },
+          output: { result: 4, expression: 'Math.sqrt(16)', formatted: 'Math.sqrt(16) = 4' },
+          explanation: 'Use Math.functionName for advanced operations like sqrt, sin, cos, etc.'
+        }
+      ]
     }
   ),
 
@@ -544,5 +465,9 @@ export const builtinTools = {
   'agent-loader': new AgentLoaderTool(),
 
   // Workflow Orchestrator Tool
-  'workflow': workflowOrchestrator
+  'workflow': workflowOrchestrator,
+  
+  // LLM Tools
+  'openrouter': new OpenRouterTool(),
+  'ollama_local': new OllamaTool()
 };

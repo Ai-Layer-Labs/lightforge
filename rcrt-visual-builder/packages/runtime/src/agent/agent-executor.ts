@@ -105,6 +105,8 @@ export class AgentExecutor {
         await this.handleToolResponse(event, triggeringBreadcrumb);
       } else if (schemaName === 'chat.message.v1' || schemaName === 'user.message.v1') {
         await this.handleChatMessage(event, triggeringBreadcrumb);
+      } else if (schemaName === 'system.message.v1') {
+        await this.handleSystemMessage(event, triggeringBreadcrumb);
       } else if (schemaName === 'tool.catalog.v1') {
         console.log('📚 Tool catalog updated');
         // Just log it, no action needed
@@ -181,6 +183,29 @@ export class AgentExecutor {
     });
     
     console.log(`🔧 Created LLM tool request: ${requestId} for tool: ${llmTool}`);
+  }
+  
+  private async handleSystemMessage(event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
+    const guidance = breadcrumb.context?.guidance;
+    const errorInfo = breadcrumb.context?.error;
+    
+    console.log(`📚 Received system guidance:`, {
+      type: breadcrumb.context?.type,
+      step: errorInfo?.step,
+      tool: errorInfo?.tool
+    });
+    
+    // Log the guidance for agent's context
+    if (guidance) {
+      console.log(`💡 System Guidance:\n${guidance}`);
+      
+      // Create a simple response acknowledging the learning
+      await this.createSimpleResponse(
+        `I received guidance about workflow errors. I'll remember that ` +
+        `the "${errorInfo?.tool}" tool's output structure is different than I expected. ` +
+        `${breadcrumb.context?.correctedExample ? `The correct syntax is: ${breadcrumb.context.correctedExample}` : ''}`
+      );
+    }
   }
   
   private async handleToolResponse(_event: BreadcrumbEvent, breadcrumb: any): Promise<void> {

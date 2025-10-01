@@ -1,0 +1,94 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Random Number Generator",
+  "tags": ["tool", "tool:random", "category:general", "workspace:tools"],
+  "context": {
+    "name": "random",
+    "version": "1.0.0",
+    "description": "Generate random numbers with configurable range and count",
+    "category": "general",
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number",
+            "default": 0,
+            "description": "Minimum value (inclusive)"
+          },
+          "max": {
+            "type": "number",
+            "default": 100,
+            "description": "Maximum value (inclusive)"
+          },
+          "count": {
+            "type": "number",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 10,
+            "description": "How many random numbers to generate"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "type": "array",
+            "items": {"type": "number"},
+            "description": "Array of generated random numbers. Access with .numbers[0] for first number"
+          }
+        },
+        "required": ["numbers"]
+      },
+      "examples": [
+        {
+          "title": "Single random number",
+          "input": {"min": 1, "max": 10},
+          "output": {"numbers": [7]},
+          "explanation": "Access the number with result.numbers[0]"
+        },
+        {
+          "title": "Multiple random numbers",
+          "input": {"min": 0, "max": 100, "count": 3},
+          "output": {"numbers": [42, 73, 15]},
+          "explanation": "Access with result.numbers[0], result.numbers[1], etc."
+        },
+        {
+          "title": "Workflow usage",
+          "input": {"min": 1, "max": 100},
+          "output": {"numbers": [84]},
+          "explanation": "In workflows, use ${stepId.numbers[0]} to access the value"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 1000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2025-09-30T00:00:00Z",
+      "lastActive": "2025-09-30T00:00:00Z",
+      "executionCount": 0
+    }
+  },
+  
+  "llm_hints": {
+    "transform": {
+      "usage": {
+        "type": "template",
+        "template": "Random number generator returns {numbers: [array]}. Access with .numbers[0]. In workflows: ${step.numbers[0]}"
+      }
+    },
+    "mode": "merge"
+  }
+}
