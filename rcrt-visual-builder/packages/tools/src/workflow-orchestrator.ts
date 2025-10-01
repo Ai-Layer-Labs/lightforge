@@ -557,6 +557,9 @@ export class WorkflowOrchestratorTool implements RCRTTool {
         
         // Replace ${stepId} or ${stepId.field} with actual values
         return normalizedValue.replace(/\$\{([^}]+)\}/g, (match, path) => {
+          // Handle both numbers[0] and numbers.[0] syntax
+          path = path.replace(/\.\[/g, '[');  // Fix .[ → [
+          
           const parts = path.split('.');
           const stepId = parts[0];
           
