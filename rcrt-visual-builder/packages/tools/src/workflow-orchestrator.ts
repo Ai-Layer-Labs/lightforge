@@ -478,12 +478,23 @@ export class WorkflowOrchestratorTool implements RCRTTool {
             return match;
           });
           
-          // Also fix .result.number patterns
-          corrected = corrected.replace(/\$\{(\w+)\.result\.number\}/g, (match, id) => {
+          // Also fix .result and .result.number patterns
+          corrected = corrected.replace(/\$\{(\w+)\.result(\.[\w]+)?\}/g, (match, id, subfield) => {
             const data = results.get(id);
             if (!data) return match;
-            if (data.numbers) return `\${${id}.numbers[0]}`;
-            if (data.result !== undefined) return `\${${id}.result}`;
+            
+            console.log(`[Workflow] Auto-correcting .result pattern: ${match} for stepId=${id}, data=`, data);
+            
+            // If data has .result field, that's correct
+            if (data.result !== undefined) {
+              return subfield ? match : `\${${id}.result}`;
+            }
+            
+            // Otherwise map to actual structure
+            if (data.numbers !== undefined) return `\${${id}.numbers[0]}`;
+            if (data.echo !== undefined) return `\${${id}.echo}`;
+            if (data.waited !== undefined) return `\${${id}.waited}`;
+            
             return match;
           });
           
@@ -556,6 +567,7 @@ export class WorkflowOrchestratorTool implements RCRTTool {
           let result = results.get(stepId);
           
           // Navigate nested fields
+          let originalPath = path;
           for (let i = 1; i < parts.length; i++) {
             if (result && typeof result === 'object') {
               // Handle array index notation like array[0]
@@ -570,6 +582,47 @@ export class WorkflowOrchestratorTool implements RCRTTool {
                 result = result[parts[i]];
               }
             } else {
+              // Field doesn't exist - try smart mapping!
+              result = undefined;
+              break;
+            }
+          }
+          
+          // Smart auto-correction if field doesn't exist
+          if (result === undefined && parts.length > 1) {
+            const actualData = results.get(stepId);
+            const attemptedField = parts.slice(1).join('.');
+            
+            console.log(`[Workflow] Field "${attemptedField}" not found in ${stepId}, attempting smart mapping...`);
+            console.log(`[Workflow] Actual data structure:`, actualData);
+            
+            // Common wrong patterns → correct mappings
+            if (attemptedField.match(/^output(\.value)?$/)) {
+              // ${stepId.output} or ${stepId.output.value}
+              if (actualData.numbers !== undefined) {
+                result = actualData.numbers[0];
+                console.log(`[Workflow] ✅ Auto-corrected ${stepId}.${attemptedField} → ${stepId}.numbers[0] = ${result}`);
+              } else if (actualData.result !== undefined) {
+                result = actualData.result;
+                console.log(`[Workflow] ✅ Auto-corrected ${stepId}.${attemptedField} → ${stepId}.result = ${result}`);
+              } else if (actualData.echo !== undefined) {
+                result = actualData.echo;
+                console.log(`[Workflow] ✅ Auto-corrected ${stepId}.${attemptedField} → ${stepId}.echo = ${result}`);
+              }
+            } else if (attemptedField.match(/^result(\.number)?$/)) {
+              // ${stepId.result} or ${stepId.result.number}
+              if (actualData.result !== undefined) {
+                result = actualData.result;
+                console.log(`[Workflow] ✅ Field ${stepId}.result exists = ${result}`);
+              } else if (actualData.numbers !== undefined) {
+                result = actualData.numbers[0];
+                console.log(`[Workflow] ✅ Auto-corrected ${stepId}.${attemptedField} → ${stepId}.numbers[0] = ${result}`);
+              }
+            }
+            
+            // If still undefined, return the match (will likely cause error later)
+            if (result === undefined) {
+              console.warn(`[Workflow] ⚠️ Could not auto-correct ${originalPath}, available fields:`, Object.keys(actualData || {}));
               return match;
             }
           }
