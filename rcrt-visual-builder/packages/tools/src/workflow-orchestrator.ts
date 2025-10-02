@@ -121,6 +121,15 @@ export class WorkflowOrchestratorTool implements RCRTTool {
   };
 
   async execute(input: WorkflowInput, context: ToolExecutionContext): Promise<any> {
+    // Validate input
+    if (!input || typeof input !== 'object') {
+      throw new Error('Invalid workflow input: must be an object');
+    }
+    
+    if (!input.steps || !Array.isArray(input.steps)) {
+      throw new Error(`Invalid workflow input: steps must be an array, got ${typeof input.steps}`);
+    }
+    
     const { steps, returnStep, continueOnError = false } = input;
     const results = new Map<string, any>();
     const errors = new Map<string, any>();
@@ -386,6 +395,12 @@ export class WorkflowOrchestratorTool implements RCRTTool {
    */
   private extractDependencies(input: any, allStepIds: string[]): string[] {
     const deps = new Set<string>();
+    
+    // Safety check: handle undefined/null input
+    if (!input || typeof input !== 'object') {
+      return [];
+    }
+    
     const json = JSON.stringify(input);
     
     // Match ${stepId} or {{stepId}} patterns

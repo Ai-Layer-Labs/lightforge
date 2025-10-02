@@ -169,30 +169,21 @@ async function updateToolCatalog(client: RcrtClientEnhanced, workspace: string):
             template: `You have access to {{context.activeTools}} tools:
 
 {{#each context.tools}}
-**{{this.category}}**: {{this.name}}
-  {{this.description}}
-  
-  Output fields: {{#each this.outputSchema.properties}}{{@key}}{{#unless @last}}, {{/unless}}{{/each}}
-  
-  {{#if this.examples}}
-  Example usage:
-    Input: {{{json this.examples.[0].input}}}
-    Output: {{{json this.examples.[0].output}}}
-    {{#if this.examples.[0].explanation}}→ {{this.examples.[0].explanation}}{{/if}}
-  {{/if}}
-
+• {{this.name}} ({{this.category}}): {{this.description}}
+  Output: {{#if this.outputSchema.properties}}{{#each this.outputSchema.properties}}{{@key}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}See outputSchema{{/if}}
+  {{#if this.examples}}{{#if this.examples.[0]}}Example: {{this.examples.[0].explanation}}{{/if}}{{/if}}
 {{/each}}
 
-To use a tool, create tool_requests in your response:
+IMPORTANT: The catalog above includes examples showing exact output field names. Use the correct field access!
+
+To invoke tools:
 {
   "tool_requests": [{
     "tool": "tool-name",
-    "input": { /* see tool's inputSchema */ },
+    "input": { /* parameters */ },
     "requestId": "unique-id"
   }]
-}
-
-IMPORTANT: Study the examples above - they show exact output structures and how to access fields.`
+}`
           },
           available_tools: {
             type: 'extract',
