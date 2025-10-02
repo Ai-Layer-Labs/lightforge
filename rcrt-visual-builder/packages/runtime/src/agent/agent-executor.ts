@@ -10,7 +10,6 @@ import {
   Selector
 } from '@rcrt-builder/core';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { ToolPromptAdapter } from './tool-prompt-adapter';
 import { extractAndParseJSON } from '../utils/json-repair';
 
 export interface AgentExecutorOptions {
@@ -332,15 +331,25 @@ export class AgentExecutor {
       });
       
       if (catalogs.length > 0) {
+        // RCRT-Native: Let the backend apply llm_hints transformations
         const fullCatalog = await this.rcrtClient.getBreadcrumb(catalogs[0].id);
-        if (fullCatalog.context?.tools) {
-          const toolPrompt = ToolPromptAdapter.generateToolPrompt(fullCatalog as any);
+        
+        // The RCRT backend has already applied llm_hints transformations
+        // Just use the transformed context directly!
+        if (fullCatalog.context?.tool_list) {
+          // Backend transformed it via llm_hints
           context.push({
             type: 'tool_catalog',
-            content: toolPrompt
+            content: fullCatalog.context.tool_list
+          });
+        } else if (fullCatalog.context?.tool_summary) {
+          // Fallback to old key name
+          context.push({
+            type: 'tool_catalog',
+            content: fullCatalog.context.tool_summary
           });
         } else {
-          console.log('⚠️ Tool catalog found but no tools in context');
+          console.log('⚠️ Tool catalog found but no transformed context (llm_hints may not be applied)');
         }
       }
     }

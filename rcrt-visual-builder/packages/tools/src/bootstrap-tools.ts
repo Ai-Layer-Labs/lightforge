@@ -164,9 +164,35 @@ async function updateToolCatalog(client: RcrtClientEnhanced, workspace: string):
       lastUpdated: new Date().toISOString(),
       llm_hints: {
         transform: {
-          tool_summary: {
+          tool_list: {
             type: 'template',
-            template: '{{context.activeTools}} tools available:\n{{#each context.tools}}- {{this.name}} ({{this.category}}): {{this.description}}\n{{/each}}\n\nTo use a tool, create a tool.request.v1 breadcrumb with:\n- tool: the tool name\n- input: parameters matching the inputSchema\n- requestId: unique identifier'
+            template: `You have access to {{context.activeTools}} tools:
+
+{{#each context.tools}}
+**{{this.category}}**: {{this.name}}
+  {{this.description}}
+  
+  Output fields: {{#each this.outputSchema.properties}}{{@key}}{{#unless @last}}, {{/unless}}{{/each}}
+  
+  {{#if this.examples}}
+  Example usage:
+    Input: {{{json this.examples.[0].input}}}
+    Output: {{{json this.examples.[0].output}}}
+    {{#if this.examples.[0].explanation}}→ {{this.examples.[0].explanation}}{{/if}}
+  {{/if}}
+
+{{/each}}
+
+To use a tool, create tool_requests in your response:
+{
+  "tool_requests": [{
+    "tool": "tool-name",
+    "input": { /* see tool's inputSchema */ },
+    "requestId": "unique-id"
+  }]
+}
+
+IMPORTANT: Study the examples above - they show exact output structures and how to access fields.`
           },
           available_tools: {
             type: 'extract',
