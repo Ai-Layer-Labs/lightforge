@@ -46,15 +46,37 @@ export class ToolPromptAdapter {
       return acc;
     }, {} as Record<string, ToolInfo[]>);
     
-    // Generate tool descriptions
+    // Generate tool descriptions WITH EXAMPLES
     let prompt = `You have access to ${tools.length} tools:\n\n`;
     
     for (const [category, categoryTools] of Object.entries(toolsByCategory)) {
-      prompt += `**${category.charAt(0).toUpperCase() + category.slice(1)} Tools:**\n`;
+      prompt += `**${category.charAt(0).toUpperCase() + category.slice(1)} Tools:**\n\n`;
+      
       for (const tool of categoryTools) {
-        prompt += `- ${tool.name}: ${tool.description}\n`;
+        prompt += `• **${tool.name}**: ${tool.description}\n`;
+        
+        // Include output schema fields
+        if (tool.outputSchema?.properties) {
+          const outputFields = Object.keys(tool.outputSchema.properties);
+          prompt += `  Output fields: ${outputFields.join(', ')}\n`;
+        }
+        
+        // Include EXAMPLES (CRITICAL!)
+        if ((tool as any).examples && Array.isArray((tool as any).examples)) {
+          const examples = (tool as any).examples;
+          if (examples.length > 0) {
+            const firstExample = examples[0];
+            prompt += `  Example:\n`;
+            prompt += `    Input: ${JSON.stringify(firstExample.input)}\n`;
+            prompt += `    Output: ${JSON.stringify(firstExample.output)}\n`;
+            if (firstExample.explanation) {
+              prompt += `    → ${firstExample.explanation}\n`;
+            }
+          }
+        }
+        
+        prompt += '\n';
       }
-      prompt += '\n';
     }
     
     // Add usage instructions
@@ -68,7 +90,9 @@ export class ToolPromptAdapter {
       "requestId": "unique-request-id"
     }
   ]
-}`;
+}
+
+IMPORTANT: Study the examples above! They show you the exact output structure and how to access fields.`;
     
     return prompt;
   }
