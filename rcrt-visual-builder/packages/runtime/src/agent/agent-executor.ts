@@ -569,11 +569,17 @@ export class AgentExecutor {
       
       // Tool catalog
       if (assembledContext.tool_catalog) {
-        const catalog = typeof assembledContext.tool_catalog === 'string' 
-          ? assembledContext.tool_catalog 
-          : assembledContext.tool_catalog.tool_list || 
-            assembledContext.tool_catalog.tools ||
-            'No tools available';
+        let catalog = 'No tools available';
+        if (typeof assembledContext.tool_catalog === 'string') {
+          catalog = assembledContext.tool_catalog;
+        } else if (assembledContext.tool_catalog.tool_list) {
+          catalog = assembledContext.tool_catalog.tool_list;
+        } else if (assembledContext.tool_catalog.tools) {
+          catalog = assembledContext.tool_catalog.tools;
+        } else {
+          // Object without tool_list - likely the full catalog object
+          catalog = JSON.stringify(assembledContext.tool_catalog, null, 2);
+        }
         sections.push(`# Available Tools\n${catalog}`);
       }
       
