@@ -74,6 +74,8 @@ export interface SearchParams {
   q?: string;
   nn?: number;
   query_embedding?: number[];
+  limit?: number;
+  offset?: number;
 }
 
 export interface VectorSearchParams {
@@ -402,6 +404,9 @@ export class RcrtClientEnhanced {
     if (params.qvec) qp.set('qvec', JSON.stringify(params.qvec));
     if (typeof params.nn === 'number') qp.set('nn', String(params.nn));
     if (params.filters?.tag) qp.set('tag', params.filters.tag);
+    if (params.filters?.schema_name) qp.set('schema_name', params.filters.schema_name);
+    // Always request context for vector search results
+    qp.set('include_context', 'true');
 
     const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/search?${qp.toString()}`);
 

@@ -1,0 +1,25 @@
+{
+  "name": "@rcrt-builder/context-builder",
+  "version": "1.0.0",
+  "description": "Universal context assembly service with auto-discovery",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@rcrt-builder/sdk": "workspace:*",
+    "@rcrt-builder/tools": "workspace:*",
+    "@rcrt-builder/core": "workspace:*",
+    "dotenv": "^16.3.1",
+    "jsonrepair": "^3.8.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
+

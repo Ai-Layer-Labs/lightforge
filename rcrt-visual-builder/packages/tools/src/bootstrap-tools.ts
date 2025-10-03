@@ -17,11 +17,6 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
         tag: `tool:${name}`
       });
       
-      if (existing.length > 0) {
-        console.log(`✓ Tool ${name} already exists`);
-        continue;
-      }
-      
       // Determine implementation details based on tool type
       let implementation: any;
       
@@ -102,8 +97,20 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
         }
       };
       
-      await client.createBreadcrumb(toolDef);
-      console.log(`✅ Created tool breadcrumb for ${name}`);
+      if (existing.length > 0) {
+        // Update existing tool breadcrumb
+        const existingBreadcrumb = await client.getBreadcrumb(existing[0].id);
+        await client.updateBreadcrumb(existing[0].id, existingBreadcrumb.version, {
+          title: toolDef.title,
+          tags: toolDef.tags,
+          context: toolDef.context
+        });
+        console.log(`✅ Updated tool breadcrumb for ${name}`);
+      } else {
+        // Create new tool breadcrumb
+        await client.createBreadcrumb(toolDef);
+        console.log(`✅ Created tool breadcrumb for ${name}`);
+      }
       
     } catch (error) {
       console.error(`❌ Failed to bootstrap tool ${name}:`, error);

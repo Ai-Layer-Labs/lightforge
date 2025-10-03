@@ -14,6 +14,7 @@ use chrono;
 
 mod hygiene;
 mod transforms;
+mod embedding_policy;
 #[cfg(feature = "nats")]
 use nats;
 use reqwest::Client as HttpClient;
@@ -163,7 +164,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 #[derive(Deserialize)]
-struct SearchQuery { qvec: Option<String>, q: Option<String>, nn: Option<i64>, tag: Option<String>, include_context: Option<bool> }
+struct SearchQuery { qvec: Option<String>, q: Option<String>, nn: Option<i64>, tag: Option<String>, schema_name: Option<String>, include_context: Option<bool> }
 
 #[derive(Serialize)]
 #[serde(untagged)]
@@ -191,25 +192,54 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
     if include_context {
         // Return full context view
         let mut sql = String::from("select id, title, context, tags, schema_name, version, updated_at from breadcrumbs where owner_id = $1");
-        if q.tag.is_some() { sql.push_str(" and $3 = any(tags)"); }
+        let mut bind_idx = 3;
+        if q.tag.is_some() { 
+            sql.push_str(&format!(" and ${} = any(tags)", bind_idx)); 
+            bind_idx += 1;
+        }
+        if q.schema_name.is_some() { 
+            sql.push_str(&format!(" and schema_name = ${}", bind_idx)); 
+        }
         sql.push_str(" order by embedding <#> $2 limit ");
         sql.push_str(&limit.to_string());
 
-        let rows = if let Some(tag) = q.tag {
-            sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(auth.owner_id)
-                .bind(&qvec)
-                .bind(tag)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        } else {
-            sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(auth.owner_id)
-                .bind(&qvec)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
+        let rows = match (&q.tag, &q.schema_name) {
+            (Some(tag), Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(tag)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (Some(tag), None) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(tag)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, None) => {
+                sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            }
         };
 
         let items = rows.into_iter().map(|(id,title,context,tags,schema_name,version,updated_at)| {
@@ -221,25 +251,54 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
     } else {
         // Return minimal list view
         let mut sql = String::from("select id, title, tags, version, updated_at from breadcrumbs where owner_id = $1");
-        if q.tag.is_some() { sql.push_str(" and $3 = any(tags)"); }
+        let mut bind_idx = 3;
+        if q.tag.is_some() { 
+            sql.push_str(&format!(" and ${} = any(tags)", bind_idx)); 
+            bind_idx += 1;
+        }
+        if q.schema_name.is_some() { 
+            sql.push_str(&format!(" and schema_name = ${}", bind_idx)); 
+        }
         sql.push_str(" order by embedding <#> $2 limit ");
         sql.push_str(&limit.to_string());
 
-        let rows = if let Some(tag) = q.tag {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(auth.owner_id)
-                .bind(&qvec)
-                .bind(tag)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
-        } else {
-            sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
-                .bind(auth.owner_id)
-                .bind(&qvec)
-                .fetch_all(&state.db.pool)
-                .await
-                .map_err(internal_error)?
+        let rows = match (&q.tag, &q.schema_name) {
+            (Some(tag), Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(tag)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (Some(tag), None) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(tag)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, Some(schema)) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .bind(schema)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            },
+            (None, None) => {
+                sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
+                    .bind(auth.owner_id)
+                    .bind(&qvec)
+                    .fetch_all(&state.db.pool)
+                    .await
+                    .map_err(internal_error)?
+            }
         };
 
         let items = rows.into_iter().map(|(id,title,tags,version,updated_at)| ListItem{ id, title, tags, schema_name: None, version, updated_at }).collect();
@@ -510,7 +569,10 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         }
     }
     // Try embedding before insert for atomicity if available
-    let emb = embed_text(extract_text_for_embedding_struct(&req)).ok();
+    let emb = embedding_policy::get_or_fallback_embedding(
+        extract_text_for_embedding_struct(&req),
+        req.schema_name.as_deref()
+    );
     
     // Apply automatic TTL policies for certain breadcrumb types
     let mut breadcrumb_create = BreadcrumbCreate {

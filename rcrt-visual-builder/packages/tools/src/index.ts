@@ -112,6 +112,9 @@ import { workflowOrchestrator } from './workflow-orchestrator.js';
 // Import LLM tools
 import { OpenRouterTool, OllamaTool } from './llm-tools/index.js';
 
+// Import context tools
+import { contextBuilderTool } from './context-tools/index.js';
+
 // Export tool loader for RCRT-native mode
 export { ToolLoader } from './tool-loader.js';
 export { bootstrapTools } from './bootstrap-tools.js';
@@ -470,6 +473,9 @@ export const builtinTools = {
   // LLM Tools
   'openrouter': new OpenRouterTool(),
   'ollama_local': new OllamaTool(),
+  
+  // Context Tools
+  'context-builder': contextBuilderTool,
   
   // Breadcrumb CRUD Tool
   'breadcrumb-crud': createTool(
