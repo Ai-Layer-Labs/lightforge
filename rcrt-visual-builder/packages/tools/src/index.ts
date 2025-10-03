@@ -118,6 +118,7 @@ import { contextBuilderTool } from './context-tools/index.js';
 // Export tool loader for RCRT-native mode
 export { ToolLoader } from './tool-loader.js';
 export { bootstrapTools } from './bootstrap-tools.js';
+export { bootstrapContextConfigs } from './context-tools/index.js';
 
 // Export LLM tools for external use
 export { OpenRouterTool, OllamaTool, SimpleLLMTool, OpenRouterModelsCatalog } from './llm-tools/index.js';

@@ -3,4 +3,5 @@
  */
 
 export { ContextBuilderTool, contextBuilderTool } from './context-builder-tool.js';
+export { bootstrapContextConfigs } from './bootstrap-context-configs.js';
 

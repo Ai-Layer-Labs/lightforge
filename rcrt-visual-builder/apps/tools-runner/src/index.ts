@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { ToolLoader, bootstrapTools } from '@rcrt-builder/tools';
+import { ToolLoader, bootstrapTools, bootstrapContextConfigs } from '@rcrt-builder/tools';
 import { jsonrepair } from 'jsonrepair';
 import { EventBridge } from './event-bridge.js';
 
@@ -417,13 +417,17 @@ async function main() {
     console.log('🔧 Bootstrapping RCRT tools...');
     await bootstrapTools(client, config.workspace);
     
+    // 🎯 THE RCRT WAY: Bootstrap context configurations (same pattern as tools!)
+    console.log('🏗️ Bootstrapping context configurations...');
+    await bootstrapContextConfigs(client, config.workspace);
+    
     // Discover available tools
     const loader = new ToolLoader(client, config.workspace);
     const tools = await loader.discoverTools();
     console.log(`✅ ${tools.length} tools available`);
     console.log('🎯 Available tools:', tools.map((t: any) => t.name).join(', '));
     
-    // 🎯 THE RCRT WAY: Discover context.config.v1 breadcrumbs for auto-triggering
+    // Discover context configs for auto-triggering
     await discoverContextConfigs(client);
 
     // Update catalog periodically
