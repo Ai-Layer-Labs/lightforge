@@ -188,6 +188,9 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
     } else { return Ok(Json(SearchResult::List(vec![]))); };
     let limit = q.nn.unwrap_or(5).max(1) as i64;
     let include_context = q.include_context.unwrap_or(false);
+    
+    // Convert Vec<f32> to pgvector::Vector for PostgreSQL
+    let qvec_pg = Vector::from(qvec);
 
     if include_context {
         // Return full context view
@@ -207,7 +210,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (Some(tag), Some(schema)) => {
                 sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(tag)
                     .bind(schema)
                     .fetch_all(&state.db.pool)
@@ -217,7 +220,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (Some(tag), None) => {
                 sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(tag)
                     .fetch_all(&state.db.pool)
                     .await
@@ -226,7 +229,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (None, Some(schema)) => {
                 sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(schema)
                     .fetch_all(&state.db.pool)
                     .await
@@ -235,7 +238,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (None, None) => {
                 sqlx::query_as::<_, (Uuid,String,serde_json::Value,Vec<String>,Option<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .fetch_all(&state.db.pool)
                     .await
                     .map_err(internal_error)?
@@ -266,7 +269,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (Some(tag), Some(schema)) => {
                 sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(tag)
                     .bind(schema)
                     .fetch_all(&state.db.pool)
@@ -276,7 +279,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (Some(tag), None) => {
                 sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(tag)
                     .fetch_all(&state.db.pool)
                     .await
@@ -285,7 +288,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (None, Some(schema)) => {
                 sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .bind(schema)
                     .fetch_all(&state.db.pool)
                     .await
@@ -294,7 +297,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
             (None, None) => {
                 sqlx::query_as::<_, (Uuid,String,Vec<String>,i32,chrono::DateTime<chrono::Utc>)>(&sql)
                     .bind(auth.owner_id)
-                    .bind(&qvec)
+                    .bind(&qvec_pg)
                     .fetch_all(&state.db.pool)
                     .await
                     .map_err(internal_error)?
