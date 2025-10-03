@@ -469,5 +469,280 @@ export const builtinTools = {
   
   // LLM Tools
   'openrouter': new OpenRouterTool(),
-  'ollama_local': new OllamaTool()
+  'ollama_local': new OllamaTool(),
+  
+  // Breadcrumb CRUD Tool
+  'breadcrumb-crud': createTool(
+    'breadcrumb-crud',
+    'Query, create, update, and delete breadcrumbs',
+    {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['query', 'search', 'create', 'get', 'update', 'delete', 'list-tags'],
+          description: 'CRUD operation to perform (search and query are the same)'
+        },
+        // For query
+        schema_name: { type: 'string', description: 'Filter by schema name' },
+        tag: { type: 'string', description: 'Filter by tag' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Filter by multiple tags' },
+        limit: { type: 'number', default: 10, description: 'Maximum results' },
+        // For get/update/delete
+        id: { type: 'string', description: 'Breadcrumb ID (required for get/update/delete)' },
+        // For create/update
+        title: { type: 'string', description: 'Breadcrumb title' },
+        context: { type: 'object', description: 'Breadcrumb context data' },
+        new_tags: { type: 'array', items: { type: 'string' }, description: 'Tags for breadcrumb' }
+      },
+      required: ['action']
+    },
+    {
+      type: 'object',
+      properties: {
+        action: { type: 'string' },
+        success: { type: 'boolean' },
+        breadcrumb: { type: 'object', description: 'Single breadcrumb result (for get)' },
+        breadcrumbs: { type: 'array', description: 'Multiple breadcrumb results (for query/search)' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'List of tags (for list-tags)' },
+        count: { type: 'number', description: 'Number of results' },
+        breadcrumbs_scanned: { type: 'number', description: 'Number of breadcrumbs checked (for list-tags)' },
+        error: { type: 'string' }
+      }
+    },
+    async (input, context) => {
+      const { action } = input;
+      
+      try {
+        switch (action) {
+          case 'query':
+          case 'search': {
+            const params: any = {};
+            if (input.schema_name) params.schema_name = input.schema_name;
+            if (input.tag) params.tag = input.tag;
+            if (input.tags) params.tags = input.tags;
+            
+            const results = await context.rcrtClient.searchBreadcrumbs(params);
+            const limited = results.slice(0, input.limit || 10);
+            
+            // Fetch full breadcrumb details for each result
+            const fullBreadcrumbs = await Promise.all(
+              limited.map(async (bc) => {
+                try {
+                  return await context.rcrtClient.getBreadcrumb(bc.id);
+                } catch (error) {
+                  console.warn(`Failed to fetch breadcrumb ${bc.id}:`, error);
+                  return bc; // Return minimal if fetch fails
+                }
+              })
+            );
+            
+            return {
+              action: action,
+              success: true,
+              breadcrumbs: fullBreadcrumbs,
+              count: fullBreadcrumbs.length
+            };
+          }
+          
+          case 'get': {
+            if (!input.id) throw new Error('id required for get action');
+            
+            const breadcrumb = await context.rcrtClient.getBreadcrumb(input.id);
+            return {
+              action: 'get',
+              success: true,
+              breadcrumb
+            };
+          }
+          
+          case 'create': {
+            if (!input.title) throw new Error('title required for create action');
+            if (!input.context) throw new Error('context required for create action');
+            
+            const created = await context.rcrtClient.createBreadcrumb({
+              title: input.title,
+              context: input.context,
+              tags: input.new_tags || [],
+              schema_name: input.schema_name
+            });
+            
+            return {
+              action: 'create',
+              success: true,
+              breadcrumb: created
+            };
+          }
+          
+          case 'update': {
+            if (!input.id) throw new Error('id required for update action');
+            
+            const current = await context.rcrtClient.getBreadcrumb(input.id);
+            const updates: any = {};
+            if (input.title) updates.title = input.title;
+            if (input.context) updates.context = input.context;
+            if (input.new_tags) updates.tags = input.new_tags;
+            
+            await context.rcrtClient.updateBreadcrumb(input.id, current.version, updates);
+            
+            return {
+              action: 'update',
+              success: true
+            };
+          }
+          
+          case 'delete': {
+            if (!input.id) throw new Error('id required for delete action');
+            
+            await context.rcrtClient.deleteBreadcrumb(input.id);
+            
+            return {
+              action: 'delete',
+              success: true
+            };
+          }
+          
+          case 'list-tags': {
+            // Get all breadcrumbs and extract unique tags
+            const params: any = {};
+            if (input.schema_name) params.schema_name = input.schema_name;
+            
+            const results = await context.rcrtClient.searchBreadcrumbs(params);
+            const limited = results.slice(0, input.limit || 100);
+            
+            // Extract all tags
+            const allTags = new Set<string>();
+            for (const bc of limited) {
+              if (bc.tags && Array.isArray(bc.tags)) {
+                bc.tags.forEach(tag => allTags.add(tag));
+              }
+            }
+            
+            const sortedTags = Array.from(allTags).sort();
+            
+            return {
+              action: 'list-tags',
+              success: true,
+              tags: sortedTags,
+              count: sortedTags.length,
+              breadcrumbs_scanned: limited.length
+            };
+          }
+          
+          default:
+            throw new Error(`Unknown action: ${action}`);
+        }
+      } catch (error) {
+        return {
+          action,
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    {
+      category: 'system',
+      examples: [
+        {
+          title: 'Search breadcrumbs by tag',
+          input: { 
+            action: 'search',
+            tag: 'user:message',
+            limit: 5
+          },
+          output: {
+            action: 'search',
+            success: true,
+            breadcrumbs: [
+              { 
+                id: 'uuid-123', 
+                title: 'User message', 
+                tags: ['user:message'],
+                context: { message: 'Hello world' },
+                version: 1,
+                updated_at: '2025-10-03T00:00:00Z'
+              }
+            ],
+            count: 1
+          },
+          explanation: 'Search for breadcrumbs by tag. Returns FULL breadcrumbs with context in result.breadcrumbs array.'
+        },
+        {
+          title: 'Create a breadcrumb',
+          input: {
+            action: 'create',
+            title: 'My Note',
+            context: { note: 'Important information' },
+            new_tags: ['note', 'important'],
+            schema_name: 'note.v1'
+          },
+          output: {
+            action: 'create',
+            success: true,
+            breadcrumb: { id: 'new-uuid', title: 'My Note' }
+          },
+          explanation: 'Creates a breadcrumb. Returns the created breadcrumb with its ID.'
+        },
+        {
+          title: 'Get breadcrumb details',
+          input: {
+            action: 'get',
+            id: 'breadcrumb-uuid'
+          },
+          output: {
+            action: 'get',
+            success: true,
+            breadcrumb: { id: 'breadcrumb-uuid', title: 'Example', context: { data: 'value' } }
+          },
+          explanation: 'Retrieves full breadcrumb. Returns breadcrumb field with all data.'
+        },
+        {
+          title: 'Update a breadcrumb',
+          input: {
+            action: 'update',
+            id: 'breadcrumb-uuid',
+            context: { updated: 'data' }
+          },
+          output: {
+            action: 'update',
+            success: true
+          },
+          explanation: 'Updates breadcrumb fields. Only provide fields you want to change.'
+        },
+        {
+          title: 'Delete a breadcrumb',
+          input: {
+            action: 'delete',
+            id: 'breadcrumb-uuid'
+          },
+          output: {
+            action: 'delete',
+            success: true
+          },
+          explanation: 'Deletes a breadcrumb permanently.'
+        },
+        {
+          title: 'List all available tags',
+          input: {
+            action: 'list-tags',
+            limit: 100
+          },
+          output: {
+            action: 'list-tags',
+            success: true,
+            tags: [
+              'agent:def',
+              'tool:calculator',
+              'tool:random',
+              'user:message',
+              'workspace:tools'
+            ],
+            count: 5,
+            breadcrumbs_scanned: 42
+          },
+          explanation: 'Lists all unique tags in the system. Use result.tags array to see all tags.'
+        }
+      ]
+    }
+  )
 };
