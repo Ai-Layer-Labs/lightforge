@@ -172,7 +172,7 @@ services:
     depends_on:
       rcrt:
         condition: service_started
-      context-builder:
+      tools-runner:
         condition: service_started
     environment:
       RCRT_BASE_URL: http://rcrt:8080
@@ -182,28 +182,6 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       DEPLOYMENT_MODE: docker
     restart: unless-stopped
-
-  context-builder:
-    build:
-      context: ./rcrt-visual-builder
-      dockerfile: apps/context-builder/Dockerfile
-    depends_on:
-      rcrt:
-        condition: service_started
-      tools-runner:
-        condition: service_started
-    environment:
-      RCRT_BASE_URL: http://rcrt:8080
-      WORKSPACE: workspace:context
-      OWNER_ID: 00000000-0000-0000-0000-000000000001
-      AGENT_ID: 00000000-0000-0000-0000-000000000CCC
-      DEPLOYMENT_MODE: docker
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'node.*context-builder' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   dashboard:
     build:

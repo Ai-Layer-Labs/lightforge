@@ -143,6 +143,12 @@ async function dispatchEventToTool(
   client: RcrtClientEnhanced, 
   workspace: string
 ): Promise<void> {
+  // 🎯 THE RCRT WAY: Auto-trigger context-builder on matching events
+  if (eventData.type === 'breadcrumb.updated') {
+    // Check if this event matches ANY context config trigger
+    await checkContextTriggers(eventData, client, workspace);
+  }
+  
   // Only process tool.request.v1 breadcrumb events with deduplication
   if (eventData.type === 'breadcrumb.updated' && 
       eventData.schema_name === 'tool.request.v1' &&
@@ -302,6 +308,9 @@ const config = {
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local', // 'docker', 'local', 'electron'
 };
 
+// Track active context configurations for auto-triggering
+const activeContextConfigs = new Map<string, any>();
+
 async function main() {
   console.log('🔧 RCRT Tools Runner starting...');
   console.log('Configuration:', {
@@ -413,6 +422,9 @@ async function main() {
     const tools = await loader.discoverTools();
     console.log(`✅ ${tools.length} tools available`);
     console.log('🎯 Available tools:', tools.map((t: any) => t.name).join(', '));
+    
+    // 🎯 THE RCRT WAY: Discover context.config.v1 breadcrumbs for auto-triggering
+    await discoverContextConfigs(client);
 
     // Update catalog periodically
     setInterval(async () => {
@@ -465,6 +477,108 @@ process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   process.exit(1);
 });
+
+/**
+ * Check if event matches any context config trigger
+ * If yes, auto-invoke context-builder tool
+ */
+async function checkContextTriggers(
+  eventData: any,
+  client: RcrtClientEnhanced,
+  workspace: string
+): Promise<void> {
+  // Handle new context.config.v1 breadcrumbs (discover)
+  if (eventData.schema_name === 'context.config.v1') {
+    console.log(`🆕 New context config detected: ${eventData.breadcrumb_id}`);
+    try {
+      const configBreadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
+      activeContextConfigs.set(configBreadcrumb.context.consumer_id, configBreadcrumb);
+      console.log(`✅ Registered context config for: ${configBreadcrumb.context.consumer_id}`);
+    } catch (error) {
+      console.error('Failed to load context config:', error);
+    }
+    return;
+  }
+  
+  // Check if event matches any registered trigger
+  for (const [consumerId, config] of activeContextConfigs.entries()) {
+    const triggers = config.context.update_triggers || [];
+    
+    for (const trigger of triggers) {
+      let matches = true;
+      
+      // Schema match
+      if (trigger.schema_name && eventData.schema_name !== trigger.schema_name) {
+        matches = false;
+      }
+      
+      // Tag match
+      if (matches && trigger.any_tags) {
+        matches = trigger.any_tags.some((t: string) => eventData.tags?.includes(t));
+      }
+      
+      if (matches && trigger.all_tags) {
+        matches = trigger.all_tags.every((t: string) => eventData.tags?.includes(t));
+      }
+      
+      // Context match (simplified)
+      if (matches && trigger.context_match) {
+        // Would need full implementation
+        matches = true; // For now
+      }
+      
+      if (matches) {
+        console.log(`🔄 Event matches trigger for ${consumerId}, invoking context-builder...`);
+        
+        // Auto-invoke context-builder tool!
+        await client.createBreadcrumb({
+          schema_name: 'tool.request.v1',
+          title: 'Context Builder Auto-Trigger',
+          tags: ['tool:request', workspace, 'auto-trigger'],
+          context: {
+            tool: 'context-builder',
+            input: {
+              action: 'update',
+              consumer_id: consumerId,
+              trigger_event: {
+                breadcrumb_id: eventData.breadcrumb_id,
+                schema_name: eventData.schema_name,
+                tags: eventData.tags
+              }
+            },
+            requestId: `ctx-auto-${Date.now()}`,
+            requestedBy: 'tools-runner-auto-trigger'
+          }
+        });
+        
+        console.log(`✅ Auto-triggered context-builder for ${consumerId}`);
+        break; // Only trigger once per event
+      }
+    }
+  }
+}
+
+/**
+ * Discover existing context.config.v1 breadcrumbs on startup
+ */
+async function discoverContextConfigs(client: RcrtClientEnhanced): Promise<void> {
+  try {
+    console.log('🔍 Discovering context configurations...');
+    const configs = await client.searchBreadcrumbs({
+      schema_name: 'context.config.v1'
+    });
+    
+    for (const configRef of configs) {
+      const config = await client.getBreadcrumb(configRef.id);
+      activeContextConfigs.set(config.context.consumer_id, config);
+      console.log(`✅ Loaded context config for: ${config.context.consumer_id}`);
+    }
+    
+    console.log(`📚 Total context configs: ${activeContextConfigs.size}`);
+  } catch (error) {
+    console.error('Failed to discover context configs:', error);
+  }
+}
 
 if (require.main === module) {
   main().catch(console.error);
