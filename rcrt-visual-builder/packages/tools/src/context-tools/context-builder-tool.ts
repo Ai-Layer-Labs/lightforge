@@ -56,14 +56,10 @@ export class ContextBuilderTool implements RCRTTool {
         any_tags: ['user:message', 'extension:chat']
       },
       {
-        comment: 'React to tool completions',
-        schema_name: 'tool.response.v1',
-        all_tags: ['workspace:tools']
-      },
-      {
         comment: 'Discover new context configs',
         schema_name: 'context.config.v1'
       }
+      // NOTE: Do NOT subscribe to tool.response.v1 - creates feedback loop!
     ]
   };
   
@@ -215,8 +211,14 @@ export class ContextBuilderTool implements RCRTTool {
       });
       return { success: true, action: 'updated', context_id: existing[0].id };
     } else {
+      // Create new context breadcrumb with required fields
       const created = await client.createBreadcrumb({
-        ...config.output,
+        schema_name: config.output.schema_name,
+        title: `Context for ${consumerId}`,  // ← REQUIRED FIELD!
+        tags: config.output.tags,
+        ttl: config.output.ttl_seconds 
+          ? new Date(Date.now() + config.output.ttl_seconds * 1000).toISOString()
+          : undefined,
         context: contextData
       });
       return { success: true, action: 'created', context_id: created.id };
