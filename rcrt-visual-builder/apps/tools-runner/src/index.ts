@@ -143,10 +143,9 @@ async function dispatchEventToTool(
   client: RcrtClientEnhanced, 
   workspace: string
 ): Promise<void> {
-  // 🎯 THE RCRT WAY: Auto-trigger context-builder on matching events
+  // 🎯 THE RCRT WAY: Check if event matches ANY tool's subscriptions (like agents!)
   if (eventData.type === 'breadcrumb.updated') {
-    // Check if this event matches ANY context config trigger
-    await checkContextTriggers(eventData, client, workspace);
+    await checkToolSubscriptions(eventData, client, workspace);
   }
   
   // Only process tool.request.v1 breadcrumb events with deduplication
@@ -308,8 +307,8 @@ const config = {
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local', // 'docker', 'local', 'electron'
 };
 
-// Track active context configurations for auto-triggering
-const activeContextConfigs = new Map<string, any>();
+// Track tool subscriptions (loaded from tool.v1 breadcrumbs)
+const toolSubscriptions = new Map<string, any[]>();  // toolName -> selectors
 
 async function main() {
   console.log('🔧 RCRT Tools Runner starting...');
@@ -427,8 +426,8 @@ async function main() {
     console.log(`✅ ${tools.length} tools available`);
     console.log('🎯 Available tools:', tools.map((t: any) => t.name).join(', '));
     
-    // Discover context configs for auto-triggering
-    await discoverContextConfigs(client);
+    // Load tool subscriptions (auto-triggering via selectors!)
+    await loadToolSubscriptions(client, config.workspace);
 
     // Update catalog periodically
     setInterval(async () => {
@@ -483,105 +482,70 @@ process.on('uncaughtException', (error) => {
 });
 
 /**
- * Check if event matches any context config trigger
- * If yes, auto-invoke context-builder tool
+ * Universal subscription matcher - works for BOTH agents AND tools!
+ * Uses the SAME selector logic RCRT already has
  */
-async function checkContextTriggers(
+async function checkToolSubscriptions(
   eventData: any,
   client: RcrtClientEnhanced,
   workspace: string
 ): Promise<void> {
-  // Handle new context.config.v1 breadcrumbs (discover)
-  if (eventData.schema_name === 'context.config.v1') {
-    console.log(`🆕 New context config detected: ${eventData.breadcrumb_id}`);
-    try {
-      const configBreadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
-      activeContextConfigs.set(configBreadcrumb.context.consumer_id, configBreadcrumb);
-      console.log(`✅ Registered context config for: ${configBreadcrumb.context.consumer_id}`);
-    } catch (error) {
-      console.error('Failed to load context config:', error);
-    }
-    return;
-  }
-  
-  // Check if event matches any registered trigger
-  for (const [consumerId, config] of activeContextConfigs.entries()) {
-    const triggers = config.context.update_triggers || [];
-    
-    for (const trigger of triggers) {
-      let matches = true;
-      
-      // Schema match
-      if (trigger.schema_name && eventData.schema_name !== trigger.schema_name) {
-        matches = false;
-      }
-      
-      // Tag match
-      if (matches && trigger.any_tags) {
-        matches = trigger.any_tags.some((t: string) => eventData.tags?.includes(t));
-      }
-      
-      if (matches && trigger.all_tags) {
-        matches = trigger.all_tags.every((t: string) => eventData.tags?.includes(t));
-      }
-      
-      // Context match (simplified)
-      if (matches && trigger.context_match) {
-        // Would need full implementation
-        matches = true; // For now
-      }
-      
-      if (matches) {
-        console.log(`🔄 Event matches trigger for ${consumerId}, invoking context-builder...`);
+  // Check if event matches ANY tool's subscriptions
+  for (const [toolName, selectors] of toolSubscriptions.entries()) {
+    for (const selector of selectors) {
+      if (matchesSelector(eventData, selector)) {
+        console.log(`🔄 Event matches ${toolName} subscription, auto-invoking...`);
         
-        // Auto-invoke context-builder tool!
+        // Auto-create tool.request.v1 (same as manual invocation!)
         await client.createBreadcrumb({
           schema_name: 'tool.request.v1',
-          title: 'Context Builder Auto-Trigger',
+          title: `Auto: ${toolName}`,
           tags: ['tool:request', workspace, 'auto-trigger'],
           context: {
-            tool: 'context-builder',
-            input: {
-              action: 'update',
-              consumer_id: consumerId,
-              trigger_event: {
-                breadcrumb_id: eventData.breadcrumb_id,
-                schema_name: eventData.schema_name,
-                tags: eventData.tags
-              }
-            },
-            requestId: `ctx-auto-${Date.now()}`,
-            requestedBy: 'tools-runner-auto-trigger'
+            tool: toolName,
+            input: { trigger_event: eventData },
+            requestId: `auto-${Date.now()}`,
+            requestedBy: 'auto-trigger'
           }
         });
-        
-        console.log(`✅ Auto-triggered context-builder for ${consumerId}`);
-        break; // Only trigger once per event
       }
     }
   }
 }
 
 /**
- * Discover existing context.config.v1 breadcrumbs on startup
+ * Load tool subscriptions from tool.v1 breadcrumbs (once on startup)
  */
-async function discoverContextConfigs(client: RcrtClientEnhanced): Promise<void> {
+async function loadToolSubscriptions(client: RcrtClientEnhanced, workspace: string): Promise<void> {
   try {
-    console.log('🔍 Discovering context configurations...');
-    const configs = await client.searchBreadcrumbs({
-      schema_name: 'context.config.v1'
+    console.log('📡 Loading tool subscriptions...');
+    const tools = await client.searchBreadcrumbsWithContext({
+      schema_name: 'tool.v1',
+      tag: workspace,
+      include_context: true
     });
     
-    for (const configRef of configs) {
-      const config = await client.getBreadcrumb(configRef.id);
-      activeContextConfigs.set(config.context.consumer_id, config);
-      console.log(`✅ Loaded context config for: ${config.context.consumer_id}`);
+    for (const tool of tools) {
+      if (tool.context?.subscriptions?.selectors) {
+        toolSubscriptions.set(tool.context.name, tool.context.subscriptions.selectors);
+        console.log(`  ✅ ${tool.context.name}: ${tool.context.subscriptions.selectors.length} selectors`);
+      }
     }
     
-    console.log(`📚 Total context configs: ${activeContextConfigs.size}`);
+    console.log(`📊 ${toolSubscriptions.size} tools have subscriptions`);
   } catch (error) {
-    console.error('Failed to discover context configs:', error);
+    console.error('Failed to load tool subscriptions:', error);
   }
+}
+
+/**
+ * Selector matching (RCRT's existing logic, reused!)
+ */
+function matchesSelector(event: any, selector: any): boolean {
+  if (selector.schema_name && event.schema_name !== selector.schema_name) return false;
+  if (selector.any_tags && !selector.any_tags.some((t: string) => event.tags?.includes(t))) return false;
+  if (selector.all_tags && !selector.all_tags.every((t: string) => event.tags?.includes(t))) return false;
+  return true;
 }
 
 if (require.main === module) {

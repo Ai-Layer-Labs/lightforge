@@ -50,6 +50,9 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
         };
       }
       
+      // Get tool subscriptions if defined (for auto-triggering)
+      const subscriptions = (tool as any).subscriptions || null;
+      
       // Create tool breadcrumb
       const toolDef = {
         schema_name: 'tool.v1',
@@ -73,6 +76,9 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
             outputSchema: tool.outputSchema,
             examples: tool.examples || []
           },
+          
+          // Tool subscriptions (like agents!) for auto-triggering
+          subscriptions: subscriptions || undefined,
           
           configuration: {
             configurable: !!tool.configSchema,

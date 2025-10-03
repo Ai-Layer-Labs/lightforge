@@ -46,6 +46,27 @@ export class ContextBuilderTool implements RCRTTool {
   category = 'system';
   version = '1.0.0';
   
+  // 🎯 THE RCRT WAY: Tool subscribes to events (like agents!)
+  // When these events arrive, tool.request.v1 is auto-created
+  subscriptions = {
+    selectors: [
+      {
+        comment: 'React to user messages',
+        schema_name: 'user.message.v1',
+        any_tags: ['user:message', 'extension:chat']
+      },
+      {
+        comment: 'React to tool completions',
+        schema_name: 'tool.response.v1',
+        all_tags: ['workspace:tools']
+      },
+      {
+        comment: 'Discover new context configs',
+        schema_name: 'context.config.v1'
+      }
+    ]
+  };
+  
   // Track active contexts: consumerId -> { configId, contextId, lastUpdate }
   private activeContexts = new Map<string, {
     configId: string;
@@ -57,25 +78,11 @@ export class ContextBuilderTool implements RCRTTool {
   inputSchema = {
     type: 'object',
     properties: {
-      action: {
-        type: 'string',
-        enum: ['register', 'update', 'get', 'deregister', 'list'],
-        description: 'Action to perform'
-      },
-      consumer_id: {
-        type: 'string',
-        description: 'ID of the entity requesting context (agent ID, workflow ID, etc.)'
-      },
-      config_id: {
-        type: 'string',
-        description: 'ID of context.config.v1 breadcrumb (for register/update)'
-      },
       trigger_event: {
         type: 'object',
-        description: 'Event that triggered context update'
+        description: 'Event that triggered this tool (auto-passed by tools-runner)'
       }
-    },
-    required: ['action']
+    }
   };
   
   outputSchema = {
@@ -126,31 +133,93 @@ export class ContextBuilderTool implements RCRTTool {
   ];
   
   async execute(input: any, context: ToolExecutionContext): Promise<any> {
-    const { action, consumer_id, config_id, trigger_event } = input;
     const { rcrtClient } = context;
     
     if (!rcrtClient) {
-      return { success: false, error: 'rcrtClient required in context' };
+      return { success: false, error: 'rcrtClient required' };
     }
     
-    switch (action) {
-      case 'register':
-        return await this.registerConsumer(rcrtClient, config_id);
+    // Simple: event triggered this, find relevant context configs and update them
+    const triggerEvent = input.trigger_event || input;
+    
+    console.log(`🔧 context-builder triggered by: ${triggerEvent.schema_name}`);
+    
+    // Find ALL context.config.v1 breadcrumbs
+    const configs = await rcrtClient.searchBreadcrumbsWithContext({
+      schema_name: 'context.config.v1',
+      include_context: true
+    });
+    
+    console.log(`📚 Found ${configs.length} context configs`);
+    
+    // For each config, check if this event is relevant
+    const results = [];
+    for (const configBreadcrumb of configs) {
+      const config = configBreadcrumb.context;
       
-      case 'update':
-        return await this.updateContext(rcrtClient, consumer_id, trigger_event);
+      // Should we update this consumer's context?
+      // Simple: just update all of them (they'll filter internally)
+      const result = await this.updateContextForConsumer(
+        rcrtClient,
+        config,
+        triggerEvent
+      );
       
-      case 'get':
-        return await this.getContext(rcrtClient, consumer_id);
-      
-      case 'deregister':
-        return await this.deregisterConsumer(consumer_id);
-      
-      case 'list':
-        return await this.listActiveContexts();
-      
-      default:
-        return { success: false, error: `Unknown action: ${action}` };
+      if (result.success) {
+        results.push(result);
+      }
+    }
+    
+    return {
+      success: true,
+      configs_updated: results.length,
+      results
+    };
+  }
+  
+  /**
+   * Update context for a single consumer
+   */
+  private async updateContextForConsumer(
+    client: RcrtClientEnhanced,
+    config: any,
+    triggerEvent: any
+  ): Promise<any> {
+    const consumerId = config.consumer_id;
+    
+    console.log(`🔄 Updating context for ${consumerId}...`);
+    
+    // Assemble context
+    const assembled = await this.assembleContext(client, config, triggerEvent);
+    
+    // Find or create agent.context.v1
+    const existing = await client.searchBreadcrumbs({
+      schema_name: config.output.schema_name,
+      tag: `consumer:${consumerId}`
+    });
+    
+    const contextData = {
+      consumer_id: consumerId,
+      trigger_event_id: triggerEvent.breadcrumb_id,
+      assembled_at: new Date().toISOString(),
+      token_estimate: this.estimateTokens(assembled),
+      sources_assembled: config.sources?.length || 0,
+      ...assembled,
+      llm_hints: this.generateLlmHints(config, assembled)
+    };
+    
+    if (existing.length > 0) {
+      const existingBreadcrumb = await client.getBreadcrumb(existing[0].id);
+      await client.updateBreadcrumb(existing[0].id, existingBreadcrumb.version, {
+        context: contextData
+      });
+      return { success: true, action: 'updated', context_id: existing[0].id };
+    } else {
+      const created = await client.createBreadcrumb({
+        ...config.output,
+        context: contextData
+      });
+      return { success: true, action: 'created', context_id: created.id };
     }
   }
   

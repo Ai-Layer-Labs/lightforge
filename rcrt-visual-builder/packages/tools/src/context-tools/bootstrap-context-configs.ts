@@ -8,8 +8,9 @@ import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 
 /**
  * Default context configuration for chat agents
+ * This is the DATA that configures how context-builder operates
  */
-const defaultChatAgentConfig = {
+const defaultChatAgentContextConfig = {
   consumer_id: 'default-chat-assistant',
   consumer_type: 'agent',
   sources: [
@@ -37,20 +38,6 @@ const defaultChatAgentConfig = {
       filters: { tag: 'workspace:tools' }
     }
   ],
-  update_triggers: [
-    {
-      schema_name: 'user.message.v1',
-      any_tags: ['user:message', 'extension:chat']
-    },
-    {
-      schema_name: 'tool.response.v1',
-      context_match: [{
-        path: '$.requestedBy',
-        op: 'eq',
-        value: 'default-chat-assistant'
-      }]
-    }
-  ],
   output: {
     schema_name: 'agent.context.v1',
     tags: ['agent:context', 'consumer:default-chat-assistant'],
@@ -76,7 +63,7 @@ export async function bootstrapContextConfigs(
   await bootstrapConfig(
     client,
     'default-chat-assistant',
-    defaultChatAgentConfig,
+    defaultChatAgentContextConfig,
     workspace
   );
   
