@@ -146,7 +146,7 @@ export default function Panel() {
                 };
                 
                 setMessages(prev => [...prev, assistantMessage]);
-                setIsLoading(false);
+                // No setIsLoading(false) - we never blocked in the first place!
               }
               
               if (breadcrumb.tags?.includes('agent:error')) {
@@ -167,7 +167,7 @@ export default function Panel() {
   }
 
   async function sendMessage() {
-    if (!input.trim() || isLoading || !connected) return;
+    if (!input.trim() || !connected) return;  // ← Removed isLoading check!
     
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -178,12 +178,12 @@ export default function Panel() {
     
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setIsLoading(true);
+    // DON'T set isLoading! This is async/event-driven, not request-response!
     
     try {
       console.log('📤 Sending chat message to RCRT...');
       
-      // Create chat message breadcrumb that triggers the chat agent
+      // Fire and forget - response comes via SSE!
       const result = await rcrtClient.createChatBreadcrumb({
         role: 'user',
         content: userMessage.content,
@@ -192,9 +192,6 @@ export default function Panel() {
       
       console.log('✅ Chat breadcrumb created:', result.id);
       
-      // Track the message ID for response matching
-      rcrtClient.trackMessage(result.id);
-      
       // Update user message with breadcrumb ID
       setMessages(prev => prev.map(msg => 
         msg.id === userMessage.id 
@@ -202,22 +199,10 @@ export default function Panel() {
           : msg
       ));
       
-      // Set timeout in case agent doesn't respond
-      setTimeout(() => {
-        if (isLoading) {
-          setIsLoading(false);
-          setMessages(prev => [...prev, {
-            id: `timeout-${Date.now()}`,
-            role: 'assistant',
-            content: 'Request timeout - check Dashboard v2 for response',
-            timestamp: new Date(),
-          }]);
-        }
-      }, 10000);
+      // Response will arrive via SSE when ready (no blocking!)
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      setIsLoading(false);
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',
@@ -229,7 +214,6 @@ export default function Panel() {
 
   function clearChat() {
     setMessages([]);
-    setIsLoading(false);
   }
 
   function openDashboard() {
@@ -426,20 +410,7 @@ export default function Panel() {
               ))}
             </AnimatePresence>
             
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="loading-message"
-              >
-                <div className="loading-bubble">
-                  <div className="loading-content">
-                    <div className="loading-dot" />
-                    <span>Agent is thinking...</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+            {/* Removed loading indicator - RCRT is fully async! Responses arrive via SSE. */}
             
             <div ref={messagesEndRef} />
           </div>
@@ -463,13 +434,13 @@ export default function Panel() {
             className="input-textarea"
             style={{ minHeight: '40px', maxHeight: '120px' }}
             rows={1} 
-            disabled={isLoading || !connected} 
+            disabled={!connected}  // ← Only disable if disconnected! 
           />
           
           <button 
             onClick={sendMessage} 
-            disabled={!input.trim() || isLoading || !connected} 
-            className={`send-button ${(!input.trim() || isLoading || !connected) ? 'disabled' : 'enabled'}`}
+            disabled={!input.trim() || !connected}  // ← Removed isLoading!
+            className={`send-button ${(!input.trim() || !connected) ? 'disabled' : 'enabled'}`}
             title="Send message"
           >
             <PaperAirplaneIcon style={{transform: 'rotate(-45deg)'}} />
