@@ -570,14 +570,20 @@ export class AgentExecutor {
       // Tool catalog
       if (assembledContext.tool_catalog) {
         let catalog = 'No tools available';
+        
         if (typeof assembledContext.tool_catalog === 'string') {
           catalog = assembledContext.tool_catalog;
         } else if (assembledContext.tool_catalog.tool_list) {
           catalog = assembledContext.tool_catalog.tool_list;
-        } else if (assembledContext.tool_catalog.tools) {
-          catalog = assembledContext.tool_catalog.tools;
+        } else if (Array.isArray(assembledContext.tool_catalog.tools)) {
+          // Tools array - format as readable list
+          catalog = `You have access to ${assembledContext.tool_catalog.tools.length} tools:\n\n` +
+            assembledContext.tool_catalog.tools.map((t: any) => 
+              `• ${t.name} (${t.category}): ${t.description}\n` +
+              `  Output: ${Object.keys(t.outputSchema?.properties || {}).join(', ')}`
+            ).join('\n');
         } else {
-          // Object without tool_list - likely the full catalog object
+          // Unknown structure - stringify
           catalog = JSON.stringify(assembledContext.tool_catalog, null, 2);
         }
         sections.push(`# Available Tools\n${catalog}`);

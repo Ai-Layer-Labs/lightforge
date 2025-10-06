@@ -480,10 +480,17 @@ export class ContextBuilderTool implements RCRTTool {
       }
       
       if (result.source.method === 'latest') {
-        // Single breadcrumb
+        // Single breadcrumb - use full context
         assembled[key] = result.breadcrumbs[0]?.context;
+      } else if (result.source.schema_name === 'user.message.v1' || result.source.schema_name === 'agent.response.v1') {
+        // Chat messages - extract as simplified {role, content} objects
+        assembled[key] = result.breadcrumbs.map(b => ({
+          role: result.source.schema_name === 'user.message.v1' ? 'user' : 'assistant',
+          content: b.context?.content || b.context?.message,
+          timestamp: b.updated_at
+        }));
       } else {
-        // Array of breadcrumbs - extract contexts
+        // Other breadcrumbs - extract full contexts
         assembled[key] = result.breadcrumbs.map(b => b.context);
       }
     }
@@ -523,45 +530,28 @@ export class ContextBuilderTool implements RCRTTool {
   
   /**
    * Generate llm_hints for clean LLM consumption
-   * Creates a single formatted_context field with clean Markdown
+   * 
+   * NOTE: llm_hints are applied by RCRT server's transform engine on GET requests.
+   * However, since the transforms are complex and may fail, we also format
+   * manually in agent-executor as a fallback.
+   * 
+   * For now, we'll skip llm_hints and rely on manual formatting in agent-executor.
+   * This is simpler and more reliable.
    */
   private generateLlmHints(config: ContextConfig, assembled: any): any {
-    // Create ONE clean template that combines everything
-    let templateParts = [];
+    // Skip llm_hints for now - manual formatting is simpler and more reliable
+    // The transform engine in RCRT works, but Handlebars templates are fragile
+    // Better to format in TypeScript where we have full control
+    return null;
     
-    // Tool catalog section
-    if (assembled.tool_catalog) {
-      templateParts.push(`# Available Tools
-{{#if context.tool_catalog.tool_list}}{{context.tool_catalog.tool_list}}{{else}}{{context.tool_catalog}}{{/if}}`);
-    }
-    
-    // Chat history section - format as clean conversation
-    if (assembled.chat_history && Array.isArray(assembled.chat_history) && assembled.chat_history.length > 0) {
-      templateParts.push(`# Relevant Conversation ({{context.chat_history.length}} messages)
-{{#each context.chat_history}}{{#if this.role}}{{#if (eq this.role "user")}}User{{else}}Assistant{{/if}}: {{#if this.content}}{{this.content}}{{else}}{{this.message}}{{/if}}
-{{else}}{{#if this.content}}{{this.content}}{{else}}{{this.message}}{{/if}}
-{{/if}}{{/each}}`);
-    }
-    
-    // Tool results section
-    if (assembled.tool_results && Array.isArray(assembled.tool_results) && assembled.tool_results.length > 0) {
-      templateParts.push(`# Recent Tool Results
-{{#each context.tool_results}}• {{this.tool}}: {{#if this.output}}{{this.output}}{{else}}{{this.result}}{{/if}}
-{{/each}}`);
-    }
-    
-    // Combine into single formatted_context field
-    const fullTemplate = templateParts.join('\n\n');
-    
-    return {
-      mode: 'merge',  // Keep raw data AND add formatted version
-      transform: {
-        formatted_context: {
-          type: 'template',
-          template: fullTemplate
-        }
-      }
-    };
+    // Future: Could use simpler transforms like:
+    // {
+    //   mode: 'merge',
+    //   transform: {
+    //     tool_count: { type: 'literal', literal: assembled.tool_catalog?.tools?.length || 0 },
+    //     message_count: { type: 'literal', literal: assembled.chat_history?.length || 0 }
+    //   }
+    // }
   }
   
   /**

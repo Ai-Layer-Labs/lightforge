@@ -21,6 +21,12 @@ const defaultChatAgentContextConfig = {
       filters: { tag: 'extension:chat' }
     },
     {
+      schema_name: 'agent.response.v1',
+      method: 'vector',
+      nn: 3,
+      filters: { tag: 'workspace:agents' }
+    },
+    {
       schema_name: 'tool.response.v1',
       method: 'recent',
       limit: 3,
