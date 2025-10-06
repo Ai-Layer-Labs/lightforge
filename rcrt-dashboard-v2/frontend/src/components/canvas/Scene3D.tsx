@@ -17,6 +17,14 @@ export const Scene3D = React.memo(function Scene3D({ config }: Scene3DProps) {
   const nodes = useNodes();
   const connections = useConnections();
   
+  // DEBUG: Log connections
+  React.useEffect(() => {
+    console.log('🔗 Scene3D connections:', connections.length, connections);
+    if (connections.length > 0) {
+      console.log('  Sample connection:', connections[0]);
+    }
+  }, [connections]);
+  
   // Group nodes by category for clustering (dynamic based on actual data)
   const nodesByCategory = useMemo(() => {
     return {
