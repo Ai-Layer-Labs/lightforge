@@ -19,8 +19,8 @@ export function Canvas3D() {
     console.log('🎛️ 3D Config updated:', config);
   }, [config]);
   
-  // Save camera state when OrbitControls changes
-  const handleControlsChange = () => {
+  // Save camera state when OrbitControls movement ends (not during movement)
+  const handleControlsEnd = () => {
     if (controlsRef.current) {
       const controls = controlsRef.current;
       updateCamera({
@@ -62,7 +62,7 @@ export function Canvas3D() {
           maxDistance={1000}
           maxPolarAngle={Math.PI}
           target={[camera.target.x, camera.target.y, camera.target.z]}
-          onChange={handleControlsChange}
+          onEnd={handleControlsEnd}
         />
         
         {/* 3D Scene Content */}
