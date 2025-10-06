@@ -135,21 +135,6 @@ export function Connection3D({ connection, nodes }: Connection3DProps) {
           <meshBasicMaterial color={connection.metadata.color} />
         </mesh>
       </group>
-      
-      {/* Connection label */}
-      {connection.metadata.label && (
-        <group position={fromPos.clone().add(toPos).multiplyScalar(0.5)}>
-          <Html center>
-            <div className="connection-3d-label pointer-events-none">
-              <div className="bg-black/80 backdrop-blur-sm rounded px-2 py-1 border border-white/20">
-                <div className="text-white text-xs font-medium whitespace-nowrap">
-                  {connection.metadata.label}
-                </div>
-              </div>
-            </div>
-          </Html>
-        </group>
-      )}
     </group>
   );
 }

@@ -353,6 +353,7 @@ export class AgentExecutor {
     
     // Otherwise, it's an LLM response - parse it
     console.log(`🧠 Processing LLM response:`, JSON.stringify(output).substring(0, 200));
+    console.log(`📝 Full LLM content (first 1000 chars):`, (output?.content || '').substring(0, 1000));
     
     try {
       // Use safe JSON parsing with automatic repair
@@ -360,7 +361,7 @@ export class AgentExecutor {
         allowFailure: false,
         onError: (error, input) => {
           console.error(`❌ Failed to parse LLM response:`, error);
-          console.log(`📝 LLM content that failed to parse:`, input.substring(0, 200));
+          console.log(`📝 LLM content that failed to parse (first 500 chars):`, input.substring(0, 500));
         }
       });
       

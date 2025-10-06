@@ -18,11 +18,11 @@ export function DetailsPanel() {
   // Get the first selected node (or null)
   const node = selectedNodes[0] || null;
   
-  // Load full breadcrumb context if it's a breadcrumb (always call hook)
+  // Load full breadcrumb context if it's a breadcrumb or agent-definition (always call hook)
   const breadcrumbDetailsQuery = useQuery({
     queryKey: ['breadcrumb-details', node?.id || 'none'],
     queryFn: async (): Promise<Breadcrumb | null> => {
-      if (!node || node.type !== 'breadcrumb') return null;
+      if (!node || (node.type !== 'breadcrumb' && node.type !== 'agent-definition')) return null;
       
       console.log('📋 Loading full breadcrumb context for:', node.id);
       
@@ -35,7 +35,7 @@ export function DetailsPanel() {
       console.log('✅ Loaded breadcrumb context:', details.context);
       return details;
     },
-    enabled: node?.type === 'breadcrumb',
+    enabled: node?.type === 'breadcrumb' || node?.type === 'agent-definition',
     staleTime: 30000, // 30 seconds
   });
 
@@ -217,7 +217,7 @@ export function DetailsPanel() {
 
         {/* Actions */}
         <div className="space-y-2">
-          {node.type === 'breadcrumb' && (
+          {(node.type === 'breadcrumb' || node.type === 'agent-definition') && (
             <>
               <button
                 onClick={() => setIsEditing(!isEditing)}

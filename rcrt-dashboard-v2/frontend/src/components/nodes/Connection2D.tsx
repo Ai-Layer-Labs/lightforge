@@ -106,21 +106,6 @@ export function Connection2D({ connection, nodes }: Connection2DProps) {
         </motion.circle>
       )}
       
-      {/* Connection label */}
-      {connection.metadata.label && (
-        <motion.text
-          x={midX}
-          y={midY - 10}
-          textAnchor="middle"
-          className="text-xs fill-gray-300 font-mono"
-          initial={{ opacity: 0, y: midY }}
-          animate={{ opacity: 0.8, y: midY - 10 }}
-          transition={{ delay: 0.5, duration: 0.3 }}
-        >
-          {connection.metadata.label}
-        </motion.text>
-      )}
-      
       {/* Arrow head */}
       <motion.polygon
         points={getArrowPoints(fromCenter, toCenter, toNode.metadata.size)}

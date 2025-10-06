@@ -3,7 +3,6 @@
   "title": "Default Chat Assistant (v2 - Context-Builder Mode)",
   "tags": ["workspace:agents", "agent:catalog", "agent:chat"],
   "context": {
-    "model": "google/gemini-2.5-flash",
     "agent_id": "default-chat-assistant",
     "metadata": {
       "purpose": "General purpose chat interface with context-builder integration",

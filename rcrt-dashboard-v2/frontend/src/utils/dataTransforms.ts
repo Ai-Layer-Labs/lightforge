@@ -71,8 +71,8 @@ function convertBreadcrumbToNode(breadcrumb: Breadcrumb, position: Position3D): 
     }
   }
   
-  // Fallback: Check tags if schema detection failed
-  if (nodeType === 'breadcrumb' && breadcrumb.tags?.includes('agent:definition')) {
+  // Fallback: Check tags if schema detection failed (check both agent:definition AND agent:def)
+  if (nodeType === 'breadcrumb' && (breadcrumb.tags?.includes('agent:definition') || breadcrumb.tags?.includes('agent:def'))) {
     nodeType = 'agent-definition';
     metadata = {
       ...metadata,

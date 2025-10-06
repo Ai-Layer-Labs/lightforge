@@ -186,7 +186,7 @@ class RCRTAdapter {
         tool: 'openrouter', // 🎯 Use existing OpenRouter tool
         input: {
           messages: options.messages,
-          model: 'google/gemini-2.5-flash', // Same model as dashboard
+          // Model will be determined by OpenRouter tool configuration
           temperature: 0.7,
           max_tokens: 1000,
         },
