@@ -50,13 +50,13 @@ context-builder tool:
 
 All in context.config.v1, editable now:
 
-| Parameter | Current Value | Range | Effect |
+| Parameter | Default Value | Range | Effect |
 |-----------|---------------|-------|--------|
-| recent_user_limit | 3 | 0-20 | Recent user messages |
-| vector_user_nn | 5 | 0-20 | Semantic user messages |
-| recent_agent_limit | 2 | 0-10 | Recent agent responses |
-| vector_agent_nn | 3 | 0-10 | Semantic agent responses |
-| max_tokens | 4000 | 1000-16000 | Token budget |
+| recent_user_limit | 20 | 0-50 | Recent user messages |
+| vector_user_nn | 10 | 0-50 | Semantic user messages |
+| recent_agent_limit | 20 | 0-50 | Recent agent responses |
+| vector_agent_nn | 10 | 0-50 | Semantic agent responses |
+| max_tokens | 400000 | 1000-1000000 | Token budget (gemini-2.5-flash-lite: 1M max) |
 | deduplication_threshold | 0.95 | 0.80-0.99 | Similarity for dedup |
 | context_ttl | 3600 | 300-7200 | Cache duration (seconds) |
 

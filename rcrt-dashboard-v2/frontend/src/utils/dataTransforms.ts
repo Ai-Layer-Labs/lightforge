@@ -366,6 +366,15 @@ export function discoverConnections(data: {
   console.log(`🔗 Found ${chatFlowConnections.length} chat conversation flow connections`);
   connections.push(...chatFlowConnections);
   
+  // 6. Tool configuration connections (tool -> tool.config.v1 breadcrumbs)
+  const toolConfigConnections = findToolConfigConnections(data.breadcrumbs, data.tools || []);
+  console.log(`🔗 Found ${toolConfigConnections.length} tool config connections`);
+  connections.push(...toolConfigConnections);
+  
+  // 7. Tool response connections (tool -> tool.response.v1 it created)
+  const toolResponseConnections = findToolResponseConnections(data.breadcrumbs, data.tools || []);
+  console.log(`🔗 Found ${toolResponseConnections.length} tool response connections`);
+  connections.push(...toolResponseConnections);
   
   console.log(`✅ Discovered ${connections.length} total connections (${data.subscriptions ? 'with' : 'without'} subscription data)`);
   return connections;
@@ -431,42 +440,6 @@ function findAgentDefinitionConnections(breadcrumbs: Breadcrumb[], agents: Agent
             color: '#8a2be2',
             style: 'solid',
             weight: 3,
-          },
-          state: {
-            visible: true,
-            highlighted: false,
-          },
-        });
-      }
-    }
-  });
-  
-  return connections;
-}
-
-function findToolResponseConnections(breadcrumbs: Breadcrumb[]): RenderConnection[] {
-  const connections: RenderConnection[] = [];
-  
-  // Group tool requests and responses by request_id
-  const toolRequests = breadcrumbs.filter(b => b.schema_name === 'tool.request.v1');
-  const toolResponses = breadcrumbs.filter(b => b.schema_name === 'tool.response.v1');
-  
-  toolResponses.forEach(response => {
-    const requestId = response.context?.request_id;
-    if (requestId) {
-      const request = toolRequests.find(r => r.id === requestId);
-      if (request) {
-        connections.push({
-          id: `tool-response-${request.id}-${response.id}`,
-          type: 'tool-response',
-          fromNodeId: request.id,
-          toNodeId: response.id,
-          metadata: {
-            label: response.context?.tool || 'tool',
-            color: '#ffa500',
-            style: 'solid',
-            weight: 2,
-            animated: true,
           },
           state: {
             visible: true,
@@ -894,34 +867,90 @@ function getEmissionLabel(emits: { tags?: string[]; schemas?: string[] }): strin
   return parts.length > 0 ? parts.join(' ') : 'emits';
 }
 
-// ============ LEGACY CONNECTION DISCOVERY FUNCTIONS ============
+// ============ TOOL CONFIG CONNECTIONS ============
 
 function findToolConfigConnections(breadcrumbs: Breadcrumb[], tools: Tool[]): RenderConnection[] {
   const connections: RenderConnection[] = [];
   
-  // Find tool config breadcrumbs and connect them to their tools
-  const toolConfigBreadcrumbs = breadcrumbs.filter(b => 
-    b.schema_name === 'tool.config.v1' && 
-    b.tags?.includes('tool:config')
+  // Find all config breadcrumbs (tool.config.v1 and context.config.v1)
+  const configBreadcrumbs = breadcrumbs.filter(b => 
+    (b.schema_name === 'tool.config.v1' || b.schema_name === 'context.config.v1') &&
+    (b.tags?.includes('tool:config') || b.tags?.includes('context:config'))
   );
   
-  toolConfigBreadcrumbs.forEach(configBreadcrumb => {
-    const toolName = configBreadcrumb.context?.toolName || 
-      configBreadcrumb.tags?.find(tag => tag.startsWith('tool:config:'))?.replace('tool:config:', '');
+  console.log(`🔍 Found ${configBreadcrumbs.length} config breadcrumbs`);
+  
+  configBreadcrumbs.forEach(configBreadcrumb => {
+    let toolName: string | undefined;
+    
+    // Extract tool name from tags or context
+    if (configBreadcrumb.schema_name === 'context.config.v1') {
+      // For context configs, link to context-builder tool
+      toolName = 'context-builder';
+    } else {
+      // For tool configs, extract from tags like tool:config:openrouter
+      toolName = configBreadcrumb.context?.toolName || 
+        configBreadcrumb.tags?.find(tag => tag.startsWith('tool:config:'))?.replace('tool:config:', '');
+    }
     
     if (toolName) {
       const tool = tools.find(t => t.name === toolName);
       if (tool) {
         connections.push({
-          id: `tool-config-${configBreadcrumb.id}-${tool.id}`,
-          type: 'configuration',
-          fromNodeId: configBreadcrumb.id,
-          toNodeId: tool.id,
+          id: `config-${configBreadcrumb.id}-${tool.name}`,
+          type: 'tool-execution', // Using existing type
+          fromNodeId: tool.name, // Tool ID is the name
+          toNodeId: configBreadcrumb.id,
           metadata: {
-            label: 'configures',
-            color: '#ffa500',
+            label: 'config',
+            color: '#9333ea', // Purple for config
             style: 'dashed',
             weight: 2,
+          },
+          state: {
+            visible: true,
+            highlighted: false,
+          },
+        });
+        console.log(`  ✅ Tool config: ${tool.name} → ${configBreadcrumb.title}`);
+      } else {
+        console.log(`  ⚠️ Tool not found for config: ${toolName}`);
+      }
+    }
+  });
+  
+  return connections;
+}
+
+function findToolResponseConnections(breadcrumbs: Breadcrumb[], tools: Tool[]): RenderConnection[] {
+  const connections: RenderConnection[] = [];
+  
+  // Find tool.request.v1 and tool.response.v1 breadcrumbs
+  const toolRequests = breadcrumbs.filter(b => b.schema_name === 'tool.request.v1');
+  const toolResponses = breadcrumbs.filter(b => 
+    b.schema_name === 'tool.response.v1' || 
+    b.tags?.includes('tool:response')
+  );
+  
+  console.log(`🔍 Found ${toolRequests.length} tool requests and ${toolResponses.length} tool responses`);
+  
+  // 1. Connect tool requests to their responses
+  toolResponses.forEach(response => {
+    const requestId = response.context?.request_id;
+    if (requestId) {
+      const request = toolRequests.find(r => r.id === requestId);
+      if (request) {
+        connections.push({
+          id: `request-response-${request.id}-${response.id}`,
+          type: 'tool-execution',
+          fromNodeId: request.id,
+          toNodeId: response.id,
+          metadata: {
+            label: response.context?.tool || 'response',
+            color: '#ffa500',
+            style: 'solid',
+            weight: 2,
+            animated: true,
           },
           state: {
             visible: true,
@@ -932,8 +961,38 @@ function findToolConfigConnections(breadcrumbs: Breadcrumb[], tools: Tool[]): Re
     }
   });
   
+  // 2. Connect tools to their response breadcrumbs
+  toolResponses.forEach(response => {
+    const toolName = response.context?.tool || response.context?.toolName;
+    
+    if (toolName) {
+      const tool = tools.find(t => t.name === toolName);
+      if (tool) {
+        connections.push({
+          id: `tool-creates-${tool.name}-${response.id}`,
+          type: 'tool-execution',
+          fromNodeId: tool.name, // Tool ID is the name
+          toNodeId: response.id,
+          metadata: {
+            label: 'creates',
+            color: '#00ff88', // Green for creation
+            style: 'solid',
+            weight: 2,
+          },
+          state: {
+            visible: true,
+            highlighted: false,
+          },
+        });
+        console.log(`  ✅ Tool creates: ${tool.name} → ${response.title}`);
+      }
+    }
+  });
+  
   return connections;
 }
+
+// ============ LEGACY CONNECTION DISCOVERY FUNCTIONS ============
 
 function findSecretUsageConnections(breadcrumbs: Breadcrumb[], secrets: Secret[]): RenderConnection[] {
   const connections: RenderConnection[] = [];

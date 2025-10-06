@@ -21,26 +21,26 @@ const defaultChatAgentContextConfig = {
     {
       schema_name: 'user.message.v1',
       method: 'recent',
-      limit: 3,  // Always include last 3 for conversational flow
+      limit: 20,  // Include last 20 for rich conversational context
       filters: { tag: 'extension:chat' }
     },
     {
       schema_name: 'user.message.v1',
       method: 'vector',
-      nn: 5,  // Plus 5 most relevant for context/memory
+      nn: 10,  // Plus 10 most relevant for context/memory
       filters: { tag: 'extension:chat' }
     },
     // Agent responses: Hybrid approach
     {
       schema_name: 'agent.response.v1',
       method: 'recent',
-      limit: 2,  // Last 2 responses
+      limit: 20,  // Last 20 responses for context continuity
       filters: { tag: 'workspace:agents' }
     },
     {
       schema_name: 'agent.response.v1',
       method: 'vector',
-      nn: 3,  // Plus 3 most relevant
+      nn: 10,  // Plus 10 most relevant
       filters: { tag: 'workspace:agents' }
     },
     // Tool results: Recent only (chronological makes sense here)
@@ -73,7 +73,7 @@ const defaultChatAgentContextConfig = {
   
   // Configurable: Formatting and optimization
   formatting: {
-    max_tokens: 4000,  // Token budget
+    max_tokens: 400000,  // Token budget for gemini-2.5-flash-lite (supports up to 1M)
     deduplication_threshold: 0.95,  // Similarity threshold for dedup (0.90-0.99)
     include_metadata: false,  // Include timestamps, IDs, etc.
     enable_summarization: false  // Future: LLM-based summarization

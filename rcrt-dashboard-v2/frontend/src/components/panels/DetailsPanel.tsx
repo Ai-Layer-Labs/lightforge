@@ -962,40 +962,40 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         label: 'Recent User Messages',
         type: 'number',
         description: 'Recent user messages to include',
-        defaultValue: 3,
-        validation: { min: 0, max: 20 }
+        defaultValue: 20,
+        validation: { min: 0, max: 50 }
       },
       {
         key: 'vector_user_nn',
         label: 'Semantic User Messages',
         type: 'number',
         description: 'Semantically relevant user messages',
-        defaultValue: 5,
-        validation: { min: 0, max: 20 }
+        defaultValue: 10,
+        validation: { min: 0, max: 50 }
       },
       {
         key: 'recent_agent_limit',
         label: 'Recent Agent Responses',
         type: 'number',
         description: 'Recent agent responses to include',
-        defaultValue: 2,
-        validation: { min: 0, max: 10 }
+        defaultValue: 20,
+        validation: { min: 0, max: 50 }
       },
       {
         key: 'vector_agent_nn',
         label: 'Semantic Agent Responses',
         type: 'number',
         description: 'Semantically relevant agent responses',
-        defaultValue: 3,
-        validation: { min: 0, max: 10 }
+        defaultValue: 10,
+        validation: { min: 0, max: 50 }
       },
       {
         key: 'max_tokens',
         label: 'Token Budget',
         type: 'number',
-        description: 'Maximum context size (auto-trims)',
-        defaultValue: 4000,
-        validation: { min: 1000, max: 16000 }
+        description: 'Maximum context size (gemini-2.5-flash-lite supports up to 1M)',
+        defaultValue: 400000,
+        validation: { min: 1000, max: 1000000 }
       },
       {
         key: 'deduplication_threshold',
@@ -1100,15 +1100,15 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
                 s.schema_name === 'agent.response.v1' && s.method === 'vector'
               );
               
-              loadedConfig.recent_user_limit = recentUserSource?.limit ?? 3;
-              loadedConfig.vector_user_nn = vectorUserSource?.nn ?? 5;
-              loadedConfig.recent_agent_limit = recentAgentSource?.limit ?? 2;
-              loadedConfig.vector_agent_nn = vectorAgentSource?.nn ?? 3;
+              loadedConfig.recent_user_limit = recentUserSource?.limit ?? 20;
+              loadedConfig.vector_user_nn = vectorUserSource?.nn ?? 10;
+              loadedConfig.recent_agent_limit = recentAgentSource?.limit ?? 20;
+              loadedConfig.vector_agent_nn = vectorAgentSource?.nn ?? 10;
             }
             
             // Read from formatting object
             if (ctx?.formatting) {
-              loadedConfig.max_tokens = ctx.formatting.max_tokens ?? 4000;
+              loadedConfig.max_tokens = ctx.formatting.max_tokens ?? 400000;
               loadedConfig.deduplication_threshold = ctx.formatting.deduplication_threshold ?? 0.95;
               loadedConfig.include_metadata = ctx.formatting.include_metadata ?? false;
             }

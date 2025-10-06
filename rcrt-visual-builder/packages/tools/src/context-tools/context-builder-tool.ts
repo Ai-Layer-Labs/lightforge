@@ -521,10 +521,14 @@ export class ContextBuilderTool implements RCRTTool {
     }
     
     // 🔥 Deduplication using embedding similarity (if configured)
-    if (formatting.deduplication_threshold) {
+    // IMPORTANT: Always preserve the trigger event (newest user message)
+    if (formatting.deduplication_threshold && assembled.chat_history) {
+      const triggerBreadcrumbId = triggerEvent?.breadcrumb_id;
+      
       assembled.chat_history = await this.deduplicateByEmbedding(
-        assembled.chat_history || [],
-        formatting.deduplication_threshold
+        assembled.chat_history,
+        formatting.deduplication_threshold,
+        triggerBreadcrumbId // Pass trigger ID to preserve it
       );
     }
     
@@ -617,12 +621,17 @@ export class ContextBuilderTool implements RCRTTool {
   /**
    * Deduplicate messages using embedding similarity
    * Uses pgvector's cosine similarity via the API
+   * IMPORTANT: Always preserves the trigger message (newest user question)
    */
   private async deduplicateByEmbedding(
     messages: any[],
-    threshold: number
+    threshold: number,
+    triggerBreadcrumbId?: string
   ): Promise<any[]> {
     if (messages.length <= 1) return messages;
+    
+    // Always keep the trigger message (the current user question)
+    const triggerMessage = messages.find(m => m.id === triggerBreadcrumbId);
     
     // Simple deduplication: compare adjacent messages
     // Full implementation would use pgvector query
@@ -631,6 +640,14 @@ export class ContextBuilderTool implements RCRTTool {
     for (let i = 1; i < messages.length; i++) {
       const current = messages[i];
       const prev = messages[i - 1];
+      
+      // ALWAYS preserve the trigger message
+      if (triggerBreadcrumbId && current.id === triggerBreadcrumbId) {
+        if (!deduplicated.find(m => m.id === triggerBreadcrumbId)) {
+          deduplicated.push(current);
+        }
+        continue;
+      }
       
       // Simple content comparison (real version would use embeddings)
       const currentText = current.content || current.message || '';
@@ -641,7 +658,12 @@ export class ContextBuilderTool implements RCRTTool {
       }
     }
     
-    console.log(`  🧹 Deduplicated ${messages.length} → ${deduplicated.length} messages`);
+    // Ensure trigger message is at the end (most recent)
+    if (triggerMessage && !deduplicated.find(m => m.id === triggerBreadcrumbId)) {
+      deduplicated.push(triggerMessage);
+    }
+    
+    console.log(`  🧹 Deduplicated ${messages.length} → ${deduplicated.length} messages (preserved trigger: ${!!triggerBreadcrumbId})`);
     return deduplicated;
   }
   
