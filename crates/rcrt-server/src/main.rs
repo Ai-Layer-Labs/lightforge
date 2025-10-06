@@ -740,6 +740,28 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         serde_json::to_string(&bc.context).unwrap_or_default().chars().take(100).collect::<String>()
     );
     
+    // Publish update events (same as create!)
+    #[cfg(feature = "nats")]
+    if let Some(conn) = &state.nats_conn {
+        let payload = json!({
+            "type": "breadcrumb.updated",
+            "breadcrumb_id": bc.id,
+            "owner_id": auth.owner_id,
+            "version": bc.version,
+            "tags": bc.tags,
+            "schema_name": bc.schema_name,
+            "updated_at": bc.updated_at,
+            "context": bc.context
+        });
+        let updated = payload.to_string();
+        let subj_updated = format!("bc.{}.updated", bc.id);
+        
+        tracing::info!("🔧 NATS: Publishing update event for {}", bc.id);
+        let _ = conn.publish(&subj_updated, updated.as_bytes());
+        
+        fanout_events_and_webhooks(&state, auth.owner_id, &bc, &updated).await;
+    }
+    
     Ok(Json(json!({"ok": true})))
 }
 
