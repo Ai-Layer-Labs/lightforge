@@ -11,24 +11,7 @@ export function Canvas3D() {
   const { config, updateConfig, cleanupDuplicates, isLoading, isSaving, lastSaved } = use3DConfig();
   const [showControls, setShowControls] = useState(false); // Hidden by default
   const camera = useCamera();
-  const updateCamera = useDashboardStore((state) => state.updateCamera);
   const controlsRef = useRef<any>(null);
-  
-  // Debug logging when config changes
-  React.useEffect(() => {
-    console.log('🎛️ 3D Config updated:', config);
-  }, [config]);
-  
-  // Save camera state when OrbitControls movement ends (not during movement)
-  const handleControlsEnd = () => {
-    if (controlsRef.current) {
-      const controls = controlsRef.current;
-      updateCamera({
-        position: controls.object.position.toArray() as any,
-        target: controls.target.toArray() as any,
-      });
-    }
-  };
   return (
     <div className="canvas-3d w-full h-full relative">
       <Canvas
@@ -62,7 +45,8 @@ export function Canvas3D() {
           maxDistance={1000}
           maxPolarAngle={Math.PI}
           target={[camera.target.x, camera.target.y, camera.target.z]}
-          onEnd={handleControlsEnd}
+          enableDamping={true}
+          dampingFactor={0.05}
         />
         
         {/* 3D Scene Content */}

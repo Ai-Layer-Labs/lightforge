@@ -12,18 +12,14 @@ interface Scene3DProps {
   config: Scene3DConfig;
 }
 
-export function Scene3D({ config }: Scene3DProps) {
+// Memoize Scene3D to prevent re-renders when camera changes
+export const Scene3D = React.memo(function Scene3D({ config }: Scene3DProps) {
   const nodes = useNodes();
   const connections = useConnections();
   
-  // Debug logging when config changes
-  React.useEffect(() => {
-    console.log('🎲 Scene3D received config update:', config);
-  }, [config]);
-  
   // Group nodes by category for clustering (dynamic based on actual data)
   const nodesByCategory = useMemo(() => {
-    const categories = {
+    return {
       breadcrumbs: nodes.filter(n => n.type === 'breadcrumb'),
       agents: nodes.filter(n => n.type === 'agent'),
       'agent-definitions': nodes.filter(n => n.type === 'agent-definition'),
@@ -31,17 +27,6 @@ export function Scene3D({ config }: Scene3DProps) {
       secrets: nodes.filter(n => n.type === 'secret'),
       chat: nodes.filter(n => n.type === 'chat'),
     };
-    
-    console.log('🎲 3D Scene categories:', {
-      breadcrumbs: categories.breadcrumbs.length,
-      agents: categories.agents.length,
-      'agent-definitions': categories['agent-definitions'].length,
-      tools: categories.tools.length,
-      secrets: categories.secrets.length,
-      chat: categories.chat.length,
-    });
-    
-    return categories;
   }, [nodes]);
   
    // Category label positions (based on sphere configs)
@@ -96,7 +81,6 @@ export function Scene3D({ config }: Scene3DProps) {
   // Position all nodes using surface-based sphere layering
   const positionedNodes = useMemo(() => {
     const positioned: RenderNode[] = [];
-    const allLayers: Array<{ category: string; layers: Array<{ radius: number; capacity: number; nodeCount: number; }> }> = [];
     
     // Position each category on sphere surfaces with automatic layering
     Object.entries(nodesByCategory).forEach(([category, categoryNodes]) => {
@@ -112,22 +96,8 @@ export function Scene3D({ config }: Scene3DProps) {
         );
         
         positioned.push(...result.nodes);
-        allLayers.push({ category, layers: result.layers });
-        
-        console.log(`🌐 ${category}: ${categoryNodes.length} nodes on ${result.layers.length} sphere layers`);
-        console.log(`  Sphere center: (${sphereConfig.x}, ${sphereConfig.y}, ${sphereConfig.z}), base radius: ${sphereConfig.baseRadius}`);
-        result.layers.forEach((layer, i) => {
-          console.log(`  Layer ${i + 1}: radius=${layer.radius.toFixed(1)}, capacity=${layer.capacity}, nodes=${layer.nodeCount}`);
-        });
-        
-        // Debug first few nodes for this category
-        result.nodes.slice(0, 2).forEach((node, i) => {
-          console.log(`  ${category} node ${i}: final position (${node.position.x.toFixed(1)}, ${node.position.y.toFixed(1)}, ${node.position.z.toFixed(1)})`);
-        });
       }
     });
-    
-    console.log(`🎲 Positioned ${positioned.length} nodes across ${allLayers.reduce((sum, cat) => sum + cat.layers.length, 0)} total sphere layers`);
     
     return positioned;
   }, [nodesByCategory, config]);
@@ -259,7 +229,7 @@ export function Scene3D({ config }: Scene3DProps) {
       <AmbientParticles config={config} />
     </>
   );
-}
+});
 
 // Sphere-based particle system that flows around sphere layers
 function SphereParticleSystem({ 

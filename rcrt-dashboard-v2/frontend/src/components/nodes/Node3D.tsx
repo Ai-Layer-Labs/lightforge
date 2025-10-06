@@ -12,32 +12,34 @@ interface Node3DProps {
   config: Scene3DConfig;
 }
 
-export function Node3D({ node, config }: Node3DProps) {
+export const Node3D = React.memo(function Node3D({ node, config }: Node3DProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { selectNode, setHoveredNode } = useDashboard();
   
   // Don't render if filtered
   if (node.state.filtered) return null;
   
-  // Animation effects
+  // Animation effects - only run if node has active effects
+  const hasAnimations = node.effects.pulse || node.type === 'chat' || node.effects.animate || node.effects.glow;
+  
   useFrame((state, delta) => {
-    if (meshRef.current) {
-      // Pulse effect
-      if (node.effects.pulse) {
-        const scale = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
-        meshRef.current.scale.setScalar(scale);
-      }
-      
-      // Rotation for thinking nodes
-      if (node.type === 'chat' || node.effects.animate) {
-        meshRef.current.rotation.y += delta * 0.5;
-      }
-      
-      // Glow effect (handled by material)
-      if (node.effects.glow && meshRef.current.material) {
-        const material = meshRef.current.material as THREE.MeshStandardMaterial;
-        material.emissiveIntensity = 0.2 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
-      }
+    if (!hasAnimations || !meshRef.current) return;
+    
+    // Pulse effect
+    if (node.effects.pulse) {
+      const scale = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+      meshRef.current.scale.setScalar(scale);
+    }
+    
+    // Rotation for thinking nodes
+    if (node.type === 'chat' || node.effects.animate) {
+      meshRef.current.rotation.y += delta * 0.5;
+    }
+    
+    // Glow effect (handled by material)
+    if (node.effects.glow && meshRef.current.material) {
+      const material = meshRef.current.material as THREE.MeshStandardMaterial;
+      material.emissiveIntensity = 0.2 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
     }
   });
   
@@ -77,7 +79,6 @@ export function Node3D({ node, config }: Node3DProps) {
   };
   
   const handleClick = (e: any) => {
-    console.log('🎯 3D Node clicked:', node.metadata.title, node.type);
     e.stopPropagation?.();
     selectNode(node.id, e.ctrlKey || e.metaKey || false);
   };
@@ -256,4 +257,4 @@ export function Node3D({ node, config }: Node3DProps) {
       
     </group>
   );
-}
+});
