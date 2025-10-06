@@ -157,6 +157,15 @@ chrome.runtime.onInstalled.addListener(async () => {
   
   await connectToRCRT();
   
+  // 🚀 Initialize page context tracker (simple version - no dynamic imports)
+  try {
+    const { simplePageContextTracker } = await import('./page-context-tracker-simple.js');
+    await simplePageContextTracker.initialize();
+    console.log('✅ Page context tracker initialized');
+  } catch (err) {
+    console.error('❌ Failed to initialize page context tracker:', err);
+  }
+  
   try { 
     chrome.sidePanel?.setOptions({ 
       path: 'src/sidepanel/index.html', 
@@ -169,6 +178,15 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await connectToRCRT();
+  
+  // 🚀 Initialize page context tracker on startup (simple version)
+  try {
+    const { simplePageContextTracker } = await import('./page-context-tracker-simple.js');
+    await simplePageContextTracker.initialize();
+    console.log('✅ Page context tracker initialized on startup');
+  } catch (err) {
+    console.error('❌ Failed to initialize page context tracker:', err);
+  }
   
   try { 
     chrome.sidePanel?.setOptions({ 

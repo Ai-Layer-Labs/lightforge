@@ -54,7 +54,11 @@ User → Extension → RCRT Server → Context-Builder
                    (pgvector)        ↓
                       ↓           Tool Runner
                    NATS            ↓
-                  (events)      OpenRouter/LLMs
+                  (events)      ANY LLM:
+                              - OpenRouter (cloud)
+                              - Ollama (local)
+                              - Azure OpenAI (secure gateway)
+                              - On-prem models (air-gapped)
 ```
 
 ## Enterprise Features
@@ -92,7 +96,10 @@ User → Extension → RCRT Server → Context-Builder
 - Agent/tool runtime - Working
 - Dashboard (visualization) - Polished
 - Browser extension (chat) - Basic but functional
-- 12 working tools including LLM integration
+- 12 working tools including:
+  - **Multi-LLM support**: OpenRouter (100+ models), Ollama (local), custom gateways
+  - Workflow orchestration, calculator, file storage, breadcrumb CRUD
+  - All configurable via dashboard UI
 
 ### ❌ Not Built
 - **Code editor** (no Monaco, no VS Code Web)
@@ -115,13 +122,14 @@ Test if enterprises will pay for better context ALONE:
 - Cost: Minimal
 - Decision: If yes → build frontend. If no → pivot.
 
-### Option B: Build VS Code Web Frontend (10-12 weeks)
+### Option B: Build VS Code Web Frontend (3-4 weeks for POC!)
 Only if Option A succeeds:
-- Integrate VS Code Web (Microsoft's open-source editor)
+- Fork VS Code Web (Microsoft's open-source editor)
+- Use Roocode as base for AI integration
 - Add RCRT context panel
-- Implement inline AI suggestions
-- Cost: $80K-120K (2 engineers)
-- Risk: High if context value unvalidated
+- Connect to existing context-builder
+- Cost: $30K-40K (1 engineer, 1 month)
+- Risk: Lower with proven starting points
 
 ### Option C: Backend-Only (API) Strategy (4-6 weeks)
 Position as "context backend for existing tools":
@@ -138,8 +146,13 @@ Position as "context backend for existing tools":
 2. **Event-driven**: NATS pub-sub (Copilot/Cursor are request-response)
 3. **Breadcrumb architecture**: Context as data primitive (vs. file-based)
 4. **Enterprise-first**: Security and compliance from day 1 (vs. bolted on)
+5. **LLM agnostic**: Works with ANY model (cloud, local, on-prem, air-gapped)
+   - OpenRouter: 100+ models
+   - Ollama: Free local models
+   - Azure OpenAI: Enterprise secure gateway
+   - Custom: Bring your own LLM endpoint
 
-**The Moat**: Context management is an unsolved problem at enterprise scale. RCRT solves it elegantly.
+**The Moat**: Context management + model flexibility + enterprise security. Nobody else has all three.
 
 ## Investment Ask vs. Return
 
@@ -162,11 +175,12 @@ Position as "context backend for existing tools":
 
 **We have built**: Enterprise-grade context management infrastructure  
 **We haven't built**: User-facing code editor  
-**Strategic question**: Is better context enough to win, or do we need full IDE?  
-**Recommendation**: **Validate PMF first** (2-4 weeks) **before building frontend** (10-12 weeks)
+**Strategic question**: Is better context enough to win, or do we need fuding frontend** (10-12 weeks)
 
 ---
 
 **Contact**: [Engineering Lead]  
 **Last Updated**: October 6, 2025  
 **Status**: Awaiting CEO decision on validation vs. build
+ll IDE?  
+**Recommendation**: **Validate PMF first** (2-4 weeks) **before buil

@@ -1,0 +1,43 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Page Summarizer Agent",
+  "tags": ["agent:def", "workspace:agents", "type:summarizer"],
+  "context": {
+    "agent_id": "page-summarizer",
+    "agent_name": "Page Summarizer",
+    "description": "Automatically summarizes webpages when user navigates to them",
+    "model": "openrouter/google/gemini-2.0-flash-exp:free",
+    "system_prompt": "You are an expert at quickly summarizing webpage content.\n\nWhen you receive a browser.page.context.v1 event (page navigation), analyze the page and create a concise summary.\n\nYour summary should include:\n1. **Main Topic**: What is this page about?\n2. **Key Sections**: What are the main sections/topics covered?\n3. **Important Links**: Highlight any critical links or actions\n4. **TL;DR**: One sentence summary\n\nFormat your response as a clear, scannable summary. Be concise but informative.\n\nOnly summarize pages with substantial content (skip loading pages, error pages, etc.).",
+    
+    "subscriptions": {
+      "selectors": [
+        {
+          "schema_name": "browser.page.context.v1",
+          "any_tags": ["browser:active-tab"],
+          "comment": "Auto-summarize when user navigates"
+        }
+      ]
+    },
+    
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "auto_respond_to_events": true
+    },
+    
+    "triggers": {
+      "on_page_change": {
+        "enabled": true,
+        "conditions": {
+          "min_content_length": 500,
+          "exclude_domains": ["chrome://", "about:", "chrome-extension://"]
+        }
+      }
+    },
+    
+    "response_format": {
+      "schema_name": "agent.response.v1",
+      "auto_send": true,
+      "format": "markdown"
+    }
+  }
+}

@@ -115,6 +115,9 @@ import { OpenRouterTool, OllamaTool } from './llm-tools/index.js';
 // Import context tools
 import { contextBuilderTool } from './context-tools/index.js';
 
+// Import browser tools
+import { browserContextCaptureTool } from './browser-tools/index.js';
+
 // Export tool loader for RCRT-native mode
 export { ToolLoader } from './tool-loader.js';
 export { bootstrapTools } from './bootstrap-tools.js';
@@ -477,6 +480,9 @@ export const builtinTools = {
   
   // Context Tools
   'context-builder': contextBuilderTool,
+  
+  // Browser Tools
+  'browser-context-capture': browserContextCaptureTool,
   
   // Breadcrumb CRUD Tool
   'breadcrumb-crud': createTool(
