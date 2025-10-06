@@ -1,6 +1,8 @@
 // RCRT Chrome Extension Background Service
 // Connects to RCRT dashboard proxy for authentication and automation
 
+import { simplePageContextTracker } from './page-context-tracker-simple.js';
+
 let currentTabId = null;
 let isAttached = false;
 let keepAliveCreated = false;
@@ -157,9 +159,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   
   await connectToRCRT();
   
-  // 🚀 Initialize page context tracker (simple version - no dynamic imports)
+  // 🚀 Initialize page context tracker
   try {
-    const { simplePageContextTracker } = await import('./page-context-tracker-simple.js');
     await simplePageContextTracker.initialize();
     console.log('✅ Page context tracker initialized');
   } catch (err) {
@@ -179,9 +180,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onStartup.addListener(async () => {
   await connectToRCRT();
   
-  // 🚀 Initialize page context tracker on startup (simple version)
+  // 🚀 Initialize page context tracker on startup
   try {
-    const { simplePageContextTracker } = await import('./page-context-tracker-simple.js');
     await simplePageContextTracker.initialize();
     console.log('✅ Page context tracker initialized on startup');
   } catch (err) {

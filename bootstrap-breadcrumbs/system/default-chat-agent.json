@@ -5,7 +5,7 @@
   "context": {
     "agent_id": "default-chat-assistant",
     "temperature": 0.7,
-    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive pre-assembled context that includes:\n- Relevant conversation history (vector-searched for semantic similarity)\n- Available tools and their usage\n- Recent tool results\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Using available tools when helpful\n3. Providing clear, concise responses\n\nCRITICAL: You MUST respond ONLY with valid JSON in this EXACT format (no extra text before or after):\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (calling random tool):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"I'll generate 5 random numbers for you.\",\n      \"tool_requests\": [\n        {\"tool\": \"random\", \"input\": {\"min\": 1, \"max\": 100, \"count\": 5}, \"requestId\": \"rand-001\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (simple text response):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your name is David!\"\n    }\n  }\n}\n\nDO NOT add explanatory text before or after the JSON. Output ONLY the JSON object.",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive THREE types of context:\n1. PRE-ASSEMBLED CONTEXT (agent.context.v1): Relevant conversation history, tools, results\n2. BROWSER CONTEXT (browser.page.context.v1): The webpage the user is currently viewing\n3. TOOL RESPONSES (tool.response.v1): Results from tools you requested\n\nWhen the user asks about the current page, use the browser context to provide specific, grounded answers. The browser context includes the page title, URL, main content, headings, and links.\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Referencing the current page when relevant (check browser context)\n3. Using available tools when helpful\n4. Providing clear, concise responses\n\nCRITICAL: You MUST respond ONLY with valid JSON in this EXACT format (no extra text before or after):\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (calling random tool):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"I'll generate 5 random numbers for you.\",\n      \"tool_requests\": [\n        {\"tool\": \"random\", \"input\": {\"min\": 1, \"max\": 100, \"count\": 5}, \"requestId\": \"rand-001\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (simple text response):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your name is David!\"\n    }\n  }\n}\n\nDO NOT add explanatory text before or after the JSON. Output ONLY the JSON object.",
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_update_own": true,
@@ -13,12 +13,17 @@
       "can_spawn_agents": false
     },
     "subscriptions": {
-      "comment": "THE RCRT WAY: Agent ONLY receives pre-built context, nothing else",
+      "comment": "THE RCRT WAY: Agent receives pre-built context + browser context + tool responses",
       "selectors": [
         {
-          "comment": "ONLY subscription: Pre-built context from context-builder",
+          "comment": "Primary: Pre-built context from context-builder",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"]
+        },
+        {
+          "comment": "Browser context: Real-time page the user is viewing",
+          "schema_name": "browser.page.context.v1",
+          "any_tags": ["browser:active-tab"]
         },
         {
           "comment": "Tool responses for follow-up processing",
