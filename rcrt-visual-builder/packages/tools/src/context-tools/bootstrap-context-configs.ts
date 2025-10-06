@@ -8,11 +8,14 @@ import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 
 /**
  * Default context configuration for chat agents
- * This is the DATA that configures how context-builder operates
+ * This creates context.config.v1 breadcrumb (like tool.config.v1 for openrouter)
+ * Can be edited via UI to customize context assembly
  */
 const defaultChatAgentContextConfig = {
   consumer_id: 'default-chat-assistant',
   consumer_type: 'agent',
+  
+  // Configurable: Which sources to include
   sources: [
     // User messages: Hybrid approach (recent + semantic)
     {
@@ -60,14 +63,28 @@ const defaultChatAgentContextConfig = {
       filters: { tag: 'workspace:tools' }
     }
   ],
+  
+  // Configurable: Output configuration
   output: {
     schema_name: 'agent.context.v1',
     tags: ['agent:context', 'consumer:default-chat-assistant'],
-    ttl_seconds: 3600
+    ttl_seconds: 3600  // How long context is cached
   },
+  
+  // Configurable: Formatting and optimization
   formatting: {
-    max_tokens: 4000,
-    deduplication_threshold: 0.95
+    max_tokens: 4000,  // Token budget
+    deduplication_threshold: 0.95,  // Similarity threshold for dedup (0.90-0.99)
+    include_metadata: false,  // Include timestamps, IDs, etc.
+    enable_summarization: false  // Future: LLM-based summarization
+  },
+  
+  // Metadata for UI
+  metadata: {
+    version: '1.0.0',
+    created_by: 'system',
+    description: 'Hybrid context strategy: recent + semantic search',
+    last_updated: new Date().toISOString()
   }
 };
 
@@ -114,9 +131,19 @@ async function bootstrapConfig(
       tags: [
         'context:config',
         `consumer:${consumerId}`,
+        'ui:editable',  // ← Tells UI this is editable
         workspace
       ],
-      context: config
+      context: {
+        ...config,
+        // Add UI metadata
+        ui_config: {
+          editable: true,
+          category: 'context-assembly',
+          icon: '🏗️',
+          description: 'Configure how context is assembled for this agent'
+        }
+      }
     };
     
     if (existing.length > 0) {

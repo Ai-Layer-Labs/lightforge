@@ -837,9 +837,16 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   // Fetch models from catalog for OpenRouter
   const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
 
-  // Get tool UI variables based on tool name
-  const getToolUIVariables = (toolName: string): UIVariable[] => {
-    switch (toolName.toLowerCase()) {
+  // Get tool UI variables based on tool name or schema
+  const getToolUIVariables = (toolNameOrSchema: string): UIVariable[] => {
+    const name = toolNameOrSchema.toLowerCase();
+    
+    // Handle context.config.v1 breadcrumbs
+    if (name === 'context.config.v1' || name.includes('context config')) {
+      return getContextBuilderUIVariables();
+    }
+    
+    switch (name) {
       case 'openrouter':
         return [
           {
@@ -924,6 +931,87 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           },
         ];
     }
+  };
+  
+  // Context Builder UI Variables
+  const getContextBuilderUIVariables = (): UIVariable[] => {
+    return [
+      {
+        key: 'strategy',
+        label: 'Context Strategy',
+        type: 'select',
+        description: 'How to assemble context',
+        defaultValue: 'hybrid',
+        options: [
+          { value: 'hybrid', label: 'Hybrid (Recent + Semantic)' },
+          { value: 'recent', label: 'Recent Only' },
+          { value: 'semantic', label: 'Semantic Only' }
+        ]
+      },
+      {
+        key: 'recent_user_limit',
+        label: 'Recent User Messages',
+        type: 'number',
+        description: 'Recent user messages to include',
+        defaultValue: 3,
+        validation: { min: 0, max: 20 }
+      },
+      {
+        key: 'vector_user_nn',
+        label: 'Semantic User Messages',
+        type: 'number',
+        description: 'Semantically relevant user messages',
+        defaultValue: 5,
+        validation: { min: 0, max: 20 }
+      },
+      {
+        key: 'recent_agent_limit',
+        label: 'Recent Agent Responses',
+        type: 'number',
+        description: 'Recent agent responses to include',
+        defaultValue: 2,
+        validation: { min: 0, max: 10 }
+      },
+      {
+        key: 'vector_agent_nn',
+        label: 'Semantic Agent Responses',
+        type: 'number',
+        description: 'Semantically relevant agent responses',
+        defaultValue: 3,
+        validation: { min: 0, max: 10 }
+      },
+      {
+        key: 'max_tokens',
+        label: 'Token Budget',
+        type: 'number',
+        description: 'Maximum context size (auto-trims)',
+        defaultValue: 4000,
+        validation: { min: 1000, max: 16000 }
+      },
+      {
+        key: 'deduplication_threshold',
+        label: 'Deduplication Threshold',
+        type: 'number',
+        description: 'Similarity for deduplication (0.80-0.99)',
+        defaultValue: 0.95,
+        validation: { min: 0.80, max: 0.99 }
+      },
+      {
+        key: 'context_ttl',
+        label: 'Context TTL (seconds)',
+        type: 'number',
+        description: 'How long to cache context',
+        defaultValue: 3600,
+        validation: { min: 300, max: 7200 }
+      },
+      {
+        key: 'include_metadata',
+        label: 'Include Metadata',
+        type: 'boolean',
+        description: 'Include timestamps and IDs',
+        defaultValue: false
+      }
+    ];
   };
 
   const uiVariables = getToolUIVariables(node.metadata.title);
