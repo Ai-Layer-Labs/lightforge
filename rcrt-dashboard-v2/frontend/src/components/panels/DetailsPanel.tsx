@@ -841,12 +841,21 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const getToolUIVariables = (toolNameOrSchema: string): UIVariable[] => {
     const name = toolNameOrSchema.toLowerCase();
     
-    // Handle context.config.v1 breadcrumbs
-    if (name === 'context.config.v1' || name.includes('context config')) {
+    // Handle context.config.v1 breadcrumbs (check schema or tags)
+    const isContextConfig = node.data?.schema_name === 'context.config.v1' || 
+                           node.metadata.tags.includes('context:config') ||
+                           name === 'context.config.v1' || 
+                           name.includes('context config');
+    
+    if (isContextConfig) {
       return getContextBuilderUIVariables();
     }
     
     switch (name) {
+      case 'context-builder':
+      case 'context_builder':
+        return getContextBuilderUIVariables();
+        
       case 'openrouter':
         return [
           {
@@ -1045,21 +1054,77 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
       if (!response.ok) return;
       
       const breadcrumbs = await response.json();
-      const configBreadcrumb = breadcrumbs.find((b: Breadcrumb) => 
-        b.tags?.includes(`tool:config:${node.metadata.title}`) ||
-        (b.tags?.includes('tool:config') && b.title?.includes(node.metadata.title))
-      );
+      
+      // Check if this is a context-builder tool or context.config.v1 breadcrumb
+      const isContextBuilderTool = node.metadata.title.toLowerCase() === 'context-builder' || 
+                                    node.metadata.title.toLowerCase() === 'context_builder';
+      const isContextConfig = node.data?.schema_name === 'context.config.v1' || 
+                              node.metadata.tags.includes('context:config');
+      
+      const configBreadcrumb = breadcrumbs.find((b: Breadcrumb) => {
+        if (isContextBuilderTool || isContextConfig) {
+          // For context-builder tool or context configs, look for context:config tag
+          return b.tags?.includes('context:config') && b.schema_name === 'context.config.v1';
+        } else {
+          // For other tools, look for tool:config tag
+          return b.tags?.includes(`tool:config:${node.metadata.title}`) ||
+                 (b.tags?.includes('tool:config') && b.title?.includes(node.metadata.title));
+        }
+      });
       
       if (configBreadcrumb) {
-        console.log('✅ Found tool config breadcrumb:', configBreadcrumb.id);
+        console.log('✅ Found config breadcrumb:', configBreadcrumb.id);
         
         // Load full context
         const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}`);
         if (detailResponse.ok) {
           const detail = await detailResponse.json();
-          if (detail.context?.config) {
-            setConfig(detail.context.config);
-            console.log('🛠️ Loaded tool config:', detail.context.config);
+          
+          if (isContextBuilderTool || isContextConfig) {
+            // For context-builder tool or context configs, read values from nested structure
+            const loadedConfig: ToolConfigValue = {};
+            const ctx = detail.context;
+            
+            // Read from sources array
+            if (ctx?.sources && Array.isArray(ctx.sources)) {
+              const recentUserSource = ctx.sources.find(s => 
+                s.schema_name === 'user.message.v1' && s.method === 'recent'
+              );
+              const vectorUserSource = ctx.sources.find(s => 
+                s.schema_name === 'user.message.v1' && s.method === 'vector'
+              );
+              const recentAgentSource = ctx.sources.find(s => 
+                s.schema_name === 'agent.response.v1' && s.method === 'recent'
+              );
+              const vectorAgentSource = ctx.sources.find(s => 
+                s.schema_name === 'agent.response.v1' && s.method === 'vector'
+              );
+              
+              loadedConfig.recent_user_limit = recentUserSource?.limit ?? 3;
+              loadedConfig.vector_user_nn = vectorUserSource?.nn ?? 5;
+              loadedConfig.recent_agent_limit = recentAgentSource?.limit ?? 2;
+              loadedConfig.vector_agent_nn = vectorAgentSource?.nn ?? 3;
+            }
+            
+            // Read from formatting object
+            if (ctx?.formatting) {
+              loadedConfig.max_tokens = ctx.formatting.max_tokens ?? 4000;
+              loadedConfig.deduplication_threshold = ctx.formatting.deduplication_threshold ?? 0.95;
+              loadedConfig.include_metadata = ctx.formatting.include_metadata ?? false;
+            }
+            
+            // Read TTL and strategy
+            loadedConfig.context_ttl = ctx?.output?.ttl_seconds ?? 3600;
+            loadedConfig.strategy = ctx?.strategy ?? 'hybrid';
+            
+            setConfig(loadedConfig);
+            console.log('🏗️ Loaded context config from nested structure:', loadedConfig);
+          } else {
+            // For other tools, read from context.config
+            if (detail.context?.config) {
+              setConfig(detail.context.config);
+              console.log('🛠️ Loaded tool config:', detail.context.config);
+            }
           }
         }
       } else {
@@ -1079,56 +1144,172 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
     setIsSaving(true);
 
     try {
-      // Create/update tool config breadcrumb
-      const configBreadcrumb = {
-        title: `${node.metadata.title} Configuration`,
-        context: {
-          config,
-          toolName: node.metadata.title,
-          lastUpdated: new Date().toISOString(),
-        },
-        tags: [`tool:config:${node.metadata.title}`, 'tool:config', 'dashboard:v2'],
-        schema_name: 'tool.config.v1',
-      };
-
-      console.log('🛠️ Saving tool config:', configBreadcrumb);
-
-      // Check if config breadcrumb already exists
-      const searchResponse = await authenticatedFetch('/api/breadcrumbs');
-      if (searchResponse.ok) {
-        const breadcrumbs = await searchResponse.json();
-        const existing = breadcrumbs.find((b: Breadcrumb) => 
-          b.tags?.includes(`tool:config:${node.metadata.title}`)
-        );
-
-        let response;
-        if (existing) {
-          // Update existing
-          response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}`, {
-            method: 'PATCH',
-            headers: { 
-              'Content-Type': 'application/json',
-              'If-Match': `${existing.version || 1}`,
-            },
-            body: JSON.stringify(configBreadcrumb),
-          });
-        } else {
-          // Create new
-          response = await authenticatedFetch('/api/breadcrumbs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(configBreadcrumb),
-          });
+      // Check if this is a context-builder tool or context.config.v1 breadcrumb
+      const isContextBuilderTool = node.metadata.title.toLowerCase() === 'context-builder' || 
+                                    node.metadata.title.toLowerCase() === 'context_builder';
+      const isContextConfig = node.data?.schema_name === 'context.config.v1' || 
+                              node.metadata.tags.includes('context:config');
+      
+      if (isContextBuilderTool || isContextConfig) {
+        // For context-builder tool or context configs, find and update the context.config.v1 breadcrumb
+        const searchResponse = await authenticatedFetch('/api/breadcrumbs');
+        if (!searchResponse.ok) {
+          throw new Error('Failed to search for config breadcrumb');
         }
-
+        
+        const breadcrumbs = await searchResponse.json();
+        const contextConfigBreadcrumb = breadcrumbs.find((b: Breadcrumb) => 
+          b.tags?.includes('context:config') && b.schema_name === 'context.config.v1'
+        );
+        
+        if (!contextConfigBreadcrumb) {
+          throw new Error('Context config breadcrumb not found. Create one first using the bootstrap.');
+        }
+        
+        // Load full context to get current version
+        const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}`);
+        if (!detailResponse.ok) {
+          throw new Error('Failed to load config breadcrumb details');
+        }
+        const fullConfig = await detailResponse.json();
+        
+        // Map UI values to the nested structure that context-builder expects
+        const updatedContext = {
+          ...fullConfig.context,
+          lastUpdated: new Date().toISOString(),
+        };
+        
+        // Update sources array with new limits
+        if (updatedContext.sources && Array.isArray(updatedContext.sources)) {
+          // Update recent user messages limit
+          const recentUserSource = updatedContext.sources.find(s => 
+            s.schema_name === 'user.message.v1' && s.method === 'recent'
+          );
+          if (recentUserSource && config.recent_user_limit !== undefined) {
+            recentUserSource.limit = Number(config.recent_user_limit);
+          }
+          
+          // Update vector user messages nn
+          const vectorUserSource = updatedContext.sources.find(s => 
+            s.schema_name === 'user.message.v1' && s.method === 'vector'
+          );
+          if (vectorUserSource && config.vector_user_nn !== undefined) {
+            vectorUserSource.nn = Number(config.vector_user_nn);
+          }
+          
+          // Update recent agent responses limit
+          const recentAgentSource = updatedContext.sources.find(s => 
+            s.schema_name === 'agent.response.v1' && s.method === 'recent'
+          );
+          if (recentAgentSource && config.recent_agent_limit !== undefined) {
+            recentAgentSource.limit = Number(config.recent_agent_limit);
+          }
+          
+          // Update vector agent responses nn
+          const vectorAgentSource = updatedContext.sources.find(s => 
+            s.schema_name === 'agent.response.v1' && s.method === 'vector'
+          );
+          if (vectorAgentSource && config.vector_agent_nn !== undefined) {
+            vectorAgentSource.nn = Number(config.vector_agent_nn);
+          }
+        }
+        
+        // Update formatting object
+        if (updatedContext.formatting) {
+          if (config.max_tokens !== undefined) {
+            updatedContext.formatting.max_tokens = Number(config.max_tokens);
+          }
+          if (config.deduplication_threshold !== undefined) {
+            updatedContext.formatting.deduplication_threshold = Number(config.deduplication_threshold);
+          }
+          if (config.include_metadata !== undefined) {
+            updatedContext.formatting.include_metadata = Boolean(config.include_metadata);
+          }
+        }
+        
+        // Update context TTL
+        if (config.context_ttl !== undefined) {
+          updatedContext.output = updatedContext.output || {};
+          updatedContext.output.ttl_seconds = Number(config.context_ttl);
+        }
+        
+        // Update strategy
+        if (config.strategy !== undefined) {
+          updatedContext.strategy = config.strategy;
+        }
+        
+        console.log('🏗️ Saving context config:', updatedContext);
+        
+        const response = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'If-Match': `${fullConfig.version || 1}`,
+          },
+          body: JSON.stringify({ context: updatedContext }),
+        });
+        
         if (response.ok) {
-          console.log('✅ Tool config saved successfully');
+          console.log('✅ Context config saved successfully');
           queryClient.invalidateQueries({ queryKey: ['breadcrumbs'] });
           onSave();
         } else {
           const error = await response.text();
-          console.error('❌ Failed to save tool config:', error);
+          console.error('❌ Failed to save context config:', error);
           alert(`Failed to save config: ${error}`);
+        }
+      } else {
+        // For tool configs, create/update separate config breadcrumb
+        const configBreadcrumb = {
+          title: `${node.metadata.title} Configuration`,
+          context: {
+            config,
+            toolName: node.metadata.title,
+            lastUpdated: new Date().toISOString(),
+          },
+          tags: [`tool:config:${node.metadata.title}`, 'tool:config', 'dashboard:v2'],
+          schema_name: 'tool.config.v1',
+        };
+
+        console.log('🛠️ Saving tool config:', configBreadcrumb);
+
+        // Check if config breadcrumb already exists
+        const searchResponse = await authenticatedFetch('/api/breadcrumbs');
+        if (searchResponse.ok) {
+          const breadcrumbs = await searchResponse.json();
+          const existing = breadcrumbs.find((b: Breadcrumb) => 
+            b.tags?.includes(`tool:config:${node.metadata.title}`)
+          );
+
+          let response;
+          if (existing) {
+            // Update existing
+            response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}`, {
+              method: 'PATCH',
+              headers: { 
+                'Content-Type': 'application/json',
+                'If-Match': `${existing.version || 1}`,
+              },
+              body: JSON.stringify(configBreadcrumb),
+            });
+          } else {
+            // Create new
+            response = await authenticatedFetch('/api/breadcrumbs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(configBreadcrumb),
+            });
+          }
+
+          if (response.ok) {
+            console.log('✅ Tool config saved successfully');
+            queryClient.invalidateQueries({ queryKey: ['breadcrumbs'] });
+            onSave();
+          } else {
+            const error = await response.text();
+            console.error('❌ Failed to save tool config:', error);
+            alert(`Failed to save config: ${error}`);
+          }
         }
       }
     } catch (error) {
