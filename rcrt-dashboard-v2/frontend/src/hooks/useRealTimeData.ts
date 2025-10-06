@@ -190,16 +190,25 @@ export function useRealTimeData() {
           ),
         ];
         
-        // Update nodes in store
+        // Update nodes in store with initial data
         setNodes(allNodes);
         
-        // Skip loading full context - we already have all the data we need
-        // const enhancedBreadcrumbs = await loadFullContextForConnections(regularBreadcrumbs);
+        // Load full context for breadcrumbs to get created_by, schema_name, and full context
+        console.log('🔗 Loading full breadcrumb context for connection discovery...');
+        const enhancedBreadcrumbs = await loadFullContextForConnections(regularBreadcrumbs);
+        console.log('✅ Enhanced breadcrumbs loaded');
         
-        // Use the breadcrumbs as-is since they already contain all necessary data
+        // DEBUG: Check which breadcrumbs have created_by
+        const breadcrumbsWithCreatedBy = enhancedBreadcrumbs.filter(b => b.created_by);
+        console.log(`📊 Breadcrumbs with created_by: ${breadcrumbsWithCreatedBy.length}/${enhancedBreadcrumbs.length}`);
+        if (breadcrumbsWithCreatedBy.length > 0) {
+          console.log('  Sample:', breadcrumbsWithCreatedBy[0].title, '→ agent:', breadcrumbsWithCreatedBy[0].created_by);
+        }
+        
+        // Update nodes with enhanced data (now with full context)
         const enhancedNodes = [
-          // Convert breadcrumbs to nodes directly
-          ...regularBreadcrumbs.map(breadcrumb => 
+          // Convert enhanced breadcrumbs to nodes
+          ...enhancedBreadcrumbs.map(breadcrumb => 
             convertToRenderNode('breadcrumb', breadcrumb)
           ),
           
@@ -222,9 +231,9 @@ export function useRealTimeData() {
         // Update nodes with enhanced data
         setNodes(enhancedNodes);
         
-        // Discover connections with regular data and subscription data
+        // Discover connections with enhanced data that includes created_by and full context
         const connections = discoverConnections({
-          breadcrumbs: regularBreadcrumbs,
+          breadcrumbs: enhancedBreadcrumbs, // Use enhanced breadcrumbs
           agents: agentsQuery.data,
           secrets: secretsQuery.data,
           tools: toolsQuery.data,

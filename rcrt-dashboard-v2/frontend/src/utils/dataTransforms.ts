@@ -633,9 +633,10 @@ export function applyCircularLayout(nodes: RenderNode[]): void {
 function findSubscriptionConnectionsFromAgentDefs(breadcrumbs: Breadcrumb[]): RenderConnection[] {
   const connections: RenderConnection[] = [];
   
-  // Find agent definitions
+  // Find agent definitions by schema OR tags (since list API doesn't include schema_name)
   const agentDefinitions = breadcrumbs.filter(b => 
-    b.schema_name === 'agent.def.v1'
+    b.schema_name === 'agent.def.v1' || 
+    b.tags?.includes('agent:definition')
   ) as AgentDefinition[];
   
   console.log(`🔍 Found ${agentDefinitions.length} agent definitions to analyze`);
@@ -694,9 +695,10 @@ function findSubscriptionConnectionsFromAgentDefs(breadcrumbs: Breadcrumb[]): Re
 function findEmissionConnectionsFromAgentDefs(breadcrumbs: Breadcrumb[]): RenderConnection[] {
   const connections: RenderConnection[] = [];
   
-  // Find agent definitions
+  // Find agent definitions by schema OR tags (since list API doesn't include schema_name)
   const agentDefinitions = breadcrumbs.filter(b => 
-    b.schema_name === 'agent.def.v1'
+    b.schema_name === 'agent.def.v1' || 
+    b.tags?.includes('agent:definition')
   ) as AgentDefinition[];
   
   console.log(`🔍 Found ${agentDefinitions.length} agent definitions for emission analysis`);
