@@ -590,9 +590,20 @@ export class AgentExecutor {
       }
       
       // Chat history (vector-searched for relevance!)
-      if (assembledContext.chat_history && Array.isArray(assembledContext.chat_history) && assembledContext.chat_history.length > 0) {
+      // Combine user messages AND agent responses for full conversation
+      const allMessages = [
+        ...(assembledContext.chat_history || []),
+        ...(assembledContext.agent_responses || [])
+      ];
+      
+      if (allMessages.length > 0) {
+        // Sort by timestamp for conversational flow
+        allMessages.sort((a, b) => 
+          new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+        );
+        
         sections.push(`# Relevant Conversation`);
-        for (const msg of assembledContext.chat_history) {
+        for (const msg of allMessages) {
           const speaker = msg.role === 'user' ? 'User' : 'Assistant';
           const content = msg.content || msg.message;
           if (content) {

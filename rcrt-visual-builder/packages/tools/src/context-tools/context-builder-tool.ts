@@ -471,28 +471,53 @@ export class ContextBuilderTool implements RCRTTool {
     );
     
     // Build assembled context object
+    // Handle multiple sources for same schema (hybrid mode)
+    const messagesBySchema: Record<string, any[]> = {};
+    
     for (const result of sourceResults) {
-      const key = this.getContextKey(result.source);
+      if (result.breadcrumbs.length === 0) continue;
       
-      if (result.breadcrumbs.length === 0) {
-        assembled[key] = null;
-        continue;
-      }
+      const schema = result.source.schema_name;
       
       if (result.source.method === 'latest') {
         // Single breadcrumb - use full context
+        const key = this.getContextKey(result.source);
         assembled[key] = result.breadcrumbs[0]?.context;
-      } else if (result.source.schema_name === 'user.message.v1' || result.source.schema_name === 'agent.response.v1') {
-        // Chat messages - extract as simplified {role, content} objects
-        assembled[key] = result.breadcrumbs.map(b => ({
-          role: result.source.schema_name === 'user.message.v1' ? 'user' : 'assistant',
+      } else if (schema === 'user.message.v1' || schema === 'agent.response.v1') {
+        // Chat messages - accumulate for deduplication
+        if (!messagesBySchema[schema]) {
+          messagesBySchema[schema] = [];
+        }
+        
+        const messages = result.breadcrumbs.map(b => ({
+          id: b.id,  // For deduplication
+          role: schema === 'user.message.v1' ? 'user' : 'assistant',
           content: b.context?.content || b.context?.message,
           timestamp: b.updated_at
         }));
+        
+        messagesBySchema[schema].push(...messages);
       } else {
-        // Other breadcrumbs - extract full contexts
-        assembled[key] = result.breadcrumbs.map(b => b.context);
+        // Other breadcrumbs
+        const key = this.getContextKey(result.source);
+        if (!assembled[key]) assembled[key] = [];
+        assembled[key].push(...result.breadcrumbs.map(b => b.context));
       }
+    }
+    
+    // Deduplicate chat messages (same ID = same message from recent + vector)
+    for (const [schema, messages] of Object.entries(messagesBySchema)) {
+      const seen = new Set<string>();
+      const deduplicated = messages.filter(m => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+      
+      const key = this.getContextKey({ schema_name: schema } as any);
+      assembled[key] = deduplicated;
+      
+      console.log(`  🧹 Deduplicated ${schema}: ${messages.length} → ${deduplicated.length} messages`);
     }
     
     // 🔥 Deduplication using embedding similarity (if configured)

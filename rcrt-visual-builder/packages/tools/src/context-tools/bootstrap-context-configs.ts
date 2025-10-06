@@ -14,18 +14,33 @@ const defaultChatAgentContextConfig = {
   consumer_id: 'default-chat-assistant',
   consumer_type: 'agent',
   sources: [
+    // User messages: Hybrid approach (recent + semantic)
+    {
+      schema_name: 'user.message.v1',
+      method: 'recent',
+      limit: 3,  // Always include last 3 for conversational flow
+      filters: { tag: 'extension:chat' }
+    },
     {
       schema_name: 'user.message.v1',
       method: 'vector',
-      nn: 5,
+      nn: 5,  // Plus 5 most relevant for context/memory
       filters: { tag: 'extension:chat' }
+    },
+    // Agent responses: Hybrid approach
+    {
+      schema_name: 'agent.response.v1',
+      method: 'recent',
+      limit: 2,  // Last 2 responses
+      filters: { tag: 'workspace:agents' }
     },
     {
       schema_name: 'agent.response.v1',
       method: 'vector',
-      nn: 3,
+      nn: 3,  // Plus 3 most relevant
       filters: { tag: 'workspace:agents' }
     },
+    // Tool results: Recent only (chronological makes sense here)
     {
       schema_name: 'tool.response.v1',
       method: 'recent',
@@ -38,6 +53,7 @@ const defaultChatAgentContextConfig = {
         }]
       }
     },
+    // Tool catalog: Latest only
     {
       schema_name: 'tool.catalog.v1',
       method: 'latest',
