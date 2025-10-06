@@ -98,8 +98,9 @@ export function Connection3D({ connection, nodes }: Connection3DProps) {
   // Get node colors for gradient
   const getNodeColor = (node: RenderNode): string => {
     switch (node.type) {
-      case 'breadcrumb': return '#00f5ff'; // Blue
+      case 'breadcrumb': return '#00f5ff'; // Cyan
       case 'agent': return '#ffa500'; // Orange
+      case 'agent-definition': return '#9333ea'; // Vibrant Purple
       case 'tool': return '#00ff88'; // Green
       case 'secret': return '#ff6b6b'; // Red
       case 'chat': return '#8a2be2'; // Purple

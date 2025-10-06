@@ -57,8 +57,14 @@ function convertBreadcrumbToNode(breadcrumb: Breadcrumb, position: Position3D): 
       
       // Override node type for special schemas
       if (schema.startsWith('chat.')) nodeType = 'chat';
-      if (schema.startsWith('agent.definition.')) {
+      if (schema.startsWith('agent.definition.') || schema === 'agent.def.v1') {
         nodeType = 'agent-definition';
+        metadata = {
+          ...metadata,
+          icon: '🧠',
+          color: '#9333ea', // Distinct purple for agent definitions
+          size: { width: 160, height: 110 },
+        };
         console.log(`🧠 Converting to agent-definition node type for: ${breadcrumb.title}`);
       }
       if (schema.startsWith('dashboard.')) nodeType = 'system';
@@ -71,8 +77,8 @@ function convertBreadcrumbToNode(breadcrumb: Breadcrumb, position: Position3D): 
     metadata = {
       ...metadata,
       icon: '🧠',
-      color: '#8a2be2',
-      size: { width: 140, height: 100 },
+      color: '#9333ea', // Distinct purple for agent definitions
+      size: { width: 160, height: 110 },
     };
     console.log(`🧠 Fallback: Converting to agent-definition node type via tags for: ${breadcrumb.title}`);
   }

@@ -133,22 +133,22 @@ const Node2DComponent = ({
       case 'agent-definition':
         return {
           ...baseStyles,
-          background: 'linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)',
-          border: '2px solid rgba(138, 43, 226, 0.4)',
+          background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)',
+          border: '2px solid rgba(147, 51, 234, 0.5)',
           borderRadius: '12px',
-          width: '140px',
-          height: '100px',
+          width: '160px',
+          height: '110px',
           display: 'flex',
           flexDirection: 'column' as const,
           alignItems: 'center',
           justifyContent: 'center',
           backdropFilter: 'blur(10px)',
           fontSize: '0.75rem',
-          borderColor: node.state.selected ? '#8a2be2' : 'rgba(138, 43, 226, 0.4)',
-          boxShadow: node.state.highlighted ? '0 6px 20px rgba(138, 43, 226, 0.25)' : 'none',
-          transform: node.state.highlighted ? 'scale(1.05)' : 'none',
+          borderColor: node.state.selected ? '#9333ea' : 'rgba(147, 51, 234, 0.5)',
+          boxShadow: node.state.highlighted ? '0 8px 30px rgba(147, 51, 234, 0.4)' : '0 4px 15px rgba(147, 51, 234, 0.2)',
+          transform: node.state.highlighted ? 'scale(1.08)' : 'none',
           overflow: 'hidden',
-          padding: '8px',
+          padding: '10px',
         };
         
       case 'tool':

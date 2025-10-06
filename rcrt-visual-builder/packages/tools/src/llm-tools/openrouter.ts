@@ -317,6 +317,8 @@ export class OpenRouterTool extends SimpleLLMTool {
         
         const fullBreadcrumb = await context.rcrtClient.getBreadcrumb(latest.id);
         
+        console.log('[OpenRouter] Config breadcrumb context:', JSON.stringify(fullBreadcrumb.context).substring(0, 500));
+        
         if (fullBreadcrumb.context?.config) {
           console.log('[OpenRouter] Loaded configuration:', fullBreadcrumb.context.config);
           return fullBreadcrumb.context.config;

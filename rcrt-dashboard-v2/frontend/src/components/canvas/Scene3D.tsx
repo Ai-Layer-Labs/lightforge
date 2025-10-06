@@ -46,13 +46,13 @@ export const Scene3D = React.memo(function Scene3D({ config }: Scene3DProps) {
          color: '#ffa500', 
          label: 'Agents' 
        },
-       'agent-definitions': { 
-         x: config['agent-definitions'].x, 
-         y: config['agent-definitions'].y + config['agent-definitions'].baseRadius + 80, 
-         z: config['agent-definitions'].z, 
-         color: '#8a2be2', 
-         label: 'Agent Definitions' 
-       },
+      'agent-definitions': { 
+        x: config['agent-definitions'].x, 
+        y: config['agent-definitions'].y + config['agent-definitions'].baseRadius + 80, 
+        z: config['agent-definitions'].z, 
+        color: '#9333ea', // Distinct vibrant purple
+        label: 'Agent Definitions' 
+      },
        tools: { 
          x: config.tools.x, 
          y: config.tools.y + config.tools.baseRadius + 80, 

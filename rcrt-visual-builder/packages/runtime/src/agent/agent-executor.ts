@@ -180,6 +180,19 @@ export class AgentExecutor {
       timestamp: new Date()
     });
     
+    // Build input for LLM - only include model if explicitly set in agent definition
+    const llmInput: any = {
+      messages,
+      temperature: this.agentDef.context.temperature ?? 0.7,
+      max_tokens: this.agentDef.context.max_tokens ?? 2000
+    };
+    
+    // Only pass model if agent definition explicitly specifies one
+    // Otherwise, let OpenRouter tool use its configured default
+    if (this.agentDef.context.model) {
+      llmInput.model = this.agentDef.context.model;
+    }
+    
     await this.rcrtClient.createBreadcrumb({
       schema_name: 'tool.request.v1',
       title: 'LLM Processing Request',
@@ -187,12 +200,7 @@ export class AgentExecutor {
       ttl: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       context: {
         tool: 'openrouter',
-        input: {
-          messages,
-          model: this.agentDef.context.model || 'google/gemini-2.5-flash',
-          temperature: this.agentDef.context.temperature ?? 0.7,
-          max_tokens: this.agentDef.context.max_tokens ?? 2000
-        },
+        input: llmInput,
         requestId,
         requestedBy: this.agentDef.context.agent_id,
         creator: {
@@ -377,6 +385,14 @@ export class AgentExecutor {
   private async executeDecision(decision: any): Promise<void> {
     console.log(`🎯 Executing decision:`, JSON.stringify(decision).substring(0, 500));
     
+    // Handle plain text or array responses (LLM didn't return proper JSON)
+    if (typeof decision === 'string' || Array.isArray(decision)) {
+      const message = Array.isArray(decision) ? decision.join(' ') : decision;
+      console.log(`📝 LLM returned plain text, creating simple response`);
+      await this.createSimpleResponse(message);
+      return;
+    }
+    
     const { action, breadcrumb } = decision;
     
     if (action === 'create' && breadcrumb) {
@@ -462,8 +478,16 @@ export class AgentExecutor {
         
         console.log(`✅ Created ${breadcrumb.context.tool_requests.length} tool request breadcrumbs`);
       }
+    } else if (!action) {
+      // Decision object has no action field - might be malformed
+      console.warn(`⚠️ Decision has no action field:`, decision);
+      // Try to extract a message anyway
+      const message = decision.message || decision.content || JSON.stringify(decision);
+      await this.createSimpleResponse(message);
     } else {
-      console.log(`⚠️ Unhandled decision action: ${action}`);
+      console.warn(`⚠️ Unhandled decision action: ${action}`, decision);
+      // Create error response
+      await this.createSimpleResponse(`I received an unexpected response format. The action was: ${action}`);
     }
   }
   

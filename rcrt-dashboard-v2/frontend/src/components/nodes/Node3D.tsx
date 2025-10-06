@@ -47,17 +47,17 @@ export const Node3D = React.memo(function Node3D({ node, config }: Node3DProps) 
   const getNodeGeometry = () => {
     switch (node.type) {
       case 'agent':
-        return <sphereGeometry args={[15, 16, 16]} />;
+        return <sphereGeometry args={[15, 16, 16]} />; // Round sphere for agents
       case 'agent-definition':
-        return <boxGeometry args={[25, 25, 15]} />;
+        return <dodecahedronGeometry args={[18, 0]} />; // Complex polyhedron for definitions
       case 'tool':
-        return <cylinderGeometry args={[12, 12, 20, 8]} />;
+        return <cylinderGeometry args={[12, 12, 20, 8]} />; // Cylinder for tools
       case 'secret':
-        return <octahedronGeometry args={[15]} />;
+        return <octahedronGeometry args={[15]} />; // Diamond for secrets
       case 'chat':
-        return <sphereGeometry args={[10, 12, 12]} />;
+        return <sphereGeometry args={[10, 12, 12]} />; // Small sphere for chat
       default:
-        return <boxGeometry args={[20, 15, 10]} />;
+        return <boxGeometry args={[20, 15, 10]} />; // Box for breadcrumbs
     }
   };
   
