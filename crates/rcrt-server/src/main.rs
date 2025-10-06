@@ -865,11 +865,26 @@ async fn fanout_events_and_webhooks(state: &AppState, owner_id: Uuid, bc: &rcrt_
     }
 
     // NATS per-agent subjects
+    // Ensure payload has "type" field for agent-specific channels
     #[cfg(feature = "nats")]
     if let Some(conn) = &state.nats_conn {
+        // Parse payload and ensure it has type field
+        let agent_payload = if let Ok(mut event_json) = serde_json::from_str::<serde_json::Value>(payload) {
+            if event_json.get("type").is_none() {
+                // Add type field if missing (should never happen with proper create/update paths)
+                if let Some(obj) = event_json.as_object_mut() {
+                    obj.insert("type".to_string(), serde_json::json!("breadcrumb.updated"));
+                }
+            }
+            event_json.to_string()
+        } else {
+            payload.to_string() // Fallback to original if parse fails
+        };
+        
         for agent_id in &target_agents {
             let subj_agent = format!("agents.{}.events", agent_id);
-            let _ = conn.publish(&subj_agent, payload.as_bytes());
+            tracing::debug!("🔧 NATS: Publishing to agent channel {} with type field ensured", subj_agent);
+            let _ = conn.publish(&subj_agent, agent_payload.as_bytes());
         }
     }
 
