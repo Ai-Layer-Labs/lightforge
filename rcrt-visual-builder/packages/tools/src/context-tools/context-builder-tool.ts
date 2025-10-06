@@ -205,11 +205,19 @@ export class ContextBuilderTool implements RCRTTool {
     };
     
     if (existing.length > 0) {
+      console.log(`  📝 Updating existing context: ${existing[0].id}`);
       const existingBreadcrumb = await client.getBreadcrumb(existing[0].id);
+      console.log(`  📌 Current version: ${existingBreadcrumb.version}`);
+      
       await client.updateBreadcrumb(existing[0].id, existingBreadcrumb.version, {
         context: contextData
       });
-      return { success: true, action: 'updated', context_id: existing[0].id };
+      
+      console.log(`  ✅ Update complete, fetching new version...`);
+      const updated = await client.getBreadcrumb(existing[0].id);
+      console.log(`  📌 New version: ${updated.version}`);
+      
+      return { success: true, action: 'updated', context_id: existing[0].id, version: updated.version };
     } else {
       // Create new context breadcrumb with required fields
       const created = await client.createBreadcrumb({
