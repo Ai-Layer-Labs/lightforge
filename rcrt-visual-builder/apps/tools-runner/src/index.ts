@@ -89,8 +89,23 @@ async function startCentralizedSSEDispatcher(
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
+                const rawData = line.slice(6);
+                
+                // DEBUG: Log raw data for tool.request.v1 events
+                if (rawData.includes('tool.request.v1')) {
+                  console.log(`🔍 RAW SSE data for tool.request.v1:`, rawData.substring(0, 300));
+                }
+                
                 // Use jsonrepair to handle malformed JSON
-                const repairedData = jsonrepair(line.slice(6));
+                const repairedData = jsonrepair(rawData);
+                
+                // DEBUG: Check if jsonrepair changed anything
+                if (rawData !== repairedData && rawData.includes('tool.request.v1')) {
+                  console.log(`⚠️ jsonrepair modified tool.request.v1 event!`);
+                  console.log(`  Original:`, rawData.substring(0, 200));
+                  console.log(`  Repaired:`, repairedData.substring(0, 200));
+                }
+                
                 const eventData = JSON.parse(repairedData);
                 
                 // 🔧 DEBUG: Log all incoming events for diagnosis
@@ -144,16 +159,28 @@ async function dispatchEventToTool(
   workspace: string
 ): Promise<void> {
   // 🎯 THE RCRT WAY: Check if event matches ANY tool's subscriptions (like agents!)
-  if (eventData.type === 'breadcrumb.updated') {
+  if (eventData.type === 'breadcrumb.updated' || eventData.type === 'breadcrumb.created') {
     await checkToolSubscriptions(eventData, client, workspace);
   }
   
   // Only process tool.request.v1 breadcrumb events with deduplication
-  if (eventData.type === 'breadcrumb.updated' && 
-      eventData.schema_name === 'tool.request.v1' &&
+  const isToolRequest = eventData.schema_name === 'tool.request.v1' &&
       eventData.tags?.includes('tool:request') &&
       eventData.tags?.includes(workspace) &&
-      !eventData.tags?.includes('health:check')) {  // 🔧 FILTER OUT HEALTH CHECKS
+      !eventData.tags?.includes('health:check');
+  
+  // Log undefined types for diagnosis
+  if (eventData.type === undefined && isToolRequest) {
+    console.warn(`⚠️ Tool request event has undefined type (should be breadcrumb.created/updated):`, {
+      breadcrumb_id: eventData.breadcrumb_id,
+      schema: eventData.schema_name,
+      tags: eventData.tags,
+      full_event: eventData
+    });
+  }
+  
+  if ((eventData.type === 'breadcrumb.updated' || 
+       eventData.type === 'breadcrumb.created') && isToolRequest) {
     
     // 🔧 PROPER DEDUPLICATION: Prevent processing same request while in progress
     const requestId = eventData.breadcrumb_id;
