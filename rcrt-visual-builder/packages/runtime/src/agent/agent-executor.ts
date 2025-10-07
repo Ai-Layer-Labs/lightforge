@@ -3,9 +3,9 @@
  * Extends UniversalExecutor with LLM execution
  */
 
-import { UniversalExecutor, type Subscription } from '../executor/universal-executor.js';
+import { UniversalExecutor, type Subscription } from '../executor/universal-executor';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { extractAndParseJSON } from '../utils/json-repair.js';
+import { extractAndParseJSON } from '../utils/json-repair';
 
 export interface AgentDefinition {
   agent_id: string;

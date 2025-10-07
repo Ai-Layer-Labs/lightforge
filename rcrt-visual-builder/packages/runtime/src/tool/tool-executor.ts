@@ -3,7 +3,7 @@
  * Extends UniversalExecutor with function execution
  */
 
-import { UniversalExecutor, type Subscription } from '../executor/universal-executor.js';
+import { UniversalExecutor, type Subscription } from '../executor/universal-executor';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 
 export interface RCRTTool {

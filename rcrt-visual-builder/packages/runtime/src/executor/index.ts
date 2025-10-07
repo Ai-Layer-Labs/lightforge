@@ -7,4 +7,4 @@ export {
   type Subscription, 
   type ContextMatch,
   type UniversalExecutorOptions 
-} from './universal-executor.js';
+} from './universal-executor';
