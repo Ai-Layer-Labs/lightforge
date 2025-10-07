@@ -60,12 +60,9 @@
           "fetch": {"method": "recent", "limit": 5}
         },
         {
-          "comment": "Tool responses trigger continuation (only MY responses)",
+          "comment": "Tool responses trigger continuation (filter by request tag)",
           "schema_name": "tool.response.v1",
-          "any_tags": ["tool:response"],
-          "context_match": [
-            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
-          ],
+          "all_tags": ["tool:response", "request:llm"],
           "role": "trigger",
           "key": "tool_response",
           "fetch": {"method": "event_data"}

@@ -129,11 +129,13 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     
     console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request (async)...`);
     
+    const requestId = `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     // Create tool request (fire-and-forget!)
     await this.rcrtClient.createBreadcrumb({
       schema_name: 'tool.request.v1',
       title: 'LLM Request',
-      tags: ['tool:request', 'workspace:tools'],
+      tags: ['tool:request', 'workspace:tools', `agent:${this.agentDef.agent_id}`],  // Tag with agent ID!
       context: {
         tool: 'openrouter',
         input: {
@@ -141,7 +143,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
           messages: messages,
           temperature: this.agentDef.temperature || 0.7
         },
-        requestId: `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        requestId: requestId,
         requestedBy: this.agentDef.agent_id
       }
     });

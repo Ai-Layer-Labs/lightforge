@@ -247,10 +247,12 @@ async function dispatchEventToTool(
       
       // Create tool.response.v1 breadcrumb
       const responseRequestId = breadcrumb.context?.requestId || breadcrumb.id;
+      const responseTag = responseRequestId.startsWith('llm-') ? 'request:llm' : `request:${responseRequestId}`;
+      
       await client.createBreadcrumb({
         schema_name: 'tool.response.v1',
         title: `Response: ${toolName}`,
-        tags: [workspace, 'tool:response', `request:${responseRequestId}`],
+        tags: [workspace, 'tool:response', responseTag, `request:${responseRequestId}`],
         context: {
           request_id: responseRequestId,  // Use requestId from request if available
           tool: toolName,
