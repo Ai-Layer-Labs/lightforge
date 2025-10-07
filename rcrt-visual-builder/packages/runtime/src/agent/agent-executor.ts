@@ -184,12 +184,12 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     }
     
     const breadcrumbDef = result.breadcrumb || result;
-    
-    // Add creator metadata
+      
+      // Add creator metadata
     const context = {
       ...breadcrumbDef.context,
-      creator: {
-        type: 'agent',
+          creator: {
+            type: 'agent',
         agent_id: this.agentDef.agent_id
       },
       trigger_id: trigger.id
@@ -222,7 +222,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       agent_id: this.agentDef.agent_id,
       status: 'active',
       subscriptions: this.subscriptions.length,
-      metrics: {
+        metrics: {
         events_processed: 0,
         errors: 0,
         last_activity: new Date()

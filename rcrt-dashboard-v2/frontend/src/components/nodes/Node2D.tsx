@@ -327,6 +327,9 @@ const Node2DComponent = ({
       onHoverEnd={onHoverEnd}
       data-tour={node.type === 'tool' && node.data?.id === 'openrouter' ? 'openrouter-tool' : undefined}
     >
+      {/* I/O Ports */}
+      <NodePorts node={node} view="2d" />
+      
       {renderNodeContent()}
       
       {/* Real-time Indicators */}

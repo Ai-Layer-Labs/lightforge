@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import { RenderNode } from '../../types/rcrt';
 import { useDashboard } from '../../stores/DashboardStore';
+import { NodePorts } from './NodePorts';
 import { Scene3DConfig } from '../panels/Scene3DControls';
 
 interface Node3DProps {
@@ -251,6 +252,9 @@ export const Node3D = React.memo(function Node3D({ node, config }: Node3DProps) 
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: Math.random() * 0.2 }}
         >
+          {/* I/O Ports */}
+          <NodePorts node={node} view="3d" />
+          
           {renderCardContent()}
         </motion.div>
       </Html>
