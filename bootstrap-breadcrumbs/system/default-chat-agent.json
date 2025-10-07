@@ -58,7 +58,7 @@
           "fetch": {"method": "recent", "limit": 10}
         },
         {
-          "comment": "Recent tool results",
+          "comment": "Recent tool results (historical context)",
           "schema_name": "tool.response.v1",
           "all_tags": ["workspace:tools"],
           "context_match": [
@@ -67,6 +67,17 @@
           "role": "context",
           "key": "tool_results",
           "fetch": {"method": "recent", "limit": 5}
+        },
+        {
+          "comment": "Tool responses trigger continuation (fire-and-forget pattern)",
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
+          ],
+          "role": "trigger",
+          "key": "tool_response",
+          "fetch": {"method": "event_data"}
         }
       ]
     },

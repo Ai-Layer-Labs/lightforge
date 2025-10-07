@@ -48,42 +48,28 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   }
   
   /**
-   * Execute: Call LLM with assembled context
+   * Execute: Handle triggers based on type
+   * - user.message.v1: Create LLM request (fire-and-forget)
+   * - agent.context.v1: Create LLM request (fire-and-forget)
+   * - tool.response.v1: Create agent response (continuation)
    */
   protected async execute(trigger: any, context: Record<string, any>): Promise<any> {
-    console.log(`🤖 [${this.agentDef.agent_id}] Calling LLM...`);
+    const triggerSchema = trigger.schema_name;
     
-    // Extract user message from trigger
-    const userMessage = trigger.context?.message || 
-                       trigger.context?.content || 
-                       JSON.stringify(trigger.context);
+    if (triggerSchema === 'user.message.v1' || triggerSchema === 'agent.context.v1') {
+      // Fire-and-forget: Create LLM request, return immediately
+      await this.createLLMRequest(trigger, context);
+      return { action: 'llm_request_created', async: true };
+    }
     
-    // Format context for LLM (clean JSON)
-    const contextFormatted = this.formatContextForLLM(context);
+    if (triggerSchema === 'tool.response.v1') {
+      // LLM response arrived! Parse and respond
+      const llmOutput = trigger.context?.output;
+      const parsed = this.parseAgentResponse(llmOutput?.choices?.[0]?.message?.content || llmOutput);
+      return parsed;
+    }
     
-    // Build messages for LLM
-    const messages = [
-      {
-        role: 'system',
-        content: this.agentDef.system_prompt
-      },
-      {
-        role: 'user',
-        content: `# Available Context\n\n${contextFormatted}\n\n# User Message\n${userMessage}`
-      }
-    ];
-    
-    console.log(`📤 [${this.agentDef.agent_id}] Sending to LLM (model: ${this.agentDef.model})`);
-    
-    // Call LLM via OpenRouter tool
-    const llmResponse = await this.callLLM(messages);
-    
-    // Parse JSON response
-    const parsed = this.parseAgentResponse(llmResponse);
-    
-    console.log(`📥 [${this.agentDef.agent_id}] LLM response received`);
-    
-    return parsed;
+    return { action: 'unknown_trigger', schema: triggerSchema };
   }
   
   /**
@@ -111,14 +97,36 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   }
   
   /**
-   * Call LLM via OpenRouter tool
+   * Create LLM request (fire-and-forget!)
    */
-  private async callLLM(messages: any[]): Promise<string> {
-    // Create tool request
-    const llmRequest = await this.rcrtClient.createBreadcrumb({
+  private async createLLMRequest(trigger: any, context: Record<string, any>): Promise<void> {
+    // Extract user message from trigger
+    const userMessage = trigger.context?.message || 
+                       trigger.context?.content || 
+                       JSON.stringify(trigger.context);
+    
+    // Format context for LLM
+    const contextFormatted = this.formatContextForLLM(context);
+    
+    // Build messages for LLM
+    const messages = [
+      {
+        role: 'system',
+        content: this.agentDef.system_prompt
+      },
+      {
+        role: 'user',
+        content: `# Available Context\n\n${contextFormatted}\n\n# User Message\n${userMessage}`
+      }
+    ];
+    
+    console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request (async)...`);
+    
+    // Create tool request (fire-and-forget!)
+    await this.rcrtClient.createBreadcrumb({
       schema_name: 'tool.request.v1',
       title: 'LLM Request',
-      tags: ['tool:request', this.workspace],
+      tags: ['tool:request', 'workspace:tools'],
       context: {
         tool: 'openrouter',
         input: {
@@ -131,24 +139,8 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       }
     });
     
-    console.log(`🔄 [${this.agentDef.agent_id}] Waiting for LLM response (event-driven)...`);
-    
-    // ✅ THE RCRT WAY: Wait for event, no polling!
-    const response = await this.eventBridge.waitForEvent({
-      schema_name: 'tool.response.v1',
-      request_id: llmRequest.id
-    }, 30000);
-    
-    const output = response.context.output;
-    
-    // Extract content from OpenRouter response
-    if (output?.choices?.[0]?.message?.content) {
-      return output.choices[0].message.content;
-    } else if (typeof output === 'string') {
-      return output;
-    } else {
-      return JSON.stringify(output);
-    }
+    console.log(`✅ [${this.agentDef.agent_id}] LLM request created, returning immediately`);
+    // Return immediately! Response will arrive via SSE as tool.response.v1
   }
   
   /**
@@ -178,13 +170,19 @@ export class AgentExecutorUniversal extends UniversalExecutor {
    * Create agent response breadcrumb
    */
   protected async respond(trigger: any, result: any): Promise<void> {
+    // If async action, don't create response (waiting for continuation)
+    if (result.async) {
+      console.log(`✅ [${this.agentDef.agent_id}] Async action complete, waiting for continuation`);
+      return;
+    }
+    
     const breadcrumbDef = result.breadcrumb || result;
     
     // Add creator metadata
     const context = {
       ...breadcrumbDef.context,
-        creator: {
-          type: 'agent',
+      creator: {
+        type: 'agent',
         agent_id: this.agentDef.agent_id
       },
       trigger_id: trigger.id
