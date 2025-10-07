@@ -1,0 +1,99 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Default Chat Assistant",
+  "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
+  "context": {
+    "agent_id": "default-chat-assistant",
+    "model": "openrouter/google/gemini-2.0-flash-exp:free",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive context that may include:\n- browser: The webpage the user is currently viewing\n- tools: Available tools you can use\n- history: Previous conversation messages\n- tool_results: Results from tools you've called\n\nWhen the user asks about the current page, reference the 'browser' context.\n\nRespond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nKeep responses clear and concise.",
+    
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_update_own": true,
+      "can_delete_own": false,
+      "can_spawn_agents": false
+    },
+    
+    "subscriptions": {
+      "comment": "Clean, explicit subscriptions with roles and keys",
+      "selectors": [
+        {
+          "comment": "User messages trigger processing",
+          "schema_name": "user.message.v1",
+          "any_tags": ["user:message", "extension:chat"],
+          "role": "trigger",
+          "key": "user_message",
+          "fetch": {
+            "method": "event_data"
+          }
+        },
+        {
+          "comment": "Pre-built context from context-builder (alternative trigger)",
+          "schema_name": "agent.context.v1",
+          "all_tags": ["consumer:default-chat-assistant"],
+          "role": "trigger",
+          "key": "assembled_context",
+          "fetch": {
+            "method": "event_data"
+          }
+        },
+        {
+          "comment": "Current browser page context",
+          "schema_name": "browser.page.context.v1",
+          "any_tags": ["browser:active-tab"],
+          "role": "context",
+          "key": "browser",
+          "fetch": {
+            "method": "latest",
+            "limit": 1
+          }
+        },
+        {
+          "comment": "Available tools catalog",
+          "schema_name": "tool.catalog.v1",
+          "role": "context",
+          "key": "tools",
+          "fetch": {
+            "method": "latest",
+            "limit": 1
+          }
+        },
+        {
+          "comment": "Recent conversation history",
+          "schema_name": "user.message.v1",
+          "any_tags": ["extension:chat"],
+          "role": "context",
+          "key": "history",
+          "fetch": {
+            "method": "recent",
+            "limit": 10
+          }
+        },
+        {
+          "comment": "Tool responses for this agent",
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
+          ],
+          "role": "context",
+          "key": "tool_results",
+          "fetch": {
+            "method": "recent",
+            "limit": 5
+          }
+        }
+      ]
+    },
+    
+    "metadata": {
+      "version": "3.0.0",
+      "architecture": "universal-executor",
+      "created_by": "system",
+      "purpose": "Clean universal executor pattern with explicit subscriptions"
+    }
+  }
+}

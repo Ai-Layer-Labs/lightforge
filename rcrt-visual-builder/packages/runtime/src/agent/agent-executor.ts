@@ -1,687 +1,251 @@
 /**
- * Agent Executor - Tool-Based Architecture
- * Agents orchestrate tool usage, they don't directly call external APIs
+ * Agent Executor - Universal Pattern
+ * Extends UniversalExecutor with LLM execution
  */
 
-import { 
-  AgentDefinitionV1,
-  BreadcrumbEvent,
-  AgentState,
-  Selector
-} from '@rcrt-builder/core';
+import { UniversalExecutor, type Subscription } from '../executor/universal-executor.js';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { extractAndParseJSON } from '../utils/json-repair';
+import { extractAndParseJSON } from '../utils/json-repair.js';
 
-export interface AgentExecutorOptions {
-  agentDef: AgentDefinitionV1;
-  rcrtClient: RcrtClientEnhanced;
-  workspace: string;
-  autoStart?: boolean;
-  metricsInterval?: number;
+export interface AgentDefinition {
+  agent_id: string;
+  model: string;
+  system_prompt: string;
+  temperature?: number;
+  subscriptions: {
+    selectors: Subscription[];
+  };
+  capabilities?: any;
 }
 
-export class AgentExecutor {
-  private agentDef: AgentDefinitionV1;
-  private rcrtClient: RcrtClientEnhanced;
-  private workspace: string;
-  private state: AgentState;
-  private metricsTimer?: NodeJS.Timeout;
+export interface AgentExecutorOptions {
+  agentDef: { context: AgentDefinition };
+  rcrtClient: RcrtClientEnhanced;
+  workspace: string;
+}
+
+export class AgentExecutorUniversal extends UniversalExecutor {
+  private agentDef: AgentDefinition;
   
-  // Track pending LLM requests
-  private pendingLLMRequests = new Map<string, {
-    context: any;
-    timestamp: Date;
-  }>();
-  
-  constructor(private options: AgentExecutorOptions) {
-    this.agentDef = options.agentDef;
-    this.rcrtClient = options.rcrtClient;
-    this.workspace = options.workspace;
+  constructor(options: AgentExecutorOptions) {
+    super({
+      rcrtClient: options.rcrtClient,
+      workspace: options.workspace,
+      subscriptions: options.agentDef.context.subscriptions.selectors,
+      id: options.agentDef.context.agent_id
+    });
     
-    // Initialize state
-    this.state = {
-      agent_id: this.agentDef.context.agent_id,
-      status: 'idle',
-      metrics: {
-        events_processed: 0,
-        errors: 0,
-        last_activity: new Date(),
-      },
-    };
+    this.agentDef = options.agentDef.context;
     
-    // Auto-start if requested
-    if (options.autoStart) {
-      this.start().catch(console.error);
-    }
-  }
-  
-  async start(): Promise<void> {
-    console.log(`🤖 Starting agent: ${this.agentDef.context.agent_id}`);
-    
-    // NOTE: SSE subscription is handled by the centralized dispatcher in AgentRegistry
-    // We don't start our own SSE connection here to avoid duplicate events
-    
-    this.state.status = 'processing';
-    
-    // Start metrics reporting if interval specified
-    if (this.options.metricsInterval) {
-      this.metricsTimer = setInterval(() => {
-        this.reportMetrics().catch(console.error);
-      }, this.options.metricsInterval);
-    }
-  }
-  
-  async stop(): Promise<void> {
-    console.log(`🛑 Stopping agent: ${this.agentDef.context.agent_id}`);
-    
-    // SSE cleanup handled by centralized dispatcher
-    
-    if (this.metricsTimer) {
-      clearInterval(this.metricsTimer);
-    }
-    
-    this.state.status = 'stopped';
-  }
-  
-  async processEvent(event: BreadcrumbEvent): Promise<void> {
-    // Skip ping events
-    if (event.type === 'ping') return;
-    
-    console.log(`📨 Processing event: ${event.type} for ${event.breadcrumb_id}`);
-    
-    try {
-      // Prevent self-triggering
-      const triggeringBreadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id!);
-      if (triggeringBreadcrumb.context?.creator?.type === 'agent' &&
-          triggeringBreadcrumb.context.creator.agent_id === this.agentDef.context.agent_id) {
-        console.log(`⏭️ [AgentExecutor ${this.agentDef.context.agent_id}] Skipping self-created event: ${event.breadcrumb_id}`);
-        return;
-      }
-      
-      // Handle different event types based on breadcrumb schema
-      const schemaName = triggeringBreadcrumb.schema_name;
-      
-      if (schemaName === 'agent.context.v1') {
-        // 🎯 THE RCRT WAY: Context pre-built by context-builder tool!
-        await this.handleAgentContext(event, triggeringBreadcrumb);
-      } else if (schemaName === 'tool.response.v1') {
-        await this.handleToolResponse(event, triggeringBreadcrumb);
-      } else if (schemaName === 'system.message.v1') {
-        await this.handleSystemMessage(event, triggeringBreadcrumb);
-      } else {
-        console.log(`🔍 Received event: ${schemaName} (no handler, ignoring)`);
-      }
-      
-      this.state.metrics.events_processed++;
-      this.state.metrics.last_activity = new Date();
-    } catch (error) {
-      console.error(`❌ Error processing event: ${error}`);
-      this.state.metrics.errors++;
-      await this.logError(error, event);
-    }
+    console.log(`🤖 [AgentExecutor] Initialized: ${this.agentDef.agent_id}`);
+    console.log(`📡 Subscriptions: ${this.subscriptions.length}`);
+    this.subscriptions.forEach(sub => {
+      console.log(`  - ${sub.schema_name} (role: ${sub.role}, key: ${sub.key || sub.schema_name})`);
+    });
   }
   
   /**
-   * Handle agent.context.v1 updates (THE ONLY PATH - No Fallbacks!)
-   * 
-   * Context is pre-built by context-builder tool with:
-   * - Vector search for semantic relevance
-   * - Token budgeting
-   * - Deduplication  
-   * - llm_hints formatting
-   * 
-   * Agent's job: Receive context, reason, act. NOT build context.
+   * Execute: Call LLM with assembled context
    */
-  private async handleAgentContext(event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
-    console.log(`🎯 Received pre-built context from context-builder`);
+  protected async execute(trigger: any, context: Record<string, any>): Promise<any> {
+    console.log(`🤖 [${this.agentDef.agent_id}] Calling LLM...`);
     
-    const assembledContext = breadcrumb.context;
+    // Extract user message from trigger
+    const userMessage = trigger.context?.message || 
+                       trigger.context?.content || 
+                       JSON.stringify(trigger.context);
     
-    // Extract user message from trigger event
-    const triggerEventId = assembledContext.trigger_event_id;
-    if (!triggerEventId) {
-      console.error(`❌ agent.context.v1 missing trigger_event_id - context-builder issue`);
-      return;
-    }
+    // Format context for LLM (clean JSON)
+    const contextFormatted = this.formatContextForLLM(context);
     
-    const triggerEvent = await this.rcrtClient.getBreadcrumb(triggerEventId);
-    const userMessage = triggerEvent.context?.message || triggerEvent.context?.content;
-    
-    if (!userMessage) {
-      console.error(`❌ Could not extract message from trigger event ${triggerEventId}`);
-      return;
-    }
-    
-    console.log(`💬 User message: "${userMessage}"`);
-    console.log(`📊 Context: ${assembledContext.token_estimate || 'unknown'} tokens from ${assembledContext.sources_assembled || 0} sources`);
-    
-    // Format context for LLM
-    // If llm_hints were applied by RCRT server, use formatted_context directly
-    // Otherwise format manually from assembled components
-    const formattedContext = this.formatPrebuiltContext(assembledContext, userMessage);
-    
-    // Prepare messages for LLM
+    // Build messages for LLM
     const messages = [
       {
         role: 'system',
-        content: this.agentDef.context.system_prompt
+        content: this.agentDef.system_prompt
       },
       {
         role: 'user',
-        content: formattedContext
+        content: `# Available Context\n\n${contextFormatted}\n\n# User Message\n${userMessage}`
       }
     ];
     
-    // Create LLM tool request
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`📤 [${this.agentDef.agent_id}] Sending to LLM (model: ${this.agentDef.model})`);
     
-    this.pendingLLMRequests.set(requestId, {
-      context: { userMessage, eventId: triggerEventId },
-      timestamp: new Date()
-    });
+    // Call LLM via OpenRouter tool
+    const llmResponse = await this.callLLM(messages);
     
-    // Build input for LLM - only include model if explicitly set in agent definition
-    const llmInput: any = {
-      messages,
-      temperature: this.agentDef.context.temperature ?? 0.7,
-      max_tokens: this.agentDef.context.max_tokens ?? 2000
-    };
+    // Parse JSON response
+    const parsed = this.parseAgentResponse(llmResponse);
     
-    // Only pass model if agent definition explicitly specifies one
-    // Otherwise, let OpenRouter tool use its configured default
-    if (this.agentDef.context.model) {
-      llmInput.model = this.agentDef.context.model;
-    }
+    console.log(`📥 [${this.agentDef.agent_id}] LLM response received`);
     
-    await this.rcrtClient.createBreadcrumb({
-      schema_name: 'tool.request.v1',
-      title: 'LLM Processing Request',
-      tags: ['tool:request', 'workspace:tools', this.workspace],
-      ttl: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      context: {
-        tool: 'openrouter',
-        input: llmInput,
-        requestId,
-        requestedBy: this.agentDef.context.agent_id,
-        creator: {
-          type: 'agent',
-          agent_id: this.agentDef.context.agent_id
-        }
-      }
-    });
-    
-    console.log(`🔧 Created LLM request: ${requestId}`);
+    return parsed;
   }
   
   /**
-   * Format pre-built context from context-builder (already has llm_hints applied)
+   * Format assembled context for LLM
    */
-  private formatPrebuiltContext(context: any, userMessage: string): string {
-    const sections = [];
+  private formatContextForLLM(context: Record<string, any>): string {
+    let formatted = '';
     
-    // Tool catalog (if present)
-    if (context.tool_catalog) {
-      sections.push('# Available Tools\n' + context.tool_catalog);
-    }
-    
-    // Chat history (vector-searched, already relevant!)
-    if (context.chat_history && Array.isArray(context.chat_history)) {
-      sections.push('# Relevant Conversation');
-      for (const msg of context.chat_history) {
-        const speaker = msg.role === 'user' ? 'User' : 'Assistant';
-        const content = msg.content || msg.message;
-        sections.push(`${speaker}: ${content}`);
-      }
-    }
-    
-    // Tool results (if present)
-    if (context.tool_results && Array.isArray(context.tool_results)) {
-      sections.push('# Recent Tool Results');
-      for (const result of context.tool_results) {
-        sections.push(`• ${result.tool}: ${result.output || result.result}`);
-      }
-    }
-    
-    // Current user message
-    sections.push(`# Current Request\n${userMessage}`);
-    
-    return sections.join('\n\n');
-  }
-  
-  
-  private async handleSystemMessage(event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
-    const guidance = breadcrumb.context?.guidance;
-    const errorInfo = breadcrumb.context?.error;
-    
-    console.log(`📚 Received system guidance:`, {
-      type: breadcrumb.context?.type,
-      step: errorInfo?.step,
-      tool: errorInfo?.tool
-    });
-    
-    // Log the guidance for agent's context
-    if (guidance) {
-      console.log(`💡 System Guidance:\n${guidance}`);
+    for (const [key, value] of Object.entries(context)) {
+      if (key === 'trigger') continue;  // Already in user message
       
-      // Create a simple response acknowledging the learning
-      await this.createSimpleResponse(
-        `I received guidance about workflow errors. I'll remember that ` +
-        `the "${errorInfo?.tool}" tool's output structure is different than I expected. ` +
-        `${breadcrumb.context?.correctedExample ? `The correct syntax is: ${breadcrumb.context.correctedExample}` : ''}`
-      );
-    }
-  }
-  
-  private async handleToolResponse(_event: BreadcrumbEvent, breadcrumb: any): Promise<void> {
-    const context = breadcrumb.context || {};
-    // Handle both camelCase and snake_case for compatibility
-    const requestId = context.requestId || context.request_id;
-    const { output, error, tool } = context;
-    
-    console.log(`🔨 Tool response received with request_id: ${requestId}`);
-    
-    // Check if this is a response to our request
-    const pendingRequest = this.pendingLLMRequests.get(requestId);
-    if (!pendingRequest) {
-      console.log(`⚠️ No pending request found for ${requestId}`);
-      // Not our request, ignore
-      return;
-    }
-    
-    console.log(`🔨 Received tool response for request: ${requestId}`);
-    
-    // Remove from pending
-    this.pendingLLMRequests.delete(requestId);
-    
-    if (error) {
-      console.error(`❌ Tool error: ${error}`);
-      await this.createErrorResponse(pendingRequest.context.userMessage || '', error);
-      return;
-    }
-    
-    // Check if this is a response from a tool request the agent made (not LLM)
-    if (pendingRequest.context.fromToolRequest && pendingRequest.context.tool !== 'openrouter') {
-      console.log(`🔧 Handling non-LLM tool response from ${pendingRequest.context.tool}`);
+      const title = this.humanizeKey(key);
+      formatted += `## ${title}\n\n`;
       
-      // Generic tool response handling - let the tool's output speak for itself
-      let responseMessage = '';
-      
-      // Priority order for extracting a human-readable message:
-      // 1. If output has a 'message' field, use it
-      // 2. If output has a 'result' field, format it
-      // 3. If output is a string, use it directly
-      // 4. If output is an object with a single key, use that
-      // 5. Otherwise, format the entire output
-      
-      if (output && typeof output === 'object') {
-        if (output.message) {
-          responseMessage = output.message;
-        } else if (output.result !== undefined) {
-          responseMessage = `Result: ${typeof output.result === 'object' ? JSON.stringify(output.result, null, 2) : output.result}`;
-        } else if (output.error) {
-          responseMessage = `Error: ${output.error}`;
-        } else {
-          // Check if it's a simple object with one main value
-          const keys = Object.keys(output);
-          if (keys.length === 1) {
-            const key = keys[0];
-            const value = output[key];
-            responseMessage = `${key}: ${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}`;
-          } else if (keys.length === 2 && output.status) {
-            // Common pattern: {status: "success", data: ...}
-            const dataKey = keys.find(k => k !== 'status');
-            if (dataKey) {
-              responseMessage = `${output[dataKey]}`;
-            }
-          } else {
-            // Format the whole output nicely
-            responseMessage = JSON.stringify(output, null, 2);
-          }
-        }
-      } else if (typeof output === 'string') {
-        responseMessage = output;
-      } else if (output === null || output === undefined) {
-        responseMessage = `${tool} completed successfully`;
+      if (typeof value === 'object' && value !== null) {
+        formatted += '```json\n';
+        formatted += JSON.stringify(value, null, 2);
+        formatted += '\n```\n\n';
       } else {
-        responseMessage = String(output);
-      }
-      
-      // Create a response with the tool result
-      await this.createSimpleResponse(responseMessage);
-      return;
-    }
-    
-    // Otherwise, it's an LLM response - parse it
-    console.log(`🧠 Processing LLM response:`, JSON.stringify(output).substring(0, 200));
-    console.log(`📝 Full LLM content (first 1000 chars):`, (output?.content || '').substring(0, 1000));
-    
-    try {
-      // Use safe JSON parsing with automatic repair
-      const parsedResponse = extractAndParseJSON(output?.content || '', {
-        allowFailure: false,
-        onError: (error, input) => {
-          console.error(`❌ Failed to parse LLM response:`, error);
-          console.log(`📝 LLM content that failed to parse (first 500 chars):`, input.substring(0, 500));
-        }
-      });
-      
-      if (parsedResponse) {
-        console.log(`✅ Parsed LLM response successfully`);
-        // Execute the LLM's decision
-        await this.executeDecision(parsedResponse);
-      } else {
-        // If LLM didn't return valid JSON, create a simple text response
-        const responseText = output?.content || 'I encountered an error processing your request.';
-        await this.createSimpleResponse(responseText);
-      }
-    } catch (parseError) {
-      console.error(`❌ Failed to parse LLM response:`, parseError);
-      // If LLM didn't return valid JSON, create a simple text response
-      const responseText = output?.content || 'I encountered an error processing your request.';
-      await this.createSimpleResponse(responseText);
-    }
-  }
-  
-  
-  private async executeDecision(decision: any): Promise<void> {
-    console.log(`🎯 Executing decision:`, JSON.stringify(decision).substring(0, 500));
-    
-    // Handle plain text or array responses (LLM didn't return proper JSON)
-    if (typeof decision === 'string' || Array.isArray(decision)) {
-      const message = Array.isArray(decision) ? decision.join(' ') : decision;
-      console.log(`📝 LLM returned plain text, creating simple response`);
-      await this.createSimpleResponse(message);
-      return;
-    }
-    
-    const { action, breadcrumb } = decision;
-    
-    if (action === 'create' && breadcrumb) {
-      console.log(`📝 Creating breadcrumb of type: ${breadcrumb.schema_name}`);
-      
-      // Add creator metadata
-      const breadcrumbWithCreator = {
-        ...breadcrumb,
-        tags: [...(breadcrumb.tags || []), this.workspace],
-        ttl: breadcrumb.schema_name === 'agent.response.v1' 
-          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-          : breadcrumb.schema_name === 'tool.request.v1'
-          ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
-          : undefined,
-        context: {
-          ...breadcrumb.context,
-          creator: {
-            type: 'agent',
-            agent_id: this.agentDef.context.agent_id
-          }
-        }
-      };
-      
-      console.log(`🚀 About to create breadcrumb:`, JSON.stringify(breadcrumbWithCreator).substring(0, 300));
-      
-      await this.rcrtClient.createBreadcrumb(breadcrumbWithCreator);
-      console.log(`✅ Created breadcrumb: ${breadcrumb.schema_name}`);
-      
-      // If it's a tool request, track it
-      if (breadcrumb.schema_name === 'tool.request.v1' && breadcrumb.context?.requestId) {
-        this.pendingLLMRequests.set(breadcrumb.context.requestId, {
-          context: { fromDecision: true },
-          timestamp: new Date()
-        });
-      }
-      
-      // NEW: Process tool_requests array if present in agent response
-      if (breadcrumb.schema_name === 'agent.response.v1' && 
-          breadcrumb.context?.tool_requests && 
-          Array.isArray(breadcrumb.context.tool_requests) &&
-          breadcrumb.context.tool_requests.length > 0) {
-        
-        console.log(`🔧 Processing ${breadcrumb.context.tool_requests.length} tool requests from agent response`);
-        
-        for (const toolRequest of breadcrumb.context.tool_requests) {
-          if (!toolRequest.tool || !toolRequest.input) {
-            console.warn(`⚠️ Skipping invalid tool request:`, toolRequest);
-            continue;
-          }
-          
-          const toolRequestBreadcrumb = {
-            schema_name: 'tool.request.v1',
-            title: `Tool Request: ${toolRequest.tool}`,
-            tags: ['tool:request', 'workspace:tools', this.workspace],
-            ttl: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour TTL
-            context: {
-              tool: toolRequest.tool,
-              input: toolRequest.input,
-              requestId: toolRequest.requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              requestedBy: this.agentDef.context.agent_id,
-              creator: {
-                type: 'agent',
-                agent_id: this.agentDef.context.agent_id
-              }
-            }
-          };
-          
-          console.log(`🔨 Creating tool request for ${toolRequest.tool} with requestId: ${toolRequestBreadcrumb.context.requestId}`);
-          await this.rcrtClient.createBreadcrumb(toolRequestBreadcrumb);
-          
-          // Track this request so we can correlate the response
-          if (toolRequestBreadcrumb.context.requestId) {
-            this.pendingLLMRequests.set(toolRequestBreadcrumb.context.requestId, {
-              context: { 
-                fromToolRequest: true,
-                tool: toolRequest.tool,
-                parentResponseId: breadcrumbWithCreator.id
-              },
-              timestamp: new Date()
-            });
-          }
-        }
-        
-        console.log(`✅ Created ${breadcrumb.context.tool_requests.length} tool request breadcrumbs`);
-      }
-    } else if (!action) {
-      // Decision object has no action field - might be malformed
-      console.warn(`⚠️ Decision has no action field:`, decision);
-      // Try to extract a message anyway
-      const message = decision.message || decision.content || JSON.stringify(decision);
-      await this.createSimpleResponse(message);
-    } else {
-      console.warn(`⚠️ Unhandled decision action: ${action}`, decision);
-      // Create error response
-      await this.createSimpleResponse(`I received an unexpected response format. The action was: ${action}`);
-    }
-  }
-  
-  private async createSimpleResponse(message: string): Promise<void> {
-    await this.rcrtClient.createBreadcrumb({
-      schema_name: 'agent.response.v1',
-      title: 'Agent Response',
-      tags: ['agent:response', 'chat', this.workspace],
-      ttl: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      context: {
-        message,
-        agent_id: this.agentDef.context.agent_id,
-        creator: {
-          type: 'agent',
-          agent_id: this.agentDef.context.agent_id
-        }
-      }
-    });
-  }
-  
-  private async createErrorResponse(originalMessage: string, error: string): Promise<void> {
-    await this.createSimpleResponse(
-      `I encountered an error while processing your message "${originalMessage}". Error: ${error}`
-    );
-  }
-  
-  private async logError(error: any, event?: BreadcrumbEvent): Promise<void> {
-    await this.rcrtClient.createBreadcrumb({
-      schema_name: 'agent.error.v1',
-      title: `Error: ${this.agentDef.context.agent_id}`,
-      tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:error', this.workspace],
-      ttl: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
-      context: {
-        agent_id: this.agentDef.context.agent_id,
-        error: String(error),
-        stack: error.stack,
-        event,
-        timestamp: new Date().toISOString(),
-        creator: {
-          type: 'agent',
-          agent_id: this.agentDef.context.agent_id
-        }
-      },
-    });
-  }
-  
-  private async reportMetrics(): Promise<void> {
-    const metrics = {
-      schema_name: 'agent.metrics.v1' as const,
-      title: `Metrics: ${this.agentDef.context.agent_id}`,
-      tags: [`agent:${this.agentDef.context.agent_id}`, 'agent:metrics', this.workspace],
-      ttl: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
-      context: {
-        agent_id: this.agentDef.context.agent_id,
-        timestamp: new Date().toISOString(),
-        metrics: {
-          total_events_processed: this.state.metrics.events_processed,
-          breadcrumbs_created: 0, // TODO: Track these metrics
-          breadcrumbs_updated: 0,
-          breadcrumbs_deleted: 0,
-          llm_calls: 0,
-          tool_calls: 0,
-          avg_processing_time_ms: 0,
-          error_count: this.state.metrics.errors,
-          success_rate: this.state.metrics.errors > 0 ? 
-            (this.state.metrics.events_processed - this.state.metrics.errors) / this.state.metrics.events_processed : 1
-        },
-        period: 'hour' as const
-      },
-    };
-    
-    await this.rcrtClient.createBreadcrumb(metrics);
-  }
-  
-  
-  // Get current state
-  getState(): AgentState {
-    return { ...this.state };
-  }
-  
-  // Get agent definition
-  getDefinition(): AgentDefinitionV1 {
-    return this.agentDef;
-  }
-  
-  // Update JWT token for refresh
-  updateToken(token: string): void {
-    this.rcrtClient.setToken(token, 'jwt');
-  }
-  
-  /**
-   * Format pre-built context from context-builder for LLM consumption
-   * Context has already been assembled with vector search and llm_hints
-   */
-  private formatPrebuiltContext(assembledContext: any, userMessage: string): string {
-    const sections = [];
-    
-    // If context was transformed by llm_hints (from RCRT server), use it directly!
-    if (assembledContext.formatted_context) {
-      sections.push(assembledContext.formatted_context);
-    } else {
-      // Format manually from assembled components (fallback)
-      
-      // Tool catalog
-      if (assembledContext.tool_catalog) {
-        let catalog = 'No tools available';
-        
-        if (typeof assembledContext.tool_catalog === 'string') {
-          catalog = assembledContext.tool_catalog;
-        } else if (assembledContext.tool_catalog.tool_list) {
-          catalog = assembledContext.tool_catalog.tool_list;
-        } else if (Array.isArray(assembledContext.tool_catalog.tools)) {
-          // Tools array - format as readable list
-          catalog = `You have access to ${assembledContext.tool_catalog.tools.length} tools:\n\n` +
-            assembledContext.tool_catalog.tools.map((t: any) => 
-              `• ${t.name} (${t.category}): ${t.description}\n` +
-              `  Output: ${Object.keys(t.outputSchema?.properties || {}).join(', ')}`
-            ).join('\n');
-        } else {
-          // Unknown structure - stringify
-          catalog = JSON.stringify(assembledContext.tool_catalog, null, 2);
-        }
-        sections.push(`# Available Tools\n${catalog}`);
-      }
-      
-      // Chat history (vector-searched for relevance!)
-      // Combine user messages AND agent responses for full conversation
-      const allMessages = [
-        ...(assembledContext.chat_history || []),
-        ...(assembledContext.agent_responses || [])
-      ];
-      
-      if (allMessages.length > 0) {
-        // Sort by timestamp for conversational flow
-        allMessages.sort((a, b) => 
-          new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
-        );
-        
-        sections.push(`# Relevant Conversation`);
-        for (const msg of allMessages) {
-          const speaker = msg.role === 'user' ? 'User' : 'Assistant';
-          const content = msg.content || msg.message;
-          if (content) {
-            sections.push(`${speaker}: ${content}`);
-          }
-        }
-      }
-      
-      // Recent tool results
-      if (assembledContext.tool_results && Array.isArray(assembledContext.tool_results) && assembledContext.tool_results.length > 0) {
-        sections.push('# Recent Tool Results');
-        for (const result of assembledContext.tool_results) {
-          const output = typeof result.output === 'string' 
-            ? result.output 
-            : result.output 
-            ? JSON.stringify(result.output) 
-            : result.result || 'No output';
-          sections.push(`• ${result.tool}: ${output}`);
-        }
+        formatted += String(value) + '\n\n';
       }
     }
-    
-    // Always add current user message
-    sections.push(`# Current Request\n${userMessage}`);
-    
-    const formatted = sections.join('\n\n');
-    
-    console.log(`📝 Formatted context: ${formatted.length} chars, ~${Math.ceil(formatted.length / 4)} tokens`);
     
     return formatted;
   }
   
   /**
-   * Check if context-builder service is running for this agent
+   * Call LLM via OpenRouter tool
    */
-  private async checkForContextBuilder(): Promise<boolean> {
-    try {
-      // Check if context.config.v1 exists for this agent
-      const configs = await this.rcrtClient.searchBreadcrumbs({
-        schema_name: 'context.config.v1',
-        tag: `consumer:${this.agentDef.context.agent_id}`
+  private async callLLM(messages: any[]): Promise<string> {
+    // Create tool request
+    const llmRequest = await this.rcrtClient.createBreadcrumb({
+      schema_name: 'tool.request.v1',
+      title: 'LLM Request',
+      tags: ['tool:request', this.workspace],
+      context: {
+        tool: 'openrouter',
+        input: {
+          model: this.agentDef.model,
+          messages: messages,
+          temperature: this.agentDef.temperature || 0.7
+        },
+        requestId: `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        requestedBy: this.agentDef.agent_id
+      }
+    });
+    
+    console.log(`🔄 [${this.agentDef.agent_id}] Waiting for LLM response...`);
+    
+    // Wait for response (TODO: Use proper EventBridge pattern)
+    // For now, poll for response
+    for (let i = 0; i < 60; i++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const responses = await this.rcrtClient.searchBreadcrumbsWithContext({
+        schema_name: 'tool.response.v1',
+        tag: `request:${llmRequest.id}`,
+        include_context: true,
+        limit: 1
       });
       
-      if (configs.length > 0) {
-        console.log(`✅ context-builder config found for ${this.agentDef.context.agent_id}`);
-        return true;
+      if (responses.length > 0) {
+        const output = responses[0].context.output;
+        
+        // Extract content from OpenRouter response
+        if (output?.choices?.[0]?.message?.content) {
+          return output.choices[0].message.content;
+        } else if (typeof output === 'string') {
+          return output;
+        } else {
+          return JSON.stringify(output);
+        }
       }
-      
-      console.log(`⚠️ No context-builder config found for ${this.agentDef.context.agent_id}`);
-      return false;
-    } catch (error) {
-      console.error('Failed to check for context-builder:', error);
-      return false;
     }
+    
+    throw new Error('LLM response timeout after 30 seconds');
+  }
+  
+  /**
+   * Parse agent response (extract JSON)
+   */
+  private parseAgentResponse(llmOutput: string): any {
+    try {
+      return extractAndParseJSON(llmOutput);
+    } catch (error) {
+      console.warn(`Failed to parse agent response, using fallback`);
+      // Fallback: wrap plain text
+      return {
+        action: 'create',
+        breadcrumb: {
+          schema_name: 'agent.response.v1',
+          title: 'Agent Response',
+          tags: ['agent:response', 'chat:output'],
+          context: {
+            message: llmOutput
+          }
+        }
+      };
+    }
+  }
+  
+  /**
+   * Create agent response breadcrumb
+   */
+  protected async respond(trigger: any, result: any): Promise<void> {
+    const breadcrumbDef = result.breadcrumb || result;
+    
+    // Add creator metadata
+    const context = {
+      ...breadcrumbDef.context,
+      creator: {
+        type: 'agent',
+        agent_id: this.agentDef.agent_id
+      },
+      trigger_id: trigger.id
+    };
+    
+    await this.rcrtClient.createBreadcrumb({
+      schema_name: breadcrumbDef.schema_name || 'agent.response.v1',
+      title: breadcrumbDef.title || 'Agent Response',
+      tags: breadcrumbDef.tags || ['agent:response', 'chat:output'],
+      context: context
+    });
+    
+    console.log(`📤 [${this.agentDef.agent_id}] Response created`);
+  }
+  
+  /**
+   * Humanize key for display
+   */
+  private humanizeKey(key: string): string {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+  
+  /**
+   * Get state for monitoring
+   */
+  getState() {
+    return {
+      agent_id: this.agentDef.agent_id,
+      status: 'active',
+      subscriptions: this.subscriptions.length,
+      metrics: {
+        events_processed: 0,
+        errors: 0,
+        last_activity: new Date()
+      }
+    };
+  }
+  
+  /**
+   * Get definition
+   */
+  getDefinition() {
+    return { context: this.agentDef };
+  }
+  
+  /**
+   * Override vector search query (use trigger message)
+   */
+  private triggerMessage: string = '';
+  
+  protected getVectorSearchQuery(): string {
+    return this.triggerMessage;
   }
 }

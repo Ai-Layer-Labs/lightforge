@@ -3,8 +3,15 @@
  * Flow and agent execution runtime
  */
 
-// Export only agent executor for now (flow executor has node-sdk dependency issues)
-export { AgentExecutor, AgentExecutorOptions } from './agent/agent-executor';
+// Export agent executor (universal pattern)
+export { AgentExecutorUniversal as AgentExecutor } from './agent/agent-executor';
+export type { AgentExecutorOptions, AgentDefinition } from './agent/agent-executor';
+
+// Export universal executor
+export { UniversalExecutor, type Subscription, type UniversalExecutorOptions } from './executor/universal-executor';
+
+// Export tool executor
+export { ToolExecutor, type ToolExecutorOptions } from './tool/tool-executor';
 
 // Re-export SSE client wrapper
 export { SSEClient } from './sse/sse-client';

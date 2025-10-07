@@ -9,7 +9,7 @@
 
 import dotenv from 'dotenv';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { AgentExecutor, AgentExecutorOptions } from '@rcrt-builder/runtime';
+import { AgentExecutor } from '@rcrt-builder/runtime';
 import { AgentDefinitionV1 } from '@rcrt-builder/core';
 import { jsonrepair } from 'jsonrepair';
 
@@ -72,14 +72,9 @@ export class ModernAgentRegistry {
       this.sseCleanup = undefined;
     }
     
-    // Stop all executors
+    // Clear all executors
     for (const [id, executor] of this.executors) {
-      try {
-        await executor.stop();
-        console.log(`✅ Stopped agent: ${id}`);
-      } catch (error) {
-        console.error(`❌ Error stopping agent ${id}:`, error);
-      }
+      console.log(`✅ Cleared agent: ${id}`);
     }
     
     this.executors.clear();
@@ -175,7 +170,7 @@ export class ModernAgentRegistry {
         console.log(`📨 Routing event to agent ${agentId}`);
         
         // Let AgentExecutor handle the event
-        executor.processEvent(event).catch((error: any) => {
+        executor.processSSEEvent(event).catch((error: any) => {
           console.error(`❌ Agent ${agentId} error:`, error);
         });
       }
@@ -248,20 +243,11 @@ export class ModernAgentRegistry {
     
     console.log(`📝 Registering agent: ${agentId}`);
     
-    const executorOptions: AgentExecutorOptions = {
+    const executor = new AgentExecutor({
       agentDef,
       rcrtClient: this.client,
-      workspace: this.workspace,
-      autoStart: true,
-      metricsInterval: 3600000 // Report metrics every hour
-    };
-    
-    const executor = new AgentExecutor(executorOptions);
-    
-    // WORKAROUND: Add missing getDefinition method if it doesn't exist
-    if (!executor.getDefinition) {
-      (executor as any).getDefinition = () => agentDef;
-    }
+      workspace: this.workspace
+    });
     
     this.executors.set(agentId, executor);
     
@@ -477,10 +463,7 @@ async function main() {
           client.setToken(newToken);
           console.log('🔐 Refreshed JWT token');
           
-          // Update token in all agent executors
-          for (const executor of registry.executors.values()) {
-            executor.updateToken(newToken);
-          }
+          // Token updated in client, executors will use it automatically
         }
       } catch (error) {
         console.error('❌ Failed to refresh token:', error);
