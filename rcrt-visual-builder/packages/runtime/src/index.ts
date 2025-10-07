@@ -9,6 +9,7 @@ export type { AgentExecutorOptions, AgentDefinition } from './agent/agent-execut
 
 // Export universal executor
 export { UniversalExecutor, type Subscription, type UniversalExecutorOptions } from './executor/universal-executor';
+export { EventBridge } from './executor/event-bridge';
 
 // Export tool executor
 export { ToolExecutor, type ToolExecutorOptions } from './tool/tool-executor';

@@ -9,7 +9,7 @@
 
 import dotenv from 'dotenv';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { AgentExecutor } from '@rcrt-builder/runtime';
+import { AgentExecutor, EventBridge } from '@rcrt-builder/runtime';
 import { AgentDefinitionV1 } from '@rcrt-builder/core';
 import { jsonrepair } from 'jsonrepair';
 
@@ -21,6 +21,7 @@ export class ModernAgentRegistry {
   public executors = new Map<string, AgentExecutor>();
   private catalogBreadcrumbId?: string;
   private sseCleanup?: () => void;
+  private eventBridge = new EventBridge();  // Shared event bridge for all agents
   
   // Track request/response correlation (borrowed from tools-runner)
   private pendingRequests = new Map<string, {
@@ -120,6 +121,16 @@ export class ModernAgentRegistry {
               // Use jsonrepair to handle malformed JSON
               const repairedData = jsonrepair(line.slice(6));
               const eventData = JSON.parse(repairedData);
+              
+              // Feed ALL events to EventBridge (for waitForEvent)
+              if (eventData.type === 'breadcrumb.updated' && eventData.breadcrumb_id) {
+                try {
+                  const breadcrumb = await this.client.getBreadcrumb(eventData.breadcrumb_id);
+                  this.eventBridge.handleEvent(eventData, breadcrumb);
+                } catch (e) {
+                  // Ignore fetch errors
+                }
+              }
               
               if (eventData.type !== 'ping') {
                 await this.routeEventToAgent(eventData);
@@ -247,7 +258,7 @@ export class ModernAgentRegistry {
       agentDef,
       rcrtClient: this.client,
       workspace: this.workspace
-    });
+    }, this.eventBridge);  // Pass shared EventBridge
     
     this.executors.set(agentId, executor);
     

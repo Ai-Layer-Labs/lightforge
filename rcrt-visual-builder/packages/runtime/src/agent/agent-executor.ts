@@ -4,6 +4,7 @@
  */
 
 import { UniversalExecutor, type Subscription } from '../executor/universal-executor';
+import { EventBridge } from '../executor/event-bridge';
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { extractAndParseJSON } from '../utils/json-repair';
 
@@ -26,8 +27,9 @@ export interface AgentExecutorOptions {
 
 export class AgentExecutorUniversal extends UniversalExecutor {
   private agentDef: AgentDefinition;
+  private eventBridge: EventBridge;
   
-  constructor(options: AgentExecutorOptions) {
+  constructor(options: AgentExecutorOptions, eventBridge?: EventBridge) {
     super({
       rcrtClient: options.rcrtClient,
       workspace: options.workspace,
@@ -36,6 +38,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     });
     
     this.agentDef = options.agentDef.context;
+    this.eventBridge = eventBridge || new EventBridge();
     
     console.log(`🤖 [AgentExecutor] Initialized: ${this.agentDef.agent_id}`);
     console.log(`📡 Subscriptions: ${this.subscriptions.length}`);
@@ -128,35 +131,24 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       }
     });
     
-    console.log(`🔄 [${this.agentDef.agent_id}] Waiting for LLM response...`);
+    console.log(`🔄 [${this.agentDef.agent_id}] Waiting for LLM response (event-driven)...`);
     
-    // Wait for response (TODO: Use proper EventBridge pattern)
-    // For now, poll for response
-    for (let i = 0; i < 60; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const responses = await this.rcrtClient.searchBreadcrumbsWithContext({
-        schema_name: 'tool.response.v1',
-        tag: `request:${llmRequest.id}`,
-        include_context: true,
-        limit: 1
-      });
-      
-      if (responses.length > 0) {
-        const output = responses[0].context.output;
-        
-        // Extract content from OpenRouter response
-        if (output?.choices?.[0]?.message?.content) {
-          return output.choices[0].message.content;
-        } else if (typeof output === 'string') {
-          return output;
-        } else {
-          return JSON.stringify(output);
-        }
-      }
+    // ✅ THE RCRT WAY: Wait for event, no polling!
+    const response = await this.eventBridge.waitForEvent({
+      schema_name: 'tool.response.v1',
+      request_id: llmRequest.id
+    }, 30000);
+    
+    const output = response.context.output;
+    
+    // Extract content from OpenRouter response
+    if (output?.choices?.[0]?.message?.content) {
+      return output.choices[0].message.content;
+    } else if (typeof output === 'string') {
+      return output;
+    } else {
+      return JSON.stringify(output);
     }
-    
-    throw new Error('LLM response timeout after 30 seconds');
   }
   
   /**
@@ -174,7 +166,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
           schema_name: 'agent.response.v1',
           title: 'Agent Response',
           tags: ['agent:response', 'chat:output'],
-          context: {
+        context: {
             message: llmOutput
           }
         }
@@ -191,8 +183,8 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     // Add creator metadata
     const context = {
       ...breadcrumbDef.context,
-      creator: {
-        type: 'agent',
+        creator: {
+          type: 'agent',
         agent_id: this.agentDef.agent_id
       },
       trigger_id: trigger.id
