@@ -16,38 +16,79 @@ const defaultAgentDef = {
   "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
   "context": {
     "agent_id": "default-chat-assistant",
+    "model": "openrouter/google/gemini-2.0-flash-exp:free",
     "temperature": 0.7,
-      "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou will receive context that may include:\n- Tool catalog: Available tools you can use\n- Chat history: Previous messages in the conversation\n\nYou dynamically discover available tools from the tool catalog breadcrumb. When you need to use a tool:\n1. Check the tool catalog in your context for available tools\n2. Create a tool.request.v1 breadcrumb with the appropriate parameters\n3. Wait for the tool.response.v1 breadcrumb with results\n\nAlways be helpful, concise, and clear. Explain what you're doing when invoking tools.\nMaintain conversation context and remember what the user has asked previously.\n\nIMPORTANT: Respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response\",\n      \"tool_requests\": [...]\n    }\n  }\n}",
+    "max_tokens": 2000,
+    "system_prompt": "You are a helpful AI assistant.\n\nYou receive context that may include:\n- browser: The current webpage the user is viewing\n- tools: Available tools\n- history: Recent conversation\n- tool_results: Results from tools\n\nWhen asked about the page, reference the 'browser' context.\n\nRespond with valid JSON:\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\"\n    }\n  }\n}",
     "capabilities": {
       "can_create_breadcrumbs": true,
-      "can_update_own": false,
+      "can_update_own": true,
       "can_delete_own": false,
       "can_spawn_agents": false
     },
     "subscriptions": {
+      "comment": "Clean explicit subscriptions - universal executor pattern",
       "selectors": [
         {
-          "any_tags": ["user:message", "chat:message"],
-          "schema_name": "user.message.v1"
+          "comment": "Pre-built context from context-builder triggers processing",
+          "schema_name": "agent.context.v1",
+          "all_tags": ["consumer:default-chat-assistant"],
+          "role": "trigger",
+          "key": "assembled_context",
+          "fetch": {"method": "event_data"}
         },
         {
+          "comment": "Current browser page - fetched when triggered",
+          "schema_name": "browser.page.context.v1",
+          "any_tags": ["browser:active-tab"],
+          "role": "context",
+          "key": "browser",
+          "fetch": {"method": "latest", "limit": 1}
+        },
+        {
+          "comment": "Available tools - fetched when triggered",
           "schema_name": "tool.catalog.v1",
-          "all_tags": ["workspace:tools"]
+          "role": "context",
+          "key": "tools",
+          "fetch": {"method": "latest", "limit": 1}
         },
         {
+          "comment": "Recent conversation history",
+          "schema_name": "user.message.v1",
+          "any_tags": ["extension:chat"],
+          "role": "context",
+          "key": "history",
+          "fetch": {"method": "recent", "limit": 10}
+        },
+        {
+          "comment": "Recent tool results (historical context)",
           "schema_name": "tool.response.v1",
-          "all_tags": ["workspace:tools"]
+          "all_tags": ["workspace:tools"],
+          "role": "context",
+          "key": "tool_results",
+          "fetch": {"method": "recent", "limit": 5}
+        },
+        {
+          "comment": "Tool responses trigger continuation (filter by request tag)",
+          "schema_name": "tool.response.v1",
+          "all_tags": ["tool:response", "request:llm"],
+          "role": "trigger",
+          "key": "tool_response",
+          "fetch": {"method": "event_data"}
         }
       ]
     },
     "metadata": {
-      "version": "2.0.0",
-      "created_by": "bootstrap",
-      "purpose": "General purpose chat interface",
+      "version": "3.0.0",
+      "architecture": "universal-executor",
+      "created_by": "system",
+      "purpose": "Clean universal executor with explicit subscriptions",
       "features": [
+        "Browser context awareness",
         "Dynamic tool discovery",
-        "Context-aware responses",
-        "Tool invocation capability"
+        "Fetch-on-trigger pattern",
+        "Zero hardcoding",
+        "Fully composable"
       ]
     }
   }
