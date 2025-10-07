@@ -20,9 +20,47 @@ export interface SSEFilter {
 }
 
 export class RCRTExtensionClient {
-  private baseUrl: string = 'http://127.0.0.1:8081';
+  private baseUrl: string;
   private token: string | null = null;
   private authenticated: boolean = false;
+
+  constructor() {
+    // Load base URL from storage, fall back to env var, then default
+    // This makes it configurable per-installation
+    this.baseUrl = 'http://127.0.0.1:8081'; // Will be overridden by init
+    this.initializeBaseUrl();
+  }
+
+  private async initializeBaseUrl() {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        const stored = await chrome.storage.local.get(['rcrtBaseUrl']);
+        if (stored.rcrtBaseUrl) {
+          this.baseUrl = stored.rcrtBaseUrl;
+          return;
+        }
+      }
+    } catch (e) {
+      // Ignore errors, use default
+    }
+    
+    // Try environment variable (if available via build)
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RCRT_BASE_URL) {
+      this.baseUrl = import.meta.env.VITE_RCRT_BASE_URL;
+    }
+  }
+
+  // Allow runtime configuration
+  setBaseUrl(url: string) {
+    this.baseUrl = url;
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.set({ rcrtBaseUrl: url });
+    }
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
 
   async authenticate(): Promise<boolean> {
     try {

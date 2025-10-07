@@ -1,9 +1,23 @@
 #!/bin/bash
 # Universal RCRT Setup Script - Works on Mac, Linux, and Windows!
+# Fully portable - supports custom container name prefixes
 
 set -e
 
 echo "🚀 Starting RCRT Setup..."
+echo ""
+
+# PROJECT_PREFIX: Customize this to avoid container name conflicts
+# Examples: "lightforge-", "mycompany-", "dev-", etc.
+# Leave empty for default names (no prefix)
+PROJECT_PREFIX="${PROJECT_PREFIX:-}"
+
+if [ -n "$PROJECT_PREFIX" ]; then
+    echo "🏷️  Using custom prefix: ${PROJECT_PREFIX}"
+    echo "   Container names will be: ${PROJECT_PREFIX}rcrt, ${PROJECT_PREFIX}db, etc."
+else
+    echo "📦 Using default container names (no prefix)"
+fi
 echo ""
 
 # Detect OS and Architecture
@@ -51,14 +65,47 @@ fi
 # Generate .env if missing
 if [ ! -f ".env" ]; then
     echo "📝 Creating .env file..."
-    cat > .env << 'EOF'
+    cat > .env << EOF
 # RCRT Environment Configuration
+# Generated with prefix: ${PROJECT_PREFIX:-none}
+
+# Container name prefix (leave empty for default)
+PROJECT_PREFIX=${PROJECT_PREFIX}
+
+# Service URLs (auto-configured based on prefix)
+RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
+DB_HOST=${PROJECT_PREFIX}db
+DB_URL=postgresql://postgres:postgres@\${DB_HOST}/rcrt
+NATS_URL=nats://${PROJECT_PREFIX}nats:4222
+
+# External URLs (for browser/extension access)
+RCRT_EXTERNAL_URL=http://localhost:8081
+DASHBOARD_EXTERNAL_URL=http://localhost:8082
+BUILDER_EXTERNAL_URL=http://localhost:3000
+
+# Security
 LOCAL_KEK_BASE64="your-encryption-key-here"
+
+# API Keys
 OPENROUTER_API_KEY="your-openrouter-api-key-here"
 OPENROUTER_REFERER="http://localhost:3000"
 OPENROUTER_SITE_TITLE="RCRT Local"
+
+# IDs (change if needed for isolation)
+OWNER_ID=00000000-0000-0000-0000-000000000001
+AGENT_ID=00000000-0000-0000-0000-000000000AAA
+TOOLS_AGENT_ID=00000000-0000-0000-0000-0000000000aa
+EXTENSION_AGENT_ID=00000000-0000-0000-0000-000000000EEE
 EOF
     echo "⚠️  Please edit .env with your actual API keys"
+else
+    echo "📝 .env file exists, ensuring prefix is set..."
+    # Add PROJECT_PREFIX to existing .env if missing
+    if ! grep -q "^PROJECT_PREFIX=" .env; then
+        echo "" >> .env
+        echo "# Container prefix (added by setup)" >> .env
+        echo "PROJECT_PREFIX=${PROJECT_PREFIX}" >> .env
+    fi
 fi
 
 # Clean any problematic files first
@@ -96,7 +143,54 @@ if [[ "$OS_TYPE" == "mac" ]]; then
     docker compose build --build-arg TARGETARCH=$DOCKER_ARCH rcrt
 fi
 
+# Generate docker-compose override for custom prefix (if needed)
+if [ -n "$PROJECT_PREFIX" ]; then
+    echo "📝 Generating docker-compose.override.yml for prefix: ${PROJECT_PREFIX}"
+    cat > docker-compose.override.yml << EOF
+# Auto-generated override for custom container prefix: ${PROJECT_PREFIX}
+# This file is created by setup.sh and can be regenerated
+
+services:
+  db:
+    container_name: ${PROJECT_PREFIX}db
+    
+  nats:
+    container_name: ${PROJECT_PREFIX}nats
+    
+  rcrt:
+    container_name: ${PROJECT_PREFIX}rcrt
+    environment:
+      - DB_URL=postgresql://postgres:postgres@${PROJECT_PREFIX}db/rcrt
+      - NATS_URL=nats://${PROJECT_PREFIX}nats:4222
+    depends_on:
+      - ${PROJECT_PREFIX}db
+      - ${PROJECT_PREFIX}nats
+      
+  dashboard:
+    container_name: ${PROJECT_PREFIX}dashboard
+    environment:
+      - VITE_RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
+      
+  agent-runner:
+    container_name: ${PROJECT_PREFIX}agent-runner
+    environment:
+      - RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
+      
+  tools-runner:
+    container_name: ${PROJECT_PREFIX}tools-runner
+    environment:
+      - RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
+      
+  builder:
+    container_name: ${PROJECT_PREFIX}builder
+    environment:
+      - VITE_RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
+EOF
+    echo "✅ Custom override created"
+fi
+
 # Start services
+echo "🚀 Starting services with prefix: ${PROJECT_PREFIX:-none}"
 docker compose up -d db nats rcrt dashboard tools-runner
 
 # Wait for core services to be ready
@@ -154,6 +248,11 @@ sleep 10
 echo ""
 echo "✅ RCRT Setup Complete!"
 echo ""
+if [ -n "$PROJECT_PREFIX" ]; then
+    echo "🏷️  Custom prefix: ${PROJECT_PREFIX}"
+    echo "   Container names: ${PROJECT_PREFIX}rcrt, ${PROJECT_PREFIX}db, etc."
+    echo ""
+fi
 echo "🌐 Access your services:"
 echo "   • Dashboard:     http://localhost:8082  (Main UI)"
 echo "   • RCRT API:      http://localhost:8081  (Backend)"

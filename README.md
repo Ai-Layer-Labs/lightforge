@@ -1,8 +1,13 @@
 ## RCRT – Right Context, Right Time
 
+> **✨ Fully Portable**: Supports custom container prefixes for multi-deployment environments. See [PORTABLE_SETUP_README.md](PORTABLE_SETUP_README.md)
+
 **Quick Start**: 
 ```bash
 git clone <repo> && cd breadcrums && ./setup.sh
+
+# With custom prefix (for forked repos or multi-deployment):
+PROJECT_PREFIX="lightforge-" ./setup.sh
 ```
 → Visit http://localhost:8082 → Install browser extension
 

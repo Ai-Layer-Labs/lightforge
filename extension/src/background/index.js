@@ -53,9 +53,14 @@ async function handleApiCall(endpoint, method, body, token) {
 
 async function getConfig() {
   const { dashboardUrl, extensionToken } = await chrome.storage.local.get(['dashboardUrl', 'extensionToken']);
-  // 🚀 RCRT-ONLY: Connect to RCRT server directly (like Dashboard v2)
+  
+  // Try environment variable first, then storage, then default
+  const defaultUrl = typeof process !== 'undefined' && process.env?.RCRT_EXTERNAL_URL 
+    ? process.env.RCRT_EXTERNAL_URL 
+    : 'http://127.0.0.1:8081';
+  
   return {
-    dashboardUrl: dashboardUrl || 'http://127.0.0.1:8081', // RCRT server direct
+    dashboardUrl: dashboardUrl || defaultUrl,
     extensionToken: extensionToken || ''
   };
 }
