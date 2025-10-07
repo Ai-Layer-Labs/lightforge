@@ -1,6 +1,7 @@
 import React, { memo, useState, useRef, useCallback } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { RenderNode } from '../../types/rcrt';
+import { NodePorts } from './NodePorts';
 import clsx from 'clsx';
 
 interface Node2DProps {

@@ -97,13 +97,21 @@ export default function Panel() {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               
               // Check if it's an agent response (the actual chat response)
-              if (breadcrumb.tags?.includes('agent:response')) {
+              if (breadcrumb.tags?.includes('agent:response') || breadcrumb.schema_name === 'agent.response.v1') {
                 console.log('🤖 Agent response received:', breadcrumb);
                 
+                // Extract message from various possible locations
                 let messageContent = breadcrumb.context?.message || 
                                    breadcrumb.context?.response_text ||
                                    breadcrumb.context?.content ||
+                                   breadcrumb.context?.text ||
+                                   breadcrumb.message ||  // Top level
                                    'Agent responded but no content found';
+                
+                // If still object, try to stringify
+                if (typeof messageContent === 'object') {
+                  messageContent = JSON.stringify(messageContent, null, 2);
+                }
                 
                 // If the content looks like JSON or has json code block, try to parse it
                 if (typeof messageContent === 'string') {

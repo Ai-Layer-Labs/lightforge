@@ -60,9 +60,12 @@
           "fetch": {"method": "recent", "limit": 5}
         },
         {
-          "comment": "Tool responses trigger continuation (fire-and-forget pattern)",
+          "comment": "Tool responses trigger continuation (only MY responses)",
           "schema_name": "tool.response.v1",
           "any_tags": ["tool:response"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
+          ],
           "role": "trigger",
           "key": "tool_response",
           "fetch": {"method": "event_data"}
