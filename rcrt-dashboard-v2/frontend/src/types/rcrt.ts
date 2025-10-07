@@ -284,18 +284,6 @@ export type ConnectionType =
   | 'tool-request'
   | 'tool-execution';
 
-export interface NodePort {
-  id: string;
-  type: 'input' | 'output';
-  schema_name: string;
-  role?: 'trigger' | 'context';
-  key?: string;
-  tags?: string[];
-  position: 'top' | 'bottom' | 'left' | 'right';
-  color: string;
-  label: string;
-}
-
 export interface RenderNode {
   id: string;
   type: NodeType;
@@ -325,12 +313,6 @@ export interface RenderNode {
     filtered: boolean;
     visible: boolean;
     dragging?: boolean;
-  };
-  
-  // NEW: I/O Port information
-  ports?: {
-    inputs: NodePort[];
-    outputs: NodePort[];
   };
 }
 

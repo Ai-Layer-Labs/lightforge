@@ -1,7 +1,6 @@
 import React, { memo, useState, useRef, useCallback } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { RenderNode } from '../../types/rcrt';
-import { NodePorts } from './NodePorts';
 import clsx from 'clsx';
 
 interface Node2DProps {
@@ -327,9 +326,6 @@ const Node2DComponent = ({
       onHoverEnd={onHoverEnd}
       data-tour={node.type === 'tool' && node.data?.id === 'openrouter' ? 'openrouter-tool' : undefined}
     >
-      {/* I/O Ports */}
-      <NodePorts node={node} view="2d" />
-      
       {renderNodeContent()}
       
       {/* Real-time Indicators */}
