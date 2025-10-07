@@ -108,12 +108,17 @@ export class ModernAgentRegistry {
       }
       
       // Process events
+      let buffer = '';  // Buffer for handling split JSON across chunks
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
         const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
+        buffer += chunk;
+        
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';  // Keep incomplete line in buffer
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
