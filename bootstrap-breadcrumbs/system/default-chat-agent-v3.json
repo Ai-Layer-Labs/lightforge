@@ -4,7 +4,6 @@
   "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
   "context": {
     "agent_id": "default-chat-assistant",
-    "model": "openrouter/google/gemini-2.0-flash-exp:free",
     "temperature": 0.7,
     "max_tokens": 2000,
     
