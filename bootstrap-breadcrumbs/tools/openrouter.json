@@ -1,0 +1,103 @@
+{
+  "schema_name": "tool.v1",
+  "title": "OpenRouter LLM Tool",
+  "tags": ["tool", "tool:openrouter", "category:llm", "workspace:tools"],
+  "context": {
+    "name": "openrouter",
+    "version": "1.0.0",
+    "description": "Call any LLM model via OpenRouter API - supports Claude, GPT-4, Gemini, and 100+ models",
+    "category": "llm",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.openrouter",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Array of chat messages",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {"type": "string", "enum": ["system", "user", "assistant"]},
+                "content": {"type": "string"}
+              }
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "Model identifier (e.g., 'openrouter/anthropic/claude-3.5-sonnet')"
+          },
+          "temperature": {"type": "number", "minimum": 0, "maximum": 2, "default": 0.7},
+          "max_tokens": {"type": "number", "minimum": 1, "maximum": 100000, "default": 4000}
+        },
+        "required": ["messages", "model"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {"type": "string", "description": "The LLM response text"},
+          "model": {"type": "string", "description": "Model that generated the response"},
+          "usage": {
+            "type": "object",
+            "properties": {
+              "prompt_tokens": {"type": "number"},
+              "completion_tokens": {"type": "number"},
+              "total_tokens": {"type": "number"}
+            }
+          },
+          "finish_reason": {"type": "string"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Simple question",
+          "input": {
+            "messages": [{"role": "user", "content": "What is 2+2?"}],
+            "model": "openrouter/anthropic/claude-3.5-sonnet"
+          },
+          "output": {
+            "content": "2+2 equals 4.",
+            "model": "openrouter/anthropic/claude-3.5-sonnet",
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+          },
+          "explanation": "Access the response with result.content"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": true,
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "default_model": {"type": "string", "default": "openrouter/anthropic/claude-3.5-sonnet"},
+          "default_temperature": {"type": "number", "default": 0.7},
+          "default_max_tokens": {"type": "number", "default": 4000}
+        }
+      },
+      "currentConfig": {}
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 60000,
+      "retries": 2
+    },
+    
+    "requiredSecrets": ["OPENROUTER_API_KEY"],
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/openrouter.json"
+    }
+  }
+}

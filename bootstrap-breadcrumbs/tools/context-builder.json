@@ -1,0 +1,100 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Context Builder Tool",
+  "tags": ["tool", "tool:context-builder", "category:context", "workspace:tools"],
+  "context": {
+    "name": "context-builder",
+    "version": "1.0.0",
+    "description": "Assembles pre-built context for agents using vector search and relevance scoring",
+    "category": "context",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "contextBuilderTool",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trigger_event": {
+            "type": "object",
+            "description": "The event that triggered context building"
+          },
+          "config_id": {
+            "type": "string",
+            "description": "Optional: specific context.config.v1 breadcrumb ID to use"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "breadcrumb_id": {"type": "string", "description": "ID of created agent.context.v1 breadcrumb"},
+          "consumer": {"type": "string", "description": "Agent ID this context is for"},
+          "assembled_context": {"type": "object", "description": "The assembled context data"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Auto-triggered by user message",
+          "input": {
+            "trigger_event": {
+              "schema_name": "user.message.v1",
+              "breadcrumb_id": "bc-123",
+              "context": {"content": "Hello"}
+            }
+          },
+          "output": {
+            "breadcrumb_id": "bc-456",
+            "consumer": "default-chat-assistant",
+            "assembled_context": {
+              "user_message": "Hello",
+              "tools": [...],
+              "history": [...]
+            }
+          },
+          "explanation": "Context builder creates agent.context.v1 breadcrumb with assembled data"
+        }
+      ]
+    },
+    
+    "subscriptions": {
+      "comment": "Auto-trigger when user messages arrive",
+      "selectors": [
+        {
+          "schema_name": "user.message.v1",
+          "any_tags": ["user:message", "extension:chat"]
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": true,
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "consumer": {"type": "string", "description": "Target agent ID"},
+          "triggers": {"type": "array", "description": "What events trigger context building"},
+          "sources": {"type": "array", "description": "What to include in context"}
+        }
+      },
+      "currentConfig": {}
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 5000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/context-builder.json"
+    }
+  }
+}

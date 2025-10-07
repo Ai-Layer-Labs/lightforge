@@ -1,0 +1,76 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Calculator Tool",
+  "tags": ["tool", "tool:calculator", "category:utility", "workspace:tools"],
+  "context": {
+    "name": "calculator",
+    "version": "1.0.0",
+    "description": "Perform mathematical calculations - supports basic arithmetic, parentheses, and common math functions",
+    "category": "utility",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.calculator",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string",
+            "description": "Mathematical expression to evaluate (e.g., '2 + 2', 'Math.sqrt(16)')"
+          }
+        },
+        "required": ["expression"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {"type": "number", "description": "The calculated result"},
+          "expression": {"type": "string", "description": "The original expression"},
+          "formatted": {"type": "string", "description": "Human-readable result string"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Basic arithmetic",
+          "input": {"expression": "2 + 2"},
+          "output": {"result": 4, "expression": "2 + 2", "formatted": "2 + 2 = 4"},
+          "explanation": "Access the result with result.result"
+        },
+        {
+          "title": "Complex expression",
+          "input": {"expression": "(10 * 5) + 25"},
+          "output": {"result": 75, "expression": "(10 * 5) + 25", "formatted": "(10 * 5) + 25 = 75"},
+          "explanation": "Supports parentheses and order of operations"
+        },
+        {
+          "title": "Math functions",
+          "input": {"expression": "Math.sqrt(16)"},
+          "output": {"result": 4, "expression": "Math.sqrt(16)", "formatted": "Math.sqrt(16) = 4"},
+          "explanation": "Use Math.functionName for advanced operations like sqrt, sin, cos, etc."
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": false,
+      "timeout": 1000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/calculator.json"
+    }
+  }
+}

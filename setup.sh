@@ -222,10 +222,25 @@ fi
 echo "⏳ Waiting for tool catalog to be created..."
 sleep 10
 
-# Load default agent using robust script
-echo "🤖 Ensuring default chat agent..."
+# Bootstrap system using SINGLE SOURCE OF TRUTH
+echo "🌱 Bootstrapping system from bootstrap-breadcrumbs/ ..."
 echo "   Note: First startup loads AI models and can take 1-2 minutes"
-node ensure-default-agent.js || echo "⚠️  Failed to load default agent (run 'node ensure-default-agent.js' manually)"
+if command -v node >/dev/null 2>&1; then
+    (cd bootstrap-breadcrumbs && npm install --silent && node bootstrap.js) || {
+        echo "❌ Bootstrap failed!"
+        echo ""
+        echo "To fix:"
+        echo "  1. Check bootstrap-breadcrumbs/system/default-chat-agent.json exists"
+        echo "  2. Manually run: cd bootstrap-breadcrumbs && node bootstrap.js"
+        echo "  3. Check logs for specific errors"
+        echo ""
+        exit 1
+    }
+else
+    echo "❌ Node.js not found - bootstrap requires Node.js"
+    echo "   Install Node.js and run: cd bootstrap-breadcrumbs && node bootstrap.js"
+    exit 1
+fi
 
 # Add OpenRouter key if .env has been updated
 if grep -q "your-openrouter-api-key-here" .env; then

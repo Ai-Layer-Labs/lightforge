@@ -1,23 +1,53 @@
 # Bootstrap Breadcrumbs
 
-This directory contains the essential breadcrumbs needed to bootstrap an RCRT system.
+**SINGLE SOURCE OF TRUTH for all RCRT bootstrap data**
+
+This directory contains ALL breadcrumbs needed to bootstrap an RCRT system.
+
+## ⚠️ IMPORTANT: No Hardcoding Policy
+
+- ✅ All agents defined in `system/*.json`
+- ✅ All tools defined in `tools/*.json`
+- ✅ All templates in `templates/*.json`
+- ❌ NO hardcoded fallbacks in code
+- ❌ NO duplicate definitions elsewhere
+- ❌ NO inline JSON in scripts
+
+**If it's not here, it doesn't exist in the system!**
 
 ## Directory Structure
 
 ```
 bootstrap-breadcrumbs/
-├── system/                    # Core system breadcrumbs
+├── system/                    # Core system breadcrumbs (agents, configs)
 │   ├── bootstrap-marker.json  # Marks system as bootstrapped
-│   ├── default-chat-agent.json # Default chat agent definition
-│   ├── tool-catalog-bootstrap.json # Initial tool catalog (deprecated)
-│   ├── tool-definition-template.json # Template for tool.v1 breadcrumbs
-│   ├── tool-creation-guide.json # Guide for creating RCRT tools
-│   ├── random-tool-definition.json # Example tool definition
-│   └── openrouter-tool-definition.json # Example configurable tool
-└── templates/                 # Templates and guides
-    ├── agent-definition-template.json
-    └── llm-hints-guide.json
+│   └── default-chat-agent.json # THE ONLY agent definition (single source)
+├── tools/                     # Tool definitions (tool.v1)
+│   ├── openrouter.json        # OpenRouter LLM tool
+│   ├── calculator.json        # Calculator utility
+│   ├── random.json            # Random number generator
+│   ├── context-builder.json   # Context assembly tool
+│   └── ... (add more as JSON files, not code!)
+├── templates/                 # Templates for users to copy
+│   ├── agent-definition-template.json
+│   └── tool-definition-template.json
+├── bootstrap.js               # THE ONLY bootstrap script
+├── package.json
+└── README.md                  # This file
 ```
+
+## How to Add New Breadcrumbs
+
+### Add a New Agent
+1. Create `system/my-agent.json` with schema `agent.def.v1`
+2. Run: `cd bootstrap-breadcrumbs && node bootstrap.js`
+3. Done! Agent is loaded
+
+### Add a New Tool
+1. Create `tools/my-tool.json` with schema `tool.v1`
+2. Include implementation reference: `{"type": "builtin", "export": "builtinTools.mytool"}`
+3. Run: `cd bootstrap-breadcrumbs && node bootstrap.js`
+4. Done! Tool is available
 
 ## New Tool System (RCRT-Native)
 

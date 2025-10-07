@@ -1,0 +1,68 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Random Number Generator",
+  "tags": ["tool", "tool:random", "category:utility", "workspace:tools"],
+  "context": {
+    "name": "random",
+    "version": "1.0.0",
+    "description": "Generate random numbers or pick random items from a list",
+    "category": "utility",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.random",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "min": {"type": "number", "description": "Minimum value (inclusive)", "default": 0},
+          "max": {"type": "number", "description": "Maximum value (inclusive)", "default": 100},
+          "count": {"type": "number", "description": "How many random numbers to generate", "default": 1},
+          "items": {"type": "array", "description": "Optional: Pick random items from this array"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "numbers": {"type": "array", "items": {"type": "number"}, "description": "Generated random numbers"},
+          "picked": {"type": "any", "description": "Randomly picked item (if items provided)"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Generate 5 random numbers",
+          "input": {"min": 1, "max": 100, "count": 5},
+          "output": {"numbers": [42, 17, 89, 3, 56]},
+          "explanation": "Access the numbers array with result.numbers"
+        },
+        {
+          "title": "Pick random item",
+          "input": {"items": ["apple", "banana", "orange"]},
+          "output": {"picked": "banana"},
+          "explanation": "Access the picked item with result.picked"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": false,
+      "timeout": 1000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/random.json"
+    }
+  }
+}

@@ -4,21 +4,23 @@
   "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
   "context": {
     "agent_id": "default-chat-assistant",
+    "model": "openrouter/anthropic/claude-3.5-sonnet",
     "temperature": 0.7,
-    "max_tokens": 2000,
+    "max_tokens": 4000,
     
-    "system_prompt": "You are a helpful AI assistant.\n\nYou receive context that may include:\n- browser: The current webpage the user is viewing\n- tools: Available tools\n- history: Recent conversation\n- tool_results: Results from tools\n\nWhen asked about the page, reference the 'browser' context.\n\nRespond with valid JSON:\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (calling random tool):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"I'll generate 5 random numbers for you.\",\n      \"tool_requests\": [\n        {\"tool\": \"random\", \"input\": {\"min\": 1, \"max\": 100, \"count\": 5}, \"requestId\": \"rand-001\"}\n      ]\n    }\n  }\n}\n\nEXAMPLE (simple text response):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your name is David!\"\n    }\n  }\n}\n\nDO NOT add explanatory text before or after the JSON. Output ONLY the JSON object.",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive pre-assembled context that includes:\n- Relevant conversation history (vector-searched for semantic similarity)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Using available tools when helpful\n3. Providing clear, concise responses\n\nTo invoke tools, respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nIMPORTANT: \n- The context you receive is already filtered for relevance\n- Output ONLY the JSON object, no extra text\n- Use tools from the catalog when appropriate",
+    
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_update_own": true,
       "can_delete_own": false,
       "can_spawn_agents": false
     },
+    
     "subscriptions": {
-      "comment": "Clean explicit subscriptions - no magic, no hardcoding",
       "selectors": [
         {
-          "comment": "Pre-built context from context-builder (alternative trigger)",
+          "comment": "Pre-built context from context-builder (primary trigger)",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"],
           "role": "trigger",
@@ -26,7 +28,15 @@
           "fetch": {"method": "event_data"}
         },
         {
-          "comment": "Current browser page - fetched when triggered",
+          "comment": "Fallback: Direct user messages if context-builder not available",
+          "schema_name": "user.message.v1",
+          "any_tags": ["user:message", "extension:chat"],
+          "role": "trigger",
+          "key": "user_message",
+          "fetch": {"method": "event_data"}
+        },
+        {
+          "comment": "Current browser page context (fetched when needed)",
           "schema_name": "browser.page.context.v1",
           "any_tags": ["browser:active-tab"],
           "role": "context",
@@ -34,7 +44,7 @@
           "fetch": {"method": "latest", "limit": 1}
         },
         {
-          "comment": "Available tools - fetched when triggered",
+          "comment": "Available tools catalog",
           "schema_name": "tool.catalog.v1",
           "role": "context",
           "key": "tools",
@@ -49,7 +59,7 @@
           "fetch": {"method": "recent", "limit": 10}
         },
         {
-          "comment": "Recent tool results (historical context)",
+          "comment": "Tool responses for this agent",
           "schema_name": "tool.response.v1",
           "all_tags": ["workspace:tools"],
           "context_match": [
@@ -58,28 +68,23 @@
           "role": "context",
           "key": "tool_results",
           "fetch": {"method": "recent", "limit": 5}
-        },
-        {
-          "comment": "Tool responses trigger continuation (filter by request tag)",
-          "schema_name": "tool.response.v1",
-          "all_tags": ["tool:response", "request:llm"],
-          "role": "trigger",
-          "key": "tool_response",
-          "fetch": {"method": "event_data"}
         }
       ]
     },
+    
     "metadata": {
-      "version": "3.0.0",
+      "version": "3.1.0",
       "architecture": "universal-executor",
       "created_by": "system",
-      "purpose": "Clean universal executor with explicit subscriptions",
+      "purpose": "General purpose chat interface with context-builder integration",
+      "source_of_truth": "bootstrap-breadcrumbs/system/default-chat-agent.json",
       "features": [
+        "Vector-based context assembly",
+        "Pre-built context consumption",
         "Browser context awareness",
         "Dynamic tool discovery",
         "Fetch-on-trigger pattern",
-        "Zero hardcoding",
-        "Fully composable"
+        "Zero hardcoding"
       ]
     }
   }
