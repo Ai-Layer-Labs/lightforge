@@ -18,14 +18,6 @@
       "comment": "Clean explicit subscriptions - no magic, no hardcoding",
       "selectors": [
         {
-          "comment": "User messages trigger processing",
-          "schema_name": "user.message.v1",
-          "any_tags": ["user:message", "extension:chat"],
-          "role": "trigger",
-          "key": "user_message",
-          "fetch": {"method": "event_data"}
-        },
-        {
           "comment": "Pre-built context from context-builder (alternative trigger)",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"],
@@ -70,10 +62,7 @@
         {
           "comment": "Tool responses trigger continuation (fire-and-forget pattern)",
           "schema_name": "tool.response.v1",
-          "all_tags": ["workspace:tools"],
-          "context_match": [
-            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
-          ],
+          "any_tags": ["tool:response"],
           "role": "trigger",
           "key": "tool_response",
           "fetch": {"method": "event_data"}

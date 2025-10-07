@@ -247,8 +247,8 @@ export abstract class UniversalExecutor {
       if (!hasAll) return false;
     }
     
-    // Context matching
-    if (subscription.context_match) {
+    // Context matching (check event payload context if available)
+    if (subscription.context_match && event.context) {
       for (const match of subscription.context_match) {
         const value = this.getValueByPath(event.context, match.path);
         if (!this.compareValues(value, match.value, match.op)) {
