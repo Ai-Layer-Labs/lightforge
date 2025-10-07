@@ -118,9 +118,8 @@ export class ModernAgentRegistry {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              // Use jsonrepair to handle malformed JSON
-              const repairedData = jsonrepair(line.slice(6));
-              const eventData = JSON.parse(repairedData);
+              // Server-generated JSON is always valid - parse directly
+              const eventData = JSON.parse(line.slice(6));
               
               // Feed ALL events to EventBridge (for waitForEvent)
               if (eventData.type === 'breadcrumb.updated' && eventData.breadcrumb_id) {
@@ -136,7 +135,8 @@ export class ModernAgentRegistry {
                 await this.routeEventToAgent(eventData);
               }
             } catch (error) {
-              console.warn('Failed to parse SSE event:', line, error);
+              console.error('Failed to parse SSE event (server-generated JSON should always be valid):', error);
+              console.error('Event data:', line.slice(6, 200));
             }
           }
         }

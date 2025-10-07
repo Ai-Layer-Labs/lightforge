@@ -89,24 +89,9 @@ async function startCentralizedSSEDispatcher(
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const rawData = line.slice(6);
-                
-                // DEBUG: Log raw data for tool.request.v1 events
-                if (rawData.includes('tool.request.v1')) {
-                  console.log(`🔍 RAW SSE data for tool.request.v1:`, rawData.substring(0, 300));
-                }
-                
-                // Use jsonrepair to handle malformed JSON
-                const repairedData = jsonrepair(rawData);
-                
-                // DEBUG: Check if jsonrepair changed anything
-                if (rawData !== repairedData && rawData.includes('tool.request.v1')) {
-                  console.log(`⚠️ jsonrepair modified tool.request.v1 event!`);
-                  console.log(`  Original:`, rawData.substring(0, 200));
-                  console.log(`  Repaired:`, repairedData.substring(0, 200));
-                }
-                
-                const eventData = JSON.parse(repairedData);
+                // Server-generated JSON is always valid - parse directly
+                // jsonrepair is ONLY for LLM output, not server events!
+                const eventData = JSON.parse(line.slice(6));
                 
                 // 🔧 DEBUG: Log all incoming events for diagnosis
                 if (eventData.type !== 'ping') {
@@ -169,18 +154,8 @@ async function dispatchEventToTool(
       eventData.tags?.includes(workspace) &&
       !eventData.tags?.includes('health:check');
   
-  // Log undefined types for diagnosis
-  if (eventData.type === undefined && isToolRequest) {
-    console.warn(`⚠️ Tool request event has undefined type (should be breadcrumb.created/updated):`, {
-      breadcrumb_id: eventData.breadcrumb_id,
-      schema: eventData.schema_name,
-      tags: eventData.tags,
-      full_event: eventData
-    });
-  }
-  
-  if ((eventData.type === 'breadcrumb.updated' || 
-       eventData.type === 'breadcrumb.created') && isToolRequest) {
+  // Process tool requests even if type is missing (SSE parsing issue workaround)
+  if (isToolRequest) {
     
     // 🔧 PROPER DEDUPLICATION: Prevent processing same request while in progress
     const requestId = eventData.breadcrumb_id;

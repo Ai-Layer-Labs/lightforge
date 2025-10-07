@@ -65,7 +65,14 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     if (triggerSchema === 'tool.response.v1') {
       // LLM response arrived! Parse and respond
       const llmOutput = trigger.context?.output;
-      const parsed = this.parseAgentResponse(llmOutput?.choices?.[0]?.message?.content || llmOutput);
+      
+      // Extract LLM content (this is where we might need repair)
+      const llmContent = llmOutput?.choices?.[0]?.message?.content || 
+                        llmOutput?.content ||
+                        JSON.stringify(llmOutput);
+      
+      // Use jsonrepair HERE - on LLM output only!
+      const parsed = this.parseAgentResponse(llmContent);
       return parsed;
     }
     
