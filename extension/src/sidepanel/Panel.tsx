@@ -7,7 +7,8 @@ import {
   ChatBubbleLeftIcon,
   CpuChipIcon,
   FunnelIcon,
-  TagIcon
+  TagIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { rcrtClient, type SSEFilter } from '../lib/rcrt-client';
 
@@ -24,7 +25,11 @@ export default function Panel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId] = useState<string>(`ext-conv-${Date.now()}`);
+  
+  // Context-based conversation tracking (RCRT way!)
+  const [contextId, setContextId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Array<{id: string, title: string, lastActivity: Date}>>([]);
+  
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<SSEFilter>({
     tags: ['agent:response']
@@ -96,9 +101,33 @@ export default function Panel() {
             try {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               
+              // Check for context-builder response (get context_id!)
+              if (breadcrumb.schema_name === 'tool.response.v1' && breadcrumb.context?.tool === 'context-builder') {
+                const newContextId = breadcrumb.context?.output?.results?.[0]?.context_id;
+                if (newContextId && !contextId) {
+                  console.log(`🆔 Received context_id from context-builder: ${newContextId}`);
+                  setContextId(newContextId);
+                  
+                  // Add to conversations list
+                  setConversations(prev => [
+                    ...prev,
+                    { id: newContextId, title: `Chat ${new Date().toLocaleTimeString()}`, lastActivity: new Date() }
+                  ]);
+                }
+              }
+              
               // Check if it's an agent response with actual message content
               if (breadcrumb.tags?.includes('agent:response') || breadcrumb.schema_name === 'agent.response.v1') {
                 console.log('🤖 Agent response received:', breadcrumb);
+                
+                // Check if this response is for our current context
+                const responseContextId = breadcrumb.context?.context_id || 
+                                         breadcrumb.tags?.find((t: string) => t.startsWith('context:'))?.replace('context:', '');
+                
+                if (contextId && responseContextId && responseContextId !== contextId) {
+                  console.log(`⏭️  Response for different context (${responseContextId}), skipping`);
+                  return;
+                }
                 
                 // Only show if there's an actual message (skip tool_requests-only responses)
                 const messageContent = breadcrumb.context?.message || 
@@ -141,8 +170,30 @@ export default function Panel() {
     }
   }
 
+  // Create new conversation
+  const startNewConversation = () => {
+    setContextId(null);  // Will be set when context-builder responds
+    setMessages([]);
+    console.log('🆕 Started new conversation (context will be created on first message)');
+  };
+
+  // Switch to existing conversation
+  const switchConversation = async (ctxId: string) => {
+    try {
+      setContextId(ctxId);
+      setMessages([]);
+      console.log(`🔄 Switching to conversation: ${ctxId}`);
+      
+      // Load messages from this context
+      // TODO: Fetch messages tagged with context:${ctxId}
+      
+    } catch (error) {
+      console.error('Failed to switch conversation:', error);
+    }
+  };
+
   async function sendMessage() {
-    if (!input.trim() || !connected) return;  // ← Removed isLoading check!
+    if (!input.trim() || !connected) return;
     
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -153,16 +204,28 @@ export default function Panel() {
     
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    // DON'T set isLoading! This is async/event-driven, not request-response!
     
     try {
       console.log('📤 Sending chat message to RCRT...');
       
-      // Fire and forget - response comes via SSE!
-      const result = await rcrtClient.createChatBreadcrumb({
-        role: 'user',
-        content: userMessage.content,
-        sessionId: conversationId,
+      // Tag with context_id if we have one
+      const tags = ['user:message', 'extension:chat'];
+      if (contextId) {
+        tags.push(`context:${contextId}`);
+        console.log(`🏷️  Tagging message with context:${contextId}`);
+      }
+      
+      // Create message breadcrumb
+      const result = await rcrtClient.createBreadcrumb({
+        schema_name: 'user.message.v1',
+        title: 'User Message',
+        tags: tags,
+        context: {
+          content: userMessage.content,
+          context_id: contextId,  // Also in context for clarity
+          source: 'browser-extension',
+          timestamp: new Date().toISOString()
+        }
       });
       
       console.log('✅ Chat breadcrumb created:', result.id);
@@ -173,8 +236,6 @@ export default function Panel() {
           ? { ...msg, breadcrumbId: result.id }
           : msg
       ));
-      
-      // Response will arrive via SSE when ready (no blocking!)
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
@@ -216,11 +277,24 @@ export default function Panel() {
                   <span className="status-text">
                     {connected ? 'Connected' : 'Disconnected'}
                   </span>
+                  {contextId && (
+                    <span className="context-badge" title={`Context: ${contextId}`}>
+                      💬 {contextId.substring(0, 8)}...
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             
             <div className="header-actions">
+              <button
+                onClick={startNewConversation}
+                className="icon-button"
+                title="New conversation"
+              >
+                <PlusIcon />
+              </button>
+              
               <button
                 onClick={clearChat}
                 className="icon-button"

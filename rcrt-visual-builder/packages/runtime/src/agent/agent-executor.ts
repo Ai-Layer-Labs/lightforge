@@ -128,8 +128,28 @@ export class AgentExecutorUniversal extends UniversalExecutor {
         // Otherwise, create the response breadcrumb directly
         console.log(`📤 Creating agent response breadcrumb...`);
         
+        // Extract context_id from trigger to tag response
+        const contextId = trigger.context?.context_id || 
+                         trigger.tags?.find((t: string) => t.startsWith('context:'))?.replace('context:', '');
+        
+        // Add context_id to response tags and context
+        const tags = breadcrumbDef.tags || ['agent:response', 'chat:output'];
+        if (contextId) {
+          tags.push(`context:${contextId}`);
+          console.log(`🏷️  Tagging response with context:${contextId}`);
+        }
+        
+        const contextWithId = {
+          ...breadcrumbDef.context,
+          context_id: contextId  // Include in context for routing
+        };
+        
         try {
-          const result = await this.rcrtClient.createBreadcrumb(breadcrumbDef);
+          const result = await this.rcrtClient.createBreadcrumb({
+            ...breadcrumbDef,
+            tags: tags,
+            context: contextWithId
+          });
           console.log(`✅ Agent response created: ${result.id}`);
           return { action: 'breadcrumb_created', id: result.id };
         } catch (error) {

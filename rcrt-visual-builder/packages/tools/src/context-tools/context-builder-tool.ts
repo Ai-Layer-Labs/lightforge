@@ -185,8 +185,19 @@ export class ContextBuilderTool implements RCRTTool {
     
     console.log(`🔄 Updating context for ${consumerId}...`);
     
-    // Assemble context
-    const assembled = await this.assembleContext(client, config, triggerEvent);
+    // Extract context_id from trigger event (RCRT way!)
+    const contextIdFromTag = triggerEvent.tags?.find((t: string) => t.startsWith('context:'))?.replace('context:', '');
+    const contextIdFromContext = triggerEvent.context?.context_id;
+    const currentContextId = contextIdFromTag || contextIdFromContext;
+    
+    if (currentContextId) {
+      console.log(`📌 Context ID: ${currentContextId}`);
+    } else {
+      console.log(`🆕 No context ID - will create new context`);
+    }
+    
+    // Assemble context (with context_id for filtering)
+    const assembled = await this.assembleContext(client, config, triggerEvent, currentContextId);
     
     // Find or create agent.context.v1
     const existing = await client.searchBreadcrumbs({
@@ -396,10 +407,13 @@ export class ContextBuilderTool implements RCRTTool {
   private async assembleContext(
     client: RcrtClientEnhanced,
     config: ContextConfig,
-    triggerEvent?: any
+    triggerEvent?: any,
+    contextId?: string | null
   ): Promise<any> {
     const assembled: any = {};
     const formatting = config.formatting || {};
+    
+    console.log(`🔍 Assembling context${contextId ? ` for context: ${contextId}` : ''} using ${config.sources?.length || 0} sources`);
     
     // Use trigger event for vector search query if available
     const searchQuery = triggerEvent?.context?.content || 
@@ -426,9 +440,21 @@ export class ContextBuilderTool implements RCRTTool {
               break;
             
             case 'recent':
+              // Apply context filtering for recent searches (focused conversation)
+              const recentFilters = { ...source.filters };
+              
+              // If source has conversation_scope: "current" and we have a contextId, filter by it
+              if (source.conversation_scope === 'current' && contextId) {
+                // Add context tag to filter
+                const existingTags = recentFilters.any_tags || recentFilters.tag ? 
+                  (Array.isArray(recentFilters.any_tags) ? recentFilters.any_tags : [recentFilters.tag]) : [];
+                recentFilters.any_tags = [...existingTags, `context:${contextId}`];
+                console.log(`  🎯 Filtering recent ${source.schema_name} by context:${contextId}`);
+              }
+              
               breadcrumbs = await client.searchBreadcrumbsWithContext({
                 schema_name: source.schema_name,
-                ...source.filters,
+                ...recentFilters,
                 include_context: true,
                 limit: source.limit || 10
               });

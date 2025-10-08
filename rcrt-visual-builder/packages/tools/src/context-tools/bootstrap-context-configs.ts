@@ -21,26 +21,28 @@ const defaultChatAgentContextConfig = {
     {
       schema_name: 'user.message.v1',
       method: 'recent',
-      limit: 20,  // Include last 20 for rich conversational context
+      limit: 20,
+      conversation_scope: 'current',  // ← Filter by current context!
       filters: { tag: 'extension:chat' }
     },
     {
       schema_name: 'user.message.v1',
       method: 'vector',
-      nn: 10,  // Plus 10 most relevant for context/memory
+      nn: 10,  // Semantic across ALL conversations (no context filter)
       filters: { tag: 'extension:chat' }
     },
     // Agent responses: Hybrid approach
     {
       schema_name: 'agent.response.v1',
       method: 'recent',
-      limit: 20,  // Last 20 responses for context continuity
+      limit: 20,
+      conversation_scope: 'current',  // ← Filter by current context!
       filters: { tag: 'workspace:agents' }
     },
     {
       schema_name: 'agent.response.v1',
       method: 'vector',
-      nn: 10,  // Plus 10 most relevant
+      nn: 10,  // Semantic across ALL conversations
       filters: { tag: 'workspace:agents' }
     },
     // Tool results: Recent only (chronological makes sense here)
