@@ -9,32 +9,68 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Handle both bundled and unbundled code
-const getDirname = () => {
+// Get tools source directory (where definition.json files live)
+const getToolsSourceDir = () => {
+  // In Docker: /app/packages/tools/src
+  // In local dev: relative to this file
+  
+  // Check if we're in Docker (bundled code)
+  if (fs.existsSync('/app/packages/tools/src')) {
+    return '/app/packages/tools/src';
+  }
+  
+  // Local development - use import.meta.url
   try {
     if (typeof import.meta.url !== 'undefined') {
-      return path.dirname(fileURLToPath(import.meta.url));
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      return currentDir; // Already in packages/tools/src/
     }
   } catch (e) {
-    // Fallback for bundled code
+    // Fallback
   }
-  // For bundled code, __dirname is available
-  return typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+  
+  // Last resort - try to find it relative to process.cwd()
+  const possiblePaths = [
+    'packages/tools/src',
+    '../packages/tools/src',
+    'rcrt-visual-builder/packages/tools/src'
+  ];
+  
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return path.resolve(p);
+    }
+  }
+  
+  return process.cwd();
 };
 
-const toolsDir = getDirname();
+const toolsDir = getToolsSourceDir();
 
 export async function bootstrapTools(client: RcrtClientEnhanced, workspace: string): Promise<void> {
   console.log('🔧 Dynamically discovering tools from folders...');
+  console.log(`🔍 Scanning directory: ${toolsDir}`);
+  
+  // Check if directory exists
+  if (!fs.existsSync(toolsDir)) {
+    console.error(`❌ Tools directory not found: ${toolsDir}`);
+    console.log('📊 Total tools discovered: 0');
+    return;
+  }
   
   // Scan tool folders for definition.json files
   const entries = fs.readdirSync(toolsDir, { withFileTypes: true });
   const toolDirs = entries.filter(dirent => dirent.isDirectory());
   
+  console.log(`📁 Found ${toolDirs.length} directories in ${toolsDir}`);
+  console.log(`📂 Directories: ${toolDirs.map(d => d.name).join(', ')}`);
+  
   let toolsDiscovered = 0;
   
   for (const dir of toolDirs) {
     const definitionPath = path.join(toolsDir, dir.name, 'definition.json');
+    
+    console.log(`  🔎 Checking ${dir.name}/definition.json...`);
     
     // Also check for definition-*.json pattern (for multi-tool folders like llm-tools)
     const definitionFiles = fs.existsSync(definitionPath) 
@@ -43,7 +79,12 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
           .filter(f => f.match(/^definition.*\.json$/))
           .map(f => path.join(toolsDir, dir.name, f));
     
-    if (definitionFiles.length === 0) continue;
+    if (definitionFiles.length === 0) {
+      console.log(`    ⏭️  No definition files in ${dir.name}/`);
+      continue;
+    }
+    
+    console.log(`    ✓ Found ${definitionFiles.length} definition file(s) in ${dir.name}/`);
     
     for (const defPath of definitionFiles) {
       try {
