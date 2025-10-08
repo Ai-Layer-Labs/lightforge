@@ -142,15 +142,40 @@ export class ToolLoader {
           return null;
       }
       
-      // Navigate to the export
+      // Navigate to the export (handle various notations)
       let tool = toolModule;
       if (implementation.export) {
-        const parts = implementation.export.split('.');
-        for (const part of parts) {
-          tool = tool[part];
+        const exportPath = implementation.export;
+        console.log(`[ToolLoader] Navigating export path: ${exportPath}`);
+        
+        // Try bracket notation first: builtinTools['context-builder']
+        const bracketMatch = exportPath.match(/^(\w+)\['([^']+)'\]$/);
+        if (bracketMatch) {
+          const [, obj, key] = bracketMatch;
+          tool = toolModule[obj]?.[key];
+          console.log(`[ToolLoader] Bracket notation: toolModule.${obj}['${key}']`);
           if (!tool) {
-            console.error(`[ToolLoader] Export path ${implementation.export} not found`);
+            console.error(`[ToolLoader] Not found via bracket notation`);
+            console.error(`[ToolLoader] Available in ${obj}:`, Object.keys(toolModule[obj] || {}));
             return null;
+          }
+        } else {
+          // Use dot notation: builtinTools.calculator
+          const parts = exportPath.split('.');
+          console.log(`[ToolLoader] Dot notation parts:`, parts);
+          
+          for (const part of parts) {
+            if (!tool) {
+              console.error(`[ToolLoader] Tool is null at part: ${part}`);
+              return null;
+            }
+            tool = tool[part];
+            console.log(`[ToolLoader] After ${part}: ${tool ? 'found' : 'not found'}`);
+            if (!tool) {
+              console.error(`[ToolLoader] Export path ${exportPath} not found at part: ${part}`);
+              console.error(`[ToolLoader] Available keys:`, Object.keys(toolModule));
+              return null;
+            }
           }
         }
       }

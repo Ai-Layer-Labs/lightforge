@@ -112,7 +112,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   
   /**
    * Create LLM request (fire-and-forget!)
-   * SINGLE SOURCE OF TRUTH: Pass config breadcrumb ID, tool loads it
+   * SINGLE SOURCE OF TRUTH: Config breadcrumb specifies BOTH tool AND config
    */
   private async createLLMRequest(trigger: any, context: Record<string, any>): Promise<void> {
     // Extract user message from trigger
@@ -123,13 +123,23 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     // Format context for LLM
     const contextFormatted = this.formatContextForLLM(context);
     
-    // Get LLM config breadcrumb ID (agent just references it, doesn't load it!)
+    // Get LLM config breadcrumb ID
     const configId = this.getLLMConfigId();
     
     if (!configId) {
       console.error(`❌ Agent ${this.agentDef.agent_id} has no llm_config_id set!`);
       console.error(`   Set via Dashboard UI: Agents → Edit Agent → Select LLM Configuration`);
       throw new Error('Agent has no LLM configuration set. Configure via Dashboard.');
+    }
+    
+    // Load config to get the tool name (config specifies which tool to use!)
+    let toolName = 'openrouter';  // Default fallback
+    try {
+      const configBreadcrumb = await this.rcrtClient.getBreadcrumb(configId);
+      toolName = configBreadcrumb.context.toolName || 'openrouter';
+      console.log(`✅ Config specifies tool: ${toolName}`);
+    } catch (error) {
+      console.warn(`⚠️  Failed to load config to get tool name, using default: openrouter`);
     }
     
     // Build messages for LLM
@@ -144,18 +154,18 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       }
     ];
     
-    console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request with config ID: ${configId}`);
+    console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request for tool: ${toolName} with config ID: ${configId}`);
     
     const requestId = `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Create tool request - Pass config ID (tool will load it!)
+    // Create tool request - Config breadcrumb specifies BOTH tool and config!
     await this.rcrtClient.createBreadcrumb({
       schema_name: 'tool.request.v1',
       title: 'LLM Request',
       tags: ['tool:request', 'workspace:tools', `agent:${this.agentDef.agent_id}`],
       context: {
-        tool: 'openrouter',  // Could also be read from config, but openrouter is the standard LLM tool
-        config_id: configId,  // ← SINGLE SOURCE OF TRUTH!
+        tool: toolName,  // ← From config breadcrumb! Can be openrouter, ollama, etc.
+        config_id: configId,  // ← Tool loads this to get model, temperature, etc.
         input: {
           messages: messages  // ← ONLY messages, no config data!
         },
@@ -164,7 +174,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       }
     });
     
-    console.log(`✅ [${this.agentDef.agent_id}] LLM request created (config will be loaded by tool)`);
+    console.log(`✅ [${this.agentDef.agent_id}] LLM request created for ${toolName} (config will be loaded by tool)`);
     // Return immediately! Response will arrive via SSE as tool.response.v1
   }
   

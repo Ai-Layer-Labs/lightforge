@@ -155,15 +155,28 @@ export class ModernAgentRegistry {
 
   // Route events to appropriate agents
   private async routeEventToAgent(event: any): Promise<void> {
-    // Check if this is a new agent definition being created
+    // Check if this is a new or updated agent definition
     if (event.schema_name === 'agent.def.v1' && event.tags?.includes(this.workspace)) {
-      console.log(`🆕 New agent definition detected: ${event.id}`);
+      console.log(`🔄 Agent definition updated: ${event.breadcrumb_id}`);
       try {
-        const fullBreadcrumb = await this.client.getBreadcrumb(event.id);
-        await this.registerAgent(fullBreadcrumb as AgentDefinitionV1);
+        const fullBreadcrumb = await this.client.getBreadcrumb(event.breadcrumb_id);
+        const agentId = fullBreadcrumb.context.agent_id;
+        
+        if (this.executors.has(agentId)) {
+          // Existing agent - reload it
+          console.log(`🔃 Reloading agent: ${agentId}`);
+          this.executors.delete(agentId);
+          await this.registerAgent(fullBreadcrumb as AgentDefinitionV1);
+          console.log(`✅ Agent ${agentId} reloaded with new configuration`);
+        } else {
+          // New agent - register it
+          console.log(`🆕 New agent detected: ${agentId}`);
+          await this.registerAgent(fullBreadcrumb as AgentDefinitionV1);
+        }
+        
         await this.updateCatalog();
       } catch (error) {
-        console.error(`Failed to register new agent ${event.id}:`, error);
+        console.error(`Failed to process agent definition ${event.breadcrumb_id}:`, error);
       }
     }
     
