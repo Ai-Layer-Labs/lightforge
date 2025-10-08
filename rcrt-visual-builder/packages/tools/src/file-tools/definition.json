@@ -1,0 +1,85 @@
+{
+  "schema_name": "tool.v1",
+  "title": "File Storage Tool",
+  "tags": ["tool", "tool:file-storage", "category:storage", "workspace:tools"],
+  "context": {
+    "name": "file-storage",
+    "version": "1.0.0",
+    "description": "Store and retrieve files as RCRT breadcrumbs with base64 encoding",
+    "category": "storage",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools['file-storage']",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["store", "retrieve", "list", "delete"],
+            "description": "Action to perform"
+          },
+          "filename": {"type": "string", "description": "Name of the file"},
+          "content": {"type": "string", "description": "File content (text or base64)"},
+          "mime_type": {"type": "string", "default": "text/plain"},
+          "encoding": {"type": "string", "enum": ["text", "base64"], "default": "text"},
+          "tags": {"type": "array", "items": {"type": "string"}, "default": []},
+          "file_id": {"type": "string", "description": "Breadcrumb ID (for retrieve/delete)"},
+          "file_type": {"type": "string", "description": "Filter by file type (for list)"}
+        },
+        "required": ["action"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {"type": "string"},
+          "success": {"type": "boolean"},
+          "file_id": {"type": "string"},
+          "filename": {"type": "string"},
+          "content": {"type": "string"},
+          "files": {"type": "array"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Store a file",
+          "input": {
+            "action": "store",
+            "filename": "script.js",
+            "content": "console.log('hello');",
+            "mime_type": "application/javascript",
+            "tags": ["code", "javascript"]
+          },
+          "output": {
+            "action": "store",
+            "success": true,
+            "file_id": "file-uuid-123"
+          },
+          "explanation": "Stores file as breadcrumb. Access ID with result.file_id"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 10000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/file-storage.json"
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Ollama Local LLM Tool",
+  "tags": ["tool", "tool:ollama_local", "category:llm", "workspace:tools"],
+  "context": {
+    "name": "ollama_local",
+    "version": "1.0.0",
+    "description": "Call locally-hosted Ollama models - free, private LLM inference",
+    "category": "llm",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.ollama_local",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {"type": "string", "enum": ["system", "user", "assistant"]},
+                "content": {"type": "string"}
+              }
+            }
+          },
+          "model": {"type": "string", "default": "llama2", "description": "Ollama model name"},
+          "temperature": {"type": "number", "minimum": 0, "maximum": 2, "default": 0.7}
+        },
+        "required": ["messages"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {"type": "string"},
+          "model": {"type": "string"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Local LLM call",
+          "input": {
+            "messages": [{"role": "user", "content": "Hello"}],
+            "model": "llama2"
+          },
+          "output": {"content": "Hello! How can I help you?", "model": "llama2"},
+          "explanation": "Access response with result.content"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": true,
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "ollama_host": {"type": "string", "default": "http://localhost:11434"}
+        }
+      },
+      "currentConfig": {}
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 120000,
+      "retries": 1
+    },
+    
+    "requiredSecrets": ["OLLAMA_HOST"],
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/ollama.json"
+    }
+  }
+}

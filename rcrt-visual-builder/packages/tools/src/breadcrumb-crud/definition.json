@@ -1,0 +1,92 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Breadcrumb CRUD Tool",
+  "tags": ["tool", "tool:breadcrumb-crud", "category:system", "workspace:tools"],
+  "context": {
+    "name": "breadcrumb-crud",
+    "version": "1.0.0",
+    "description": "Query, create, update, and delete breadcrumbs - full CRUD operations",
+    "category": "system",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools['breadcrumb-crud']",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["query", "search", "create", "get", "update", "delete", "list-tags"],
+            "description": "CRUD operation to perform"
+          },
+          "schema_name": {"type": "string", "description": "Filter by schema name"},
+          "tag": {"type": "string", "description": "Filter by tag"},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "limit": {"type": "number", "default": 10},
+          "id": {"type": "string", "description": "Breadcrumb ID (for get/update/delete)"},
+          "title": {"type": "string"},
+          "context": {"type": "object"},
+          "new_tags": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["action"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {"type": "string"},
+          "success": {"type": "boolean"},
+          "breadcrumb": {"type": "object"},
+          "breadcrumbs": {"type": "array"},
+          "tags": {"type": "array"},
+          "count": {"type": "number"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Search breadcrumbs",
+          "input": {"action": "search", "tag": "user:message", "limit": 5},
+          "output": {
+            "action": "search",
+            "success": true,
+            "breadcrumbs": [{"id": "uuid-123", "title": "User message"}],
+            "count": 1
+          },
+          "explanation": "Returns full breadcrumbs in result.breadcrumbs array"
+        },
+        {
+          "title": "Create breadcrumb",
+          "input": {
+            "action": "create",
+            "title": "My Note",
+            "context": {"note": "Important"},
+            "new_tags": ["note"]
+          },
+          "output": {"action": "create", "success": true, "breadcrumb": {"id": "new-uuid"}},
+          "explanation": "Created breadcrumb returned in result.breadcrumb"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 10000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/breadcrumb-crud.json"
+    }
+  }
+}

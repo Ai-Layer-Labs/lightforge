@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 /**
- * RCRT Bootstrap Script
+ * RCRT Bootstrap Script  
  * Initializes the system with essential breadcrumbs on first run
+ * 
+ * SINGLE SOURCE OF TRUTH:
+ * Agents: bootstrap-breadcrumbs/system/*.json
+ * Tools: Dynamically discovered by tools-runner
+ * Templates: bootstrap-breadcrumbs/templates/*.json
  */
 
 import fetch from 'node-fetch';
@@ -75,7 +80,6 @@ async function bootstrap() {
     });
 
     if (existingMarkers.length > 0) {
-      // Get the full breadcrumb with context
       const markerResp = await api('GET', `/breadcrumbs/${existingMarkers[0].id}`);
       if (!markerResp.ok) {
         console.log('⚠️  Could not read bootstrap marker - continuing');
@@ -92,7 +96,7 @@ async function bootstrap() {
       }
     }
 
-    // 2. Load system breadcrumbs (agents, etc.)
+    // 2. Load system breadcrumbs (agents, configs)
     console.log('\n2️⃣ Loading system breadcrumbs...');
     const systemDir = path.join(__dirname, 'system');
     const systemFiles = fs.readdirSync(systemDir)
@@ -102,13 +106,11 @@ async function bootstrap() {
       try {
         const data = JSON.parse(fs.readFileSync(path.join(systemDir, file), 'utf-8'));
         
-        // Check if already exists by schema + title (more precise than just schema)
         const existing = await searchBreadcrumbs({
           schema_name: data.schema_name,
           tag: 'system:bootstrap'
         });
         
-        // Check if exact title match exists
         const existingItem = existing.find(item => item.title === data.title);
         
         if (existingItem) {
@@ -129,50 +131,11 @@ async function bootstrap() {
       }
     }
 
-    // 3. Load tool definitions from tools/ directory
-    console.log('\n3️⃣ Loading tool definitions...');
-    const toolsDir = path.join(__dirname, 'tools');
-    
-    if (fs.existsSync(toolsDir)) {
-      const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.json'));
-      
-      for (const file of toolFiles) {
-        try {
-          const data = JSON.parse(fs.readFileSync(path.join(toolsDir, file), 'utf-8'));
-          
-          // Validate it's a tool.v1 breadcrumb
-          if (data.schema_name !== 'tool.v1') {
-            console.log(`   ⏭️  Skipping ${file} - not a tool.v1 breadcrumb`);
-            continue;
-          }
-          
-          // Check if tool already exists by name
-          const toolName = data.context?.name || file.replace('.json', '');
-          const existing = await searchBreadcrumbs({
-            schema_name: 'tool.v1',
-            tag: `tool:${toolName}`
-          });
-          
-          if (existing.length > 0) {
-            console.log(`   ⏭️  Tool '${toolName}' already exists`);
-            continue;
-          }
-          
-          const resp = await api('POST', '/breadcrumbs', data);
-          if (resp.ok) {
-            const result = await resp.json();
-            console.log(`   ✅ Created tool: ${toolName} (${result.id})`);
-          } else {
-            const errorText = await resp.text();
-            console.error(`   ❌ Failed: ${toolName} - ${resp.status}: ${errorText}`);
-          }
-        } catch (error) {
-          console.error(`   ❌ Error loading ${file}:`, error.message);
-        }
-      }
-    } else {
-      console.log('   ℹ️  No tools/ directory found - skipping tool bootstrap');
-    }
+    // 3. Tools are now dynamically discovered by tools-runner!
+    console.log('\n3️⃣ Tools discovery...');
+    console.log('   ℹ️  Tools are dynamically discovered by tools-runner');
+    console.log('   ℹ️  Each tool folder with definition.json auto-registers');
+    console.log('   ℹ️  No pre-loading needed - tools work on-demand!');
 
     // 4. Load template breadcrumbs
     console.log('\n4️⃣ Loading template library...');
@@ -183,14 +146,12 @@ async function bootstrap() {
       try {
         const data = JSON.parse(fs.readFileSync(path.join(templateDir, file), 'utf-8'));
         
-        // Add workspace tag
         if (!data.tags.includes('workspace:templates')) {
           data.tags.push('workspace:templates');
         }
         
         const resp = await api('POST', '/breadcrumbs', data);
         if (resp.ok) {
-          const result = await resp.json();
           console.log(`   ✅ Created: ${data.title}`);
         } else {
           const error = await resp.text();
@@ -217,24 +178,25 @@ async function bootstrap() {
       console.log('   ✅ Bootstrap complete!');
     }
 
-    // 6. Summary
+    // 5. Summary
     console.log('\n📊 Bootstrap Summary:');
     console.log('   • System breadcrumbs (agents, configs)');
-    console.log('   • Tool definitions (from JSON files)');
     console.log('   • Template library');
     console.log('   • Bootstrap marker');
     console.log(`   • Version: ${BOOTSTRAP_VERSION}`);
+    console.log('');
+    console.log('   ✨ Tools: Dynamically discovered by tools-runner (not pre-loaded)');
     
     console.log('\n🎯 Next Steps:');
-    console.log('   1. Agents will auto-start via agent-runner');
-    console.log('   2. Tools will auto-register via tools-runner');
+    console.log('   1. Start tools-runner → discovers all tools automatically');
+    console.log('   2. Start agent-runner → loads agents');
     console.log('   3. Visit http://localhost:8082 for dashboard');
-    console.log('   4. Install browser extension for chat interface');
+    console.log('   4. Install browser extension for chat');
     console.log('');
-    console.log('💡 To add custom breadcrumbs:');
-    console.log('   • Agents: Create JSON in system/');
-    console.log('   • Tools: Create JSON in tools/');
-    console.log('   • Then re-run: node bootstrap.js');
+    console.log('💡 Adding Components:');
+    console.log('   • Agents: Create system/*.json → run: node bootstrap.js');
+    console.log('   • Tools: Create src/my-tool/definition.json → restart tools-runner');
+    console.log('   • Tools auto-register - no bootstrap needed!');
 
   } catch (error) {
     console.error('❌ Bootstrap failed:', error);

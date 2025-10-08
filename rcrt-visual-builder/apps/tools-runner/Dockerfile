@@ -37,6 +37,11 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# CRITICAL: Copy tool source folders with definition.json files for dynamic discovery!
+# Bootstrap-tools scans these folders to find definition.json
+COPY --from=build /app/packages/tools/src ./packages/tools/src
+
 # Install production dependencies in runtime
 RUN pnpm install --prod --filter @rcrt-builder/tools-runner...
 

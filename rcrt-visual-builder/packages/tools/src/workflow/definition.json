@@ -1,0 +1,84 @@
+{
+  "schema_name": "tool.v1",
+  "title": "Workflow Orchestrator Tool",
+  "tags": ["tool", "tool:workflow", "category:orchestration", "workspace:tools"],
+  "context": {
+    "name": "workflow",
+    "version": "1.0.0",
+    "description": "Execute multi-step workflows with dependencies, parallel execution, and error handling",
+    "category": "orchestration",
+    
+    "implementation": {
+      "type": "builtin",
+      "runtime": "nodejs",
+      "module": "@rcrt-builder/tools",
+      "export": "builtinTools.workflow",
+      "instantiate": false
+    },
+    
+    "definition": {
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "description": "Array of workflow steps to execute",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "tool": {"type": "string"},
+                "input": {"type": "object"},
+                "depends_on": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "required": ["steps"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "workflow_id": {"type": "string"},
+          "steps_completed": {"type": "number"},
+          "results": {"type": "object", "description": "Results keyed by step ID"},
+          "success": {"type": "boolean"}
+        }
+      },
+      "examples": [
+        {
+          "title": "Multi-step workflow",
+          "input": {
+            "steps": [
+              {"id": "step1", "tool": "random", "input": {"min": 1, "max": 10}},
+              {"id": "step2", "tool": "calculator", "input": {"expression": "${step1.numbers[0]} * 2"}, "depends_on": ["step1"]}
+            ]
+          },
+          "output": {
+            "workflow_id": "wf-123",
+            "steps_completed": 2,
+            "results": {"step1": {"numbers": [7]}, "step2": {"result": 14}},
+            "success": true
+          },
+          "explanation": "Access results by step ID: result.results.step1, result.results.step2"
+        }
+      ]
+    },
+    
+    "configuration": {
+      "configurable": false
+    },
+    
+    "capabilities": {
+      "async": true,
+      "timeout": 300000,
+      "retries": 0
+    },
+    
+    "metadata": {
+      "author": "system",
+      "created": "2024-01-01T00:00:00Z",
+      "source_of_truth": "bootstrap-breadcrumbs/tools/workflow.json"
+    }
+  }
+}

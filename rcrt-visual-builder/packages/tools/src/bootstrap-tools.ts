@@ -1,107 +1,70 @@
 /**
  * Bootstrap script to create tool.v1 breadcrumbs for all builtin tools
- * Run this on startup to ensure all tools are discoverable
+ * DYNAMIC DISCOVERY: Scans tool folders for definition.json files
  */
 
 import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { builtinTools } from './index.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Handle both bundled and unbundled code
+const getDirname = () => {
+  try {
+    if (typeof import.meta.url !== 'undefined') {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch (e) {
+    // Fallback for bundled code
+  }
+  // For bundled code, __dirname is available
+  return typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+};
+
+const toolsDir = getDirname();
 
 export async function bootstrapTools(client: RcrtClientEnhanced, workspace: string): Promise<void> {
-  console.log('🔧 Bootstrapping RCRT tools...');
+  console.log('🔧 Dynamically discovering tools from folders...');
   
-  for (const [name, tool] of Object.entries(builtinTools)) {
-    try {
-      // Check if tool breadcrumb already exists
-      const existing = await client.searchBreadcrumbs({
-        schema_name: 'tool.v1',
-        tag: `tool:${name}`
-      });
-      
-      // Determine implementation details based on tool type
-      let implementation: any;
-      
-      // Check if it's a class instance (has a constructor that's not Object)
-      if (tool.constructor && tool.constructor.name && tool.constructor.name !== 'Object') {
-        // Class-based tool (already instantiated in builtinTools)
-        console.log(`Tool ${name} is a class instance: ${tool.constructor.name}`);
-        implementation = {
-          type: 'builtin',
-          runtime: 'nodejs',
-          module: '@rcrt-builder/tools',
-          export: `builtinTools.${name}`,
-          // Note: Already an instance, don't re-instantiate
-          instantiate: false
-        };
-      } else if (typeof tool === 'object' && tool.execute) {
-        // Simple function-based tool
-        implementation = {
-          type: 'builtin',
-          runtime: 'nodejs',
-          module: '@rcrt-builder/tools',
-          export: `builtinTools.${name}`
-        };
-      } else {
-        console.warn(`Unable to determine implementation type for tool ${name}`);
-        implementation = {
-          type: 'builtin',
-          runtime: 'nodejs',
-          module: '@rcrt-builder/tools',
-          export: `builtinTools.${name}`
-        };
-      }
-      
-      // Get tool subscriptions if defined (for auto-triggering)
-      const subscriptions = (tool as any).subscriptions || null;
-      
-      // Create tool breadcrumb
-      const toolDef = {
-        schema_name: 'tool.v1',
-        title: tool.name,
-        tags: [
-          'tool',
-          `tool:${tool.name}`,
-          `category:${tool.category || 'general'}`,
-          workspace
-        ],
-        context: {
-          name: tool.name,
-          version: tool.version || '1.0.0',
-          description: tool.description,
-          category: tool.category || 'general',
-          
-          implementation,
-          
-          definition: {
-            inputSchema: tool.inputSchema,
-            outputSchema: tool.outputSchema,
-            examples: tool.examples || []
-          },
-          
-          // Tool subscriptions (like agents!) for auto-triggering
-          subscriptions: subscriptions || undefined,
-          
-          configuration: {
-            configurable: !!tool.configSchema,
-            configSchema: tool.configSchema,
-            defaults: tool.configDefaults || {},
-            currentConfig: {}
-          },
-          
-          capabilities: {
-            async: true,
-            timeout: 30000,
-            retries: 0,
-            rateLimit: tool.rateLimit
-          },
-          
-          metadata: {
-            author: 'system',
-            created: new Date().toISOString(),
-            lastActive: new Date().toISOString(),
-            executionCount: 0
-          }
+  // Scan tool folders for definition.json files
+  const entries = fs.readdirSync(toolsDir, { withFileTypes: true });
+  const toolDirs = entries.filter(dirent => dirent.isDirectory());
+  
+  let toolsDiscovered = 0;
+  
+  for (const dir of toolDirs) {
+    const definitionPath = path.join(toolsDir, dir.name, 'definition.json');
+    
+    // Also check for definition-*.json pattern (for multi-tool folders like llm-tools)
+    const definitionFiles = fs.existsSync(definitionPath) 
+      ? [definitionPath]
+      : fs.readdirSync(path.join(toolsDir, dir.name))
+          .filter(f => f.match(/^definition.*\.json$/))
+          .map(f => path.join(toolsDir, dir.name, f));
+    
+    if (definitionFiles.length === 0) continue;
+    
+    for (const defPath of definitionFiles) {
+      try {
+        const toolDef = JSON.parse(fs.readFileSync(defPath, 'utf-8'));
+        
+        if (toolDef.schema_name !== 'tool.v1') {
+          console.log(`⏭️  Skipping ${path.basename(defPath)} - not tool.v1`);
+          continue;
         }
-      };
+        
+        const toolName = toolDef.context?.name;
+        if (!toolName) {
+          console.log(`⏭️  Skipping ${path.basename(defPath)} - no name in context`);
+          continue;
+        }
+        
+        // Check if tool breadcrumb already exists
+        const existing = await client.searchBreadcrumbs({
+          schema_name: 'tool.v1',
+          tag: `tool:${toolName}`
+        });
       
       if (existing.length > 0) {
         // Update existing tool breadcrumb
@@ -111,17 +74,20 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
           tags: toolDef.tags,
           context: toolDef.context
         });
-        console.log(`✅ Updated tool breadcrumb for ${name}`);
+        console.log(`✅ Updated tool: ${toolName} (from ${dir.name}/)`);
       } else {
-        // Create new tool breadcrumb
+        // Create new tool breadcrumb from definition.json
         await client.createBreadcrumb(toolDef);
-        console.log(`✅ Created tool breadcrumb for ${name}`);
+        console.log(`✅ Discovered tool: ${toolName} (from ${dir.name}/)`);
+        toolsDiscovered++;
       }
-      
-    } catch (error) {
-      console.error(`❌ Failed to bootstrap tool ${name}:`, error);
+      } catch (error) {
+        console.error(`❌ Failed to discover tool from ${path.basename(defPath)}:`, error);
+      }
     }
   }
+  
+  console.log(`📊 Total tools discovered: ${toolsDiscovered}`);
   
   // Create/update catalog
   await updateToolCatalog(client, workspace);

@@ -20,7 +20,6 @@ FROM base as runtime
 # Copy built packages and agent-runner dist
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/agent-runner/dist ./dist
-COPY --from=build /app/apps/agent-runner/ensure-default-agent-simple.js ./ensure-default-agent-simple.js
 COPY --from=build /app/apps/agent-runner/package.json ./package.json
 COPY --from=build /app/package.json ./root-package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
@@ -29,12 +28,16 @@ COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
 # Install production dependencies
 RUN pnpm install --prod
 
+# Note: bootstrap-breadcrumbs is copied via docker-compose.yml volume
+# or handled externally by setup.sh before Docker starts
+
 ENV NODE_ENV=production
 ENV DEPLOYMENT_MODE=docker
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD node -e "console.log('Agent runner health check')" || exit 1
 
-# Run ensure-default-agent before starting the main process
-ENTRYPOINT ["dumb-init", "--", "sh", "-c"]
-CMD ["node ensure-default-agent-simple.js; exec node dist/index.js"]
+# Bootstrap is handled externally by setup.sh
+# Agent-runner will auto-load agents from breadcrumbs
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]
