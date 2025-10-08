@@ -497,7 +497,7 @@ export default function Panel() {
         </div>
         
         <div className="conversation-id">
-          ID: {conversationId.slice(-8)}
+          {contextId ? `Context: ${contextId.slice(0, 8)}...` : 'New conversation'}
         </div>
       </div>
     </div>
