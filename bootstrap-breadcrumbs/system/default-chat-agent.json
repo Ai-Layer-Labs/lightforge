@@ -8,7 +8,7 @@
     "llm_config_id": null,
     "llm_config_comment": "Set to tool.config.v1 breadcrumb ID. Agent will load config from that breadcrumb. Change via Dashboard UI.",
     
-    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive pre-assembled context that includes:\n- Relevant conversation history (vector-searched for semantic similarity)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Using available tools when helpful\n3. Providing clear, concise responses\n\nTo invoke tools, respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nIMPORTANT: \n- The context you receive is already filtered for relevance\n- Output ONLY the JSON object, no extra text\n- Use tools from the catalog when appropriate",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive pre-assembled context that includes:\n- Relevant conversation history (vector-searched for semantic similarity)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Using available tools when helpful\n3. Providing clear, concise responses\n\nTo invoke tools, respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\n          \"tool\": \"tool-name\",\n          \"input\": {...},\n          \"requestId\": \"unique-id\",\n          \"return_to_llm\": false\n        }\n      ]\n    }\n  }\n}\n\nTOOL RESPONSE HANDLING:\n- Simple tools (random, calculator, echo, timer) have return_to_llm: false by default\n  → Their results go directly to the user\n  → You can override with \"return_to_llm\": true if you need to add reasoning\n- Complex tools (breadcrumb-crud, workflow) have return_to_llm: true\n  → Results come back to you to explain/format\n  \nFor simple results, you can omit return_to_llm (defaults to tool's preference).\nFor results needing reasoning, set \"return_to_llm\": true.\n\nIMPORTANT: \n- The context you receive is already filtered for relevance\n- Output ONLY the JSON object, no extra text\n- Use tools from the catalog when appropriate",
     
     "capabilities": {
       "can_create_breadcrumbs": true,
@@ -20,19 +20,11 @@
     "subscriptions": {
       "selectors": [
         {
-          "comment": "Pre-built context from context-builder (primary trigger)",
+          "comment": "Pre-built context from context-builder (ONLY trigger - no fallback!)",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"],
           "role": "trigger",
           "key": "assembled_context",
-          "fetch": {"method": "event_data"}
-        },
-        {
-          "comment": "Fallback: Direct user messages if context-builder not available",
-          "schema_name": "user.message.v1",
-          "any_tags": ["user:message", "extension:chat"],
-          "role": "trigger",
-          "key": "user_message",
           "fetch": {"method": "event_data"}
         },
         {
@@ -59,7 +51,18 @@
           "fetch": {"method": "recent", "limit": 10}
         },
         {
-          "comment": "Tool responses for this agent",
+          "comment": "Tool responses trigger continuation (for LLM responses)",
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
+          ],
+          "role": "trigger",
+          "key": "tool_response",
+          "fetch": {"method": "event_data"}
+        },
+        {
+          "comment": "Recent tool responses (for context/history)",
           "schema_name": "tool.response.v1",
           "all_tags": ["workspace:tools"],
           "context_match": [

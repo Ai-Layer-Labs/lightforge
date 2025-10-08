@@ -314,11 +314,14 @@ export class RCRTExtensionClient {
             // Check if this response is for our conversation
             if (breadcrumb.context?.conversation_id === conversationId ||
                 breadcrumb.tags?.includes('extension:chat')) {
-              const content = breadcrumb.context?.content || 
+              const content = breadcrumb.context?.message || 
                              breadcrumb.context?.response_text ||
-                             breadcrumb.context?.message ||
-                             'Agent responded but no content found';
-              onResponse(content);
+                             breadcrumb.context?.content;
+              
+              // Only call onResponse if there's actual content
+              if (content) {
+                onResponse(content);
+              }
             }
           } catch (error) {
             console.error('Failed to fetch agent response breadcrumb:', error);

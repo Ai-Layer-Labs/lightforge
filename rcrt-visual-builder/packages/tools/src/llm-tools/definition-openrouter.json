@@ -12,8 +12,8 @@
       "type": "builtin",
       "runtime": "nodejs",
       "module": "@rcrt-builder/tools",
-      "folder": "llm-tools",
-      "class": "OpenRouterTool"
+      "export": "builtinTools.openrouter",
+      "instantiate": false
     },
     
     "definition": {

@@ -63,17 +63,204 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     }
     
     if (triggerSchema === 'tool.response.v1') {
-      // LLM response arrived! Parse and respond
+      // Tool response arrived - could be LLM or regular tool
+      const toolName = trigger.context?.tool;
       const llmOutput = trigger.context?.output;
       
-      // Extract LLM content (this is where we might need repair)
-      const llmContent = llmOutput?.choices?.[0]?.message?.content || 
-                        llmOutput?.content ||
-                        JSON.stringify(llmOutput);
+      console.log(`🔧 [${this.agentDef.agent_id}] Tool response from: ${toolName}`);
       
-      // Use jsonrepair HERE - on LLM output only!
-      const parsed = this.parseAgentResponse(llmContent);
-      return parsed;
+      // Check if this is an LLM response (openrouter, ollama, etc.)
+      const isLLMTool = toolName === 'openrouter' || toolName === 'ollama_local' || toolName === 'anthropic';
+      
+      if (isLLMTool) {
+        // LLM response - parse and execute instructions
+        console.log(`🧠 [${this.agentDef.agent_id}] Processing LLM response...`);
+        
+        // Extract LLM content
+        const llmContent = llmOutput?.content ||
+                          llmOutput?.choices?.[0]?.message?.content || 
+                          JSON.stringify(llmOutput);
+        
+        console.log(`📝 LLM content (first 500 chars):`, llmContent.substring(0, 500));
+        
+        // Parse the agent's response
+        const parsed = this.parseAgentResponse(llmContent);
+        
+        if (!parsed) {
+          console.error(`❌ Failed to parse agent response`);
+          return { action: 'parse_failed' };
+        }
+        
+        console.log(`✅ Parsed action:`, parsed.action);
+      
+      // Execute the parsed action
+      if (parsed.action === 'create' && parsed.breadcrumb) {
+        const breadcrumbDef = parsed.breadcrumb;
+        
+        // Check if agent wants to invoke tools
+        if (breadcrumbDef.context?.tool_requests && breadcrumbDef.context.tool_requests.length > 0) {
+          console.log(`🔧 [${this.agentDef.agent_id}] Agent requesting ${breadcrumbDef.context.tool_requests.length} tool(s)...`);
+          
+          // Create tool request breadcrumbs
+          for (const toolReq of breadcrumbDef.context.tool_requests) {
+            try {
+              await this.rcrtClient.createBreadcrumb({
+                schema_name: 'tool.request.v1',
+                title: `Tool Request: ${toolReq.tool}`,
+                tags: ['tool:request', 'workspace:tools'],
+                context: {
+                  tool: toolReq.tool,
+                  input: toolReq.input,
+                  requestId: toolReq.requestId,
+                  requestedBy: this.agentDef.agent_id
+                }
+              });
+              console.log(`✅ Tool request created: ${toolReq.tool}`);
+            } catch (error) {
+              console.error(`❌ Failed to create tool request for ${toolReq.tool}:`, error);
+            }
+          }
+          
+          // Return - tool responses will trigger agent again
+          return { action: 'tools_requested', count: breadcrumbDef.context.tool_requests.length };
+        }
+        
+        // Otherwise, create the response breadcrumb directly
+        console.log(`📤 Creating agent response breadcrumb...`);
+        
+        try {
+          const result = await this.rcrtClient.createBreadcrumb(breadcrumbDef);
+          console.log(`✅ Agent response created: ${result.id}`);
+          return { action: 'breadcrumb_created', id: result.id };
+        } catch (error) {
+          console.error(`❌ Failed to create agent response:`, error);
+          return { action: 'create_failed', error };
+        }
+      }
+        
+        return parsed;
+      } else {
+        // Regular tool response - check if it should go back to LLM
+        const requestId = trigger.context?.request_id;
+        
+        // Check if the original tool request specified return_to_llm
+        // Also load tool definition to get default return_to_llm
+        let shouldReturnToLLM = false;
+        
+        try {
+          // Try to find the original tool request to see if LLM requested return
+          if (requestId) {
+            const requests = await this.rcrtClient.searchBreadcrumbs({
+              schema_name: 'tool.request.v1',
+              tag: `request:${requestId}`
+            });
+            
+            if (requests.length > 0) {
+              const reqBreadcrumb = await this.rcrtClient.getBreadcrumb(requests[0].id);
+              const explicitReturn = reqBreadcrumb.context?.return_to_llm;
+              
+              if (explicitReturn !== undefined) {
+                shouldReturnToLLM = explicitReturn;
+                console.log(`📋 Tool request explicitly set return_to_llm: ${shouldReturnToLLM}`);
+              }
+            }
+          }
+          
+          // If not explicitly set, check tool definition default
+          if (shouldReturnToLLM === undefined) {
+            const toolDefs = await this.rcrtClient.searchBreadcrumbs({
+              schema_name: 'tool.v1',
+              tag: `tool:${toolName}`
+            });
+            
+            if (toolDefs.length > 0) {
+              const toolDef = await this.rcrtClient.getBreadcrumb(toolDefs[0].id);
+              shouldReturnToLLM = toolDef.context?.response_handling?.return_to_llm ?? true;  // Default true if not specified
+              console.log(`🔧 Tool ${toolName} default return_to_llm: ${shouldReturnToLLM}`);
+            }
+          }
+        } catch (e) {
+          console.warn(`⚠️  Failed to determine return_to_llm, defaulting to true`);
+          shouldReturnToLLM = true;
+        }
+        
+        if (!shouldReturnToLLM) {
+          // Send result directly to user
+          console.log(`📤 [${this.agentDef.agent_id}] Tool result sent directly to user (no LLM)`);
+          
+          // Format simple response with tool result
+          const resultText = typeof llmOutput === 'object' 
+            ? JSON.stringify(llmOutput, null, 2)
+            : String(llmOutput);
+          
+          const message = `✅ ${toolName}: ${resultText}`;
+          
+          await this.rcrtClient.createBreadcrumb({
+            schema_name: 'agent.response.v1',
+            title: 'Tool Result',
+            tags: ['agent:response', 'chat:output'],
+            context: {
+              message: message,
+              tool_result: {
+                tool: toolName,
+                output: llmOutput
+              }
+            }
+          });
+          
+          console.log(`✅ Direct response created (skipped LLM)`);
+          return { action: 'direct_response', tool: toolName };
+        } else {
+          // Send back to LLM for reasoning
+          console.log(`🔄 [${this.agentDef.agent_id}] Sending tool result back to LLM for reasoning`);
+          
+          const toolResult = JSON.stringify(llmOutput, null, 2);
+          const userPrompt = `The ${toolName} tool returned:\n\n\`\`\`json\n${toolResult}\n\`\`\`\n\nPlease formulate a response to the user incorporating this result.`;
+          
+          const requestId = `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const configId = this.getLLMConfigId();
+          
+          if (!configId) {
+            console.error(`❌ No LLM config`);
+            return { action: 'no_llm_config' };
+          }
+          
+          let llmToolName = 'openrouter';
+          try {
+            const configBreadcrumb = await this.rcrtClient.getBreadcrumb(configId);
+            llmToolName = configBreadcrumb.context.toolName || 'openrouter';
+          } catch (e) {
+            console.warn(`Failed to load config`);
+          }
+          
+          await this.rcrtClient.createBreadcrumb({
+            schema_name: 'tool.request.v1',
+            title: 'LLM Request (with tool result)',
+            tags: ['tool:request', 'workspace:tools', `agent:${this.agentDef.agent_id}`],
+            context: {
+              tool: llmToolName,
+              config_id: configId,
+              input: {
+                messages: [
+                  {
+                    role: 'system',
+                    content: this.agentDef.system_prompt
+                  },
+                  {
+                    role: 'user',
+                    content: userPrompt
+                  }
+                ]
+              },
+              requestId: requestId,
+              requestedBy: this.agentDef.agent_id
+            }
+          });
+          
+          console.log(`✅ Tool result sent to LLM for reasoning`);
+          return { action: 'tool_result_forwarded', tool: toolName };
+        }
+      }
     }
     
     return { action: 'unknown_trigger', schema: triggerSchema };

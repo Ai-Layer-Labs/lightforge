@@ -57,6 +57,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": false,
+      "comment": "Calculation result - send directly to user"
+    },
+    
     "configuration": {
       "configurable": false
     },

@@ -49,6 +49,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": false,
+      "comment": "Simple result - send directly to user, LLM can override per request"
+    },
+    
     "configuration": {
       "configurable": false
     },

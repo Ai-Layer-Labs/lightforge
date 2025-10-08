@@ -73,6 +73,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": true,
+      "comment": "Complex results may need LLM reasoning to explain to user"
+    },
+    
     "configuration": {
       "configurable": false
     },

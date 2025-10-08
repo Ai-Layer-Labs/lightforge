@@ -40,6 +40,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": false,
+      "comment": "Echo response - send directly"
+    },
+    
     "configuration": {
       "configurable": false
     },

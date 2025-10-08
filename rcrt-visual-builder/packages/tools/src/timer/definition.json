@@ -46,6 +46,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": false,
+      "comment": "Timer result - send directly"
+    },
+    
     "configuration": {
       "configurable": false
     },

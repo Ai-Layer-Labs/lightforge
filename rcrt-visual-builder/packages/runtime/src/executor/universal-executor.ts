@@ -84,6 +84,15 @@ export abstract class UniversalExecutor {
       
       if (!subscription) {
         console.log(`⏭️ [${this.id}] No subscription for ${event.schema_name}`);
+        console.log(`🔍 [${this.id}] Event tags:`, event.tags);
+        console.log(`🔍 [${this.id}] Available subscriptions:`, 
+          this.subscriptions.map(s => ({
+            schema: s.schema_name,
+            role: s.role,
+            all_tags: s.all_tags,
+            any_tags: s.any_tags
+          }))
+        );
         return;
       }
       
@@ -247,15 +256,10 @@ export abstract class UniversalExecutor {
       if (!hasAll) return false;
     }
     
-    // Context matching (check event payload context if available)
-    if (subscription.context_match && event.context) {
-      for (const match of subscription.context_match) {
-        const value = this.getValueByPath(event.context, match.path);
-        if (!this.compareValues(value, match.value, match.op)) {
-          return false;
-        }
-      }
-    }
+    // Context matching - SKIP for initial routing
+    // SSE events don't have full breadcrumb context
+    // We'll check context_match after fetching the breadcrumb if needed
+    // For now, if schema + tags match, route the event
     
     return true;
   }

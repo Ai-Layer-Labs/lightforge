@@ -236,13 +236,16 @@ async function dispatchEventToTool(
       console.log(`🛠️  Executing tool: ${toolName} (from breadcrumb)`);
       
       
-      // Execute tool with proper context (including event bridge)
+      // Execute tool with proper context (including event bridge AND breadcrumb!)
       const startTime = Date.now();
       const result = await underlyingTool.execute(toolInput, {
         rcrtClient: client,
         agentId: breadcrumb.created_by || 'tools-runner',
         workspace: workspace,
-        metadata: { requestId: breadcrumb.id },
+        metadata: { 
+          requestId: breadcrumb.id,
+          breadcrumb: breadcrumb  // Pass full breadcrumb so tool can access config_id!
+        },
         waitForEvent: (criteria: any, timeout?: number) => globalEventBridge.waitForEvent(criteria, timeout)
       });
       

@@ -190,49 +190,17 @@ export class ModernAgentRegistry {
       }
     }
     
-    // Route to agents based on their subscriptions
+    // Route ALL events to ALL agents - let UniversalExecutor decide
+    // NO duplicate matching logic here!
     for (const [agentId, executor] of this.executors) {
-      const agentDef = executor.getDefinition();
-      
-      // Check if agent is interested in this event
-      if (this.matchesAgentSubscriptions(event, agentDef)) {
-        console.log(`📨 Routing event to agent ${agentId}`);
-        
-        // Let AgentExecutor handle the event
-        executor.processSSEEvent(event).catch((error: any) => {
+      // Let UniversalExecutor handle matching and processing
+      executor.processSSEEvent(event).catch((error: any) => {
+        // Only log errors, not "no subscription" messages
+        if (error.message !== 'no_subscription') {
           console.error(`❌ Agent ${agentId} error:`, error);
-        });
-      }
+        }
+      });
     }
-  }
-
-  // Check if event matches agent subscriptions
-  private matchesAgentSubscriptions(event: any, agentDef: AgentDefinitionV1): boolean {
-    const selectors = agentDef.context.subscriptions?.selectors || [];
-    
-    for (const selector of selectors) {
-      // Tag matching
-      if (selector.any_tags) {
-        const hasAnyTag = selector.any_tags.some((tag: string) => 
-          event.tags?.includes(tag)
-        );
-        if (hasAnyTag) return true;
-      }
-      
-      if (selector.all_tags) {
-        const hasAllTags = selector.all_tags.every((tag: string) => 
-          event.tags?.includes(tag)
-        );
-        if (hasAllTags) return true;
-      }
-      
-      // Schema matching
-      if (selector.schema_name && event.schema_name === selector.schema_name) {
-        return true;
-      }
-    }
-    
-    return false;
   }
 
   // Load agent definitions from breadcrumbs

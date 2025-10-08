@@ -111,32 +111,29 @@ export class OpenRouterTool extends SimpleLLMTool {
       throw new Error(validation as string);
     }
     
-    // SINGLE SOURCE OF TRUTH: Load config from breadcrumb ID
-    const configId = (context as any).metadata?.config_id || 
-                    (context as any).requestMetadata?.config_id;
+    // SINGLE SOURCE OF TRUTH: Get config_id from tool request context
+    // Agent puts it in the tool.request.v1 context.config_id
+    const requestBreadcrumb = context.metadata?.breadcrumb || context.requestBreadcrumb;
+    const configId = requestBreadcrumb?.context?.config_id;
     
-    let config: any;
-    let apiKey: string;
-    
-    if (configId) {
-      // Load config from specific breadcrumb
-      console.log(`[OpenRouter] Loading config from breadcrumb: ${configId}`);
-      const configBreadcrumb = await context.rcrtClient.getBreadcrumb(configId);
-      
-      if (configBreadcrumb.schema_name !== 'tool.config.v1') {
-        throw new Error(`Config breadcrumb ${configId} is not tool.config.v1`);
-      }
-      
-      config = configBreadcrumb.context.config || {};
-      apiKey = await this.getConfiguredSecret(configBreadcrumb.context.config?.apiKey, context);
-      
-      console.log(`✅ [OpenRouter] Using config from breadcrumb: model=${config.defaultModel}`);
-    } else {
-      // Fallback: load from tag-based search (backward compatibility)
-      console.warn(`[OpenRouter] No config_id provided, using fallback search`);
-      config = await this.loadToolConfiguration(context);
-      apiKey = await this.getConfiguredSecret(config.apiKey, context);
+    if (!configId) {
+      console.error(`[OpenRouter] No config_id in tool request!`);
+      console.error(`[OpenRouter] Request context:`, JSON.stringify(requestBreadcrumb?.context || {}, null, 2));
+      throw new Error('OpenRouter requires config_id in tool request. Agent must pass llm_config_id.');
     }
+    
+    // Load config from specific breadcrumb
+    console.log(`[OpenRouter] Loading config from breadcrumb: ${configId}`);
+    const configBreadcrumb = await context.rcrtClient.getBreadcrumb(configId);
+    
+    if (configBreadcrumb.schema_name !== 'tool.config.v1') {
+      throw new Error(`Config breadcrumb ${configId} is not tool.config.v1`);
+    }
+    
+    const config = configBreadcrumb.context.config || {};
+    const apiKey = await this.getConfiguredSecret(configBreadcrumb.context.config?.apiKey, context);
+    
+    console.log(`✅ [OpenRouter] Using config from breadcrumb: model=${config.defaultModel}`);
     
     // Use config from breadcrumb (input can override if needed for special cases)
     const model = input.model || config.defaultModel || 'google/gemini-2.5-flash';

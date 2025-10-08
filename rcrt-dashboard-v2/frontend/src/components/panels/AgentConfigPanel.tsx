@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelectedNodes } from '../../stores/DashboardStore';
+import { SubscriptionEditor } from './SubscriptionEditor';
 import {
   CpuChipIcon,
   Cog6ToothIcon,
@@ -529,40 +530,20 @@ export function AgentConfigPanel() {
               </div>
             </div>
 
-            {/* Subscriptions Preview */}
+            {/* Subscriptions Editor */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Subscriptions ({formData.subscriptions?.selectors?.length || 0})
-              </label>
-              <div className="bg-gray-800/50 rounded border border-gray-700 p-3 max-h-60 overflow-y-auto">
-                {formData.subscriptions?.selectors.map((selector, idx) => (
-                  <div key={idx} className="mb-2 pb-2 border-b border-gray-700 last:border-0">
-                    <div className="text-xs text-gray-400 mb-1">
-                      {selector.comment || 'Subscription ' + (idx + 1)}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {selector.schema_name && (
-                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs">
-                          schema: {selector.schema_name}
-                        </span>
-                      )}
-                      {selector.role && (
-                        <span className="px-2 py-0.5 bg-green-500/20 text-green-300 rounded text-xs">
-                          role: {selector.role}
-                        </span>
-                      )}
-                      {selector.any_tags && (
-                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">
-                          tags: {selector.any_tags.join(', ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Advanced: Edit subscriptions by modifying the JSON directly
-              </p>
+              <SubscriptionEditor
+                subscriptions={formData.subscriptions?.selectors || []}
+                onChange={(newSelectors) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    subscriptions: {
+                      ...prev.subscriptions,
+                      selectors: newSelectors
+                    }
+                  }));
+                }}
+              />
             </div>
 
             {/* Metadata Preview */}

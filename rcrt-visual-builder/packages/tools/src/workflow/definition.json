@@ -65,6 +65,11 @@
       ]
     },
     
+    "response_handling": {
+      "return_to_llm": true,
+      "comment": "Complex workflow results need LLM to explain"
+    },
+    
     "configuration": {
       "configurable": false
     },

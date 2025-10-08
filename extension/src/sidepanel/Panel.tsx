@@ -96,54 +96,22 @@ export default function Panel() {
             try {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               
-              // Check if it's an agent response (the actual chat response)
+              // Check if it's an agent response with actual message content
               if (breadcrumb.tags?.includes('agent:response') || breadcrumb.schema_name === 'agent.response.v1') {
                 console.log('🤖 Agent response received:', breadcrumb);
                 
-                // Extract message from various possible locations
-                let messageContent = breadcrumb.context?.message || 
-                                   breadcrumb.context?.response_text ||
-                                   breadcrumb.context?.content ||
-                                   breadcrumb.context?.text ||
-                                   breadcrumb.message ||  // Top level
-                                   'Agent responded but no content found';
+                // Only show if there's an actual message (skip tool_requests-only responses)
+                const messageContent = breadcrumb.context?.message || 
+                                      breadcrumb.context?.response_text ||
+                                      breadcrumb.context?.content ||
+                                      breadcrumb.context?.text;
                 
-                // If still object, try to stringify
-                if (typeof messageContent === 'object') {
-                  messageContent = JSON.stringify(messageContent, null, 2);
+                if (!messageContent) {
+                  console.log('⏭️  Response has no message (probably tool invocation), skipping');
+                  return;
                 }
                 
-                // If the content looks like JSON or has json code block, try to parse it
-                if (typeof messageContent === 'string') {
-                  // Check if it starts with ```json or just {
-                  const trimmed = messageContent.trim();
-                  if (trimmed.startsWith('```json') || trimmed.startsWith('{')) {
-                    try {
-                      // Remove ```json wrapper if present
-                      const jsonContent = messageContent
-                        .replace(/^```json\s*\n?/, '')
-                        .replace(/\n?```\s*$/, '')
-                        .trim();
-                      
-                      const parsed = JSON.parse(jsonContent);
-                      
-                      // Extract the actual message from the agent's JSON response
-                      if (parsed.breadcrumb?.context?.message) {
-                        messageContent = parsed.breadcrumb.context.message;
-                      } else if (parsed.action === 'create' && parsed.breadcrumb?.context?.message) {
-                        messageContent = parsed.breadcrumb.context.message;
-                      } else if (parsed.message) {
-                        // Sometimes the message might be at the top level
-                        messageContent = parsed.message;
-                      }
-                      
-                      console.log('Successfully parsed agent response:', messageContent);
-                    } catch (e) {
-                      console.error('Could not parse agent response as JSON:', e);
-                      console.log('Raw content:', messageContent);
-                    }
-                  }
-                }
+                console.log('✅ Message extracted:', messageContent);
                 
                 const assistantMessage: ChatMessage = {
                   id: `agent-${Date.now()}`,
@@ -154,7 +122,6 @@ export default function Panel() {
                 };
                 
                 setMessages(prev => [...prev, assistantMessage]);
-                // No setIsLoading(false) - we never blocked in the first place!
               }
               
               if (breadcrumb.tags?.includes('agent:error')) {
