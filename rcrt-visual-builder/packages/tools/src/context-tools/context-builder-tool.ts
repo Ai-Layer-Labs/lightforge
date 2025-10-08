@@ -185,24 +185,25 @@ export class ContextBuilderTool implements RCRTTool {
     
     console.log(`🔄 Updating context for ${consumerId}...`);
     
-    // Extract context_id from trigger event (RCRT way!)
-    const contextIdFromTag = triggerEvent.tags?.find((t: string) => t.startsWith('context:'))?.replace('context:', '');
-    const contextIdFromContext = triggerEvent.context?.context_id;
-    const currentContextId = contextIdFromTag || contextIdFromContext;
+    // Extract session from trigger event tags (session:xxx)
+    const sessionTag = triggerEvent.tags?.find((t: string) => t.startsWith('session:'));
+    const sessionId = sessionTag?.replace('session:', '') || triggerEvent.context?.session_id;
     
-    if (currentContextId) {
-      console.log(`📌 Context ID: ${currentContextId}`);
+    if (sessionId) {
+      console.log(`📌 Session: ${sessionId}`);
     } else {
-      console.log(`🆕 No context ID - will create new context`);
+      console.log(`🆕 No session tag - will create new session`);
     }
     
-    // Assemble context (with context_id for filtering)
-    const assembled = await this.assembleContext(client, config, triggerEvent, currentContextId);
+    // Assemble context (with session for filtering)
+    const assembled = await this.assembleContext(client, config, triggerEvent, sessionId);
     
-    // Find or create agent.context.v1
+    // Find ACTIVE context breadcrumb for this consumer
+    // Agent subscribes to consumer:default-chat-assistant tag
+    // Multiple sessions can exist, but only one has the active tag
     const existing = await client.searchBreadcrumbs({
       schema_name: config.output.schema_name,
-      tag: `consumer:${consumerId}`
+      tag: `consumer:${consumerId}`  // Only finds the ACTIVE one
     });
     
     const contextData = {
@@ -440,16 +441,16 @@ export class ContextBuilderTool implements RCRTTool {
               break;
             
             case 'recent':
-              // Apply context filtering for recent searches (focused conversation)
+              // Apply session filtering for recent searches (focused conversation)
               const recentFilters = { ...source.filters };
               
-              // If source has conversation_scope: "current" and we have a contextId, filter by it
+              // If source has conversation_scope: "current" and we have a sessionId, filter by it
               if (source.conversation_scope === 'current' && contextId) {
-                // Add context tag to filter
+                // Add session tag to filter
                 const existingTags = recentFilters.any_tags || recentFilters.tag ? 
                   (Array.isArray(recentFilters.any_tags) ? recentFilters.any_tags : [recentFilters.tag]) : [];
-                recentFilters.any_tags = [...existingTags, `context:${contextId}`];
-                console.log(`  🎯 Filtering recent ${source.schema_name} by context:${contextId}`);
+                recentFilters.any_tags = [...existingTags, `session:${contextId}`];
+                console.log(`  🎯 Filtering recent ${source.schema_name} by session:${contextId}`);
               }
               
               breadcrumbs = await client.searchBreadcrumbsWithContext({

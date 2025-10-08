@@ -26,9 +26,9 @@ export default function Panel() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // Context-based conversation tracking (RCRT way!)
-  const [contextId, setContextId] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<Array<{id: string, title: string, lastActivity: Date}>>([]);
+  // Session-based conversation tracking (RCRT way - via tags!)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<Array<{id: string, title: string, lastActivity: Date}>>([]);
   
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<SSEFilter>({
@@ -101,17 +101,17 @@ export default function Panel() {
             try {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               
-              // Check for context-builder response (get context_id!)
+              // Check for context-builder response (session created!)
               if (breadcrumb.schema_name === 'tool.response.v1' && breadcrumb.context?.tool === 'context-builder') {
-                const newContextId = breadcrumb.context?.output?.results?.[0]?.context_id;
-                if (newContextId && !contextId) {
-                  console.log(`🆔 Received context_id from context-builder: ${newContextId}`);
-                  setContextId(newContextId);
+                const sessionId = breadcrumb.context?.output?.results?.[0]?.context_id;
+                if (sessionId && !activeSessionId) {
+                  console.log(`🆔 Session created: ${sessionId}`);
+                  setActiveSessionId(sessionId);
                   
-                  // Add to conversations list
-                  setConversations(prev => [
+                  // Add to sessions list
+                  setSessions(prev => [
                     ...prev,
-                    { id: newContextId, title: `Chat ${new Date().toLocaleTimeString()}`, lastActivity: new Date() }
+                    { id: sessionId, title: `Session ${new Date().toLocaleTimeString()}`, lastActivity: new Date() }
                   ]);
                 }
               }
@@ -120,12 +120,11 @@ export default function Panel() {
               if (breadcrumb.tags?.includes('agent:response') || breadcrumb.schema_name === 'agent.response.v1') {
                 console.log('🤖 Agent response received:', breadcrumb);
                 
-                // Check if this response is for our current context
-                const responseContextId = breadcrumb.context?.context_id || 
-                                         breadcrumb.tags?.find((t: string) => t.startsWith('context:'))?.replace('context:', '');
+                // Check if this response is for our active session
+                const responseSessionId = breadcrumb.context?.session_id;
                 
-                if (contextId && responseContextId && responseContextId !== contextId) {
-                  console.log(`⏭️  Response for different context (${responseContextId}), skipping`);
+                if (activeSessionId && responseSessionId && responseSessionId !== activeSessionId) {
+                  console.log(`⏭️  Response for different session (${responseSessionId}), skipping`);
                   return;
                 }
                 
@@ -170,25 +169,72 @@ export default function Panel() {
     }
   }
 
-  // Create new conversation
-  const startNewConversation = () => {
-    setContextId(null);  // Will be set when context-builder responds
-    setMessages([]);
-    console.log('🆕 Started new conversation (context will be created on first message)');
+  // Create new session (creates new agent.context.v1 breadcrumb)
+  const startNewSession = async () => {
+    try {
+      console.log('🆕 Creating new session...');
+      
+      // Create new agent.context.v1 breadcrumb with consumer tag
+      const result = await rcrtClient.createBreadcrumb({
+        schema_name: 'agent.context.v1',
+        title: `Chat Session ${new Date().toLocaleTimeString()}`,
+        tags: ['agent:context', 'consumer:default-chat-assistant', `session:${Date.now()}`],
+        context: {
+          consumer_id: 'default-chat-assistant',
+          created_at: new Date().toISOString(),
+          messages: []
+        }
+      });
+      
+      setActiveSessionId(result.id);
+      setMessages([]);
+      setSessions(prev => [...prev, {
+        id: result.id,
+        title: `Session ${new Date().toLocaleTimeString()}`,
+        lastActivity: new Date()
+      }]);
+      
+      console.log(`✅ New session created: ${result.id}`);
+    } catch (error) {
+      console.error('Failed to create new session:', error);
+    }
   };
 
-  // Switch to existing conversation
-  const switchConversation = async (ctxId: string) => {
+  // Switch sessions by updating tags
+  const switchSession = async (sessionId: string) => {
+    if (!activeSessionId) return;
+    
     try {
-      setContextId(ctxId);
-      setMessages([]);
-      console.log(`🔄 Switching to conversation: ${ctxId}`);
+      console.log(`🔄 Switching from ${activeSessionId} to ${sessionId}...`);
       
-      // Load messages from this context
-      // TODO: Fetch messages tagged with context:${ctxId}
+      // Get both sessions
+      const [currentSession, targetSession] = await Promise.all([
+        rcrtClient.getBreadcrumb(activeSessionId),
+        rcrtClient.getBreadcrumb(sessionId)
+      ]);
       
+      // Remove consumer tag from current session (pause it)
+      const pausedTags = currentSession.tags.filter((t: string) => t !== 'consumer:default-chat-assistant');
+      pausedTags.push('consumer:default-chat-assistant-paused');
+      
+      // Add consumer tag to target session (activate it)
+      const activeTags = targetSession.tags.filter((t: string) => t !== 'consumer:default-chat-assistant-paused');
+      if (!activeTags.includes('consumer:default-chat-assistant')) {
+        activeTags.push('consumer:default-chat-assistant');
+      }
+      
+      // Update both
+      await Promise.all([
+        rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, { tags: pausedTags }),
+        rcrtClient.updateBreadcrumb(sessionId, targetSession.version, { tags: activeTags })
+      ]);
+      
+      setActiveSessionId(sessionId);
+      setMessages([]);  // TODO: Load messages from new session
+      
+      console.log(`✅ Switched to session: ${sessionId}`);
     } catch (error) {
-      console.error('Failed to switch conversation:', error);
+      console.error('Failed to switch session:', error);
     }
   };
 
@@ -208,11 +254,11 @@ export default function Panel() {
     try {
       console.log('📤 Sending chat message to RCRT...');
       
-      // Tag with context_id if we have one
+      // Tag with session if we have one
       const tags = ['user:message', 'extension:chat'];
-      if (contextId) {
-        tags.push(`context:${contextId}`);
-        console.log(`🏷️  Tagging message with context:${contextId}`);
+      if (activeSessionId) {
+        tags.push(`session:${activeSessionId}`);
+        console.log(`🏷️  Tagging message with session:${activeSessionId}`);
       }
       
       // Create message breadcrumb
@@ -222,7 +268,7 @@ export default function Panel() {
         tags: tags,
         context: {
           content: userMessage.content,
-          context_id: contextId,  // Also in context for clarity
+          session_id: activeSessionId,  // Session breadcrumb ID
           source: 'browser-extension',
           timestamp: new Date().toISOString()
         }
@@ -277,9 +323,9 @@ export default function Panel() {
                   <span className="status-text">
                     {connected ? 'Connected' : 'Disconnected'}
                   </span>
-                  {contextId && (
-                    <span className="context-badge" title={`Context: ${contextId}`}>
-                      💬 {contextId.substring(0, 8)}...
+                  {activeSessionId && (
+                    <span className="context-badge" title={`Session: ${activeSessionId}`}>
+                      💬 {activeSessionId.substring(0, 8)}...
                     </span>
                   )}
                 </div>
@@ -288,9 +334,9 @@ export default function Panel() {
             
             <div className="header-actions">
               <button
-                onClick={startNewConversation}
+                onClick={startNewSession}
                 className="icon-button"
-                title="New conversation"
+                title="New session"
               >
                 <PlusIcon />
               </button>
@@ -497,7 +543,7 @@ export default function Panel() {
         </div>
         
         <div className="conversation-id">
-          {contextId ? `Context: ${contextId.slice(0, 8)}...` : 'New conversation'}
+          {activeSessionId ? `Session: ${activeSessionId.slice(0, 8)}...` : 'No active session'}
         </div>
       </div>
     </div>
