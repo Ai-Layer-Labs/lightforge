@@ -61,19 +61,23 @@ export class ToolLoader {
    */
   async loadToolByName(toolName: string): Promise<RCRTTool | null> {
     try {
+      console.log(`[ToolLoader] Searching for tool: ${toolName} with tag tool:${toolName}`);
+      
       // Search for tool.v1 breadcrumb
       const toolBreadcrumbs = await this.client.searchBreadcrumbs({
         schema_name: 'tool.v1',
-        tag: `tool:${toolName}`,
-        workspace: this.workspace,
-        limit: 1
+        tag: `tool:${toolName}`
       });
+      
+      console.log(`[ToolLoader] Found ${toolBreadcrumbs.length} breadcrumbs for ${toolName}`);
       
       if (toolBreadcrumbs.length === 0) {
         console.error(`[ToolLoader] No tool.v1 breadcrumb found for ${toolName}`);
+        console.error(`[ToolLoader] Searched with: schema_name=tool.v1, tag=tool:${toolName}`);
         return null;
       }
       
+      console.log(`[ToolLoader] Loading tool from breadcrumb: ${toolBreadcrumbs[0].id}`);
       return await this.loadToolFromBreadcrumb(toolBreadcrumbs[0].id);
     } catch (error) {
       console.error(`[ToolLoader] Failed to load tool ${toolName}:`, error);
@@ -352,8 +356,7 @@ export class ToolLoader {
     try {
       const toolBreadcrumbs = await this.client.searchBreadcrumbs({
         schema_name: 'tool.v1',
-        workspace: this.workspace,
-        limit: 1000
+        tag: this.workspace
       });
       
       const tools = await Promise.all(

@@ -104,7 +104,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   }
   
   /**
+   * Get LLM config breadcrumb ID from agent definition
+   */
+  private getLLMConfigId(): string | null {
+    return (this.agentDef as any).llm_config_id || null;
+  }
+  
+  /**
    * Create LLM request (fire-and-forget!)
+   * SINGLE SOURCE OF TRUTH: Pass config breadcrumb ID, tool loads it
    */
   private async createLLMRequest(trigger: any, context: Record<string, any>): Promise<void> {
     // Extract user message from trigger
@@ -114,6 +122,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     
     // Format context for LLM
     const contextFormatted = this.formatContextForLLM(context);
+    
+    // Get LLM config breadcrumb ID (agent just references it, doesn't load it!)
+    const configId = this.getLLMConfigId();
+    
+    if (!configId) {
+      console.error(`❌ Agent ${this.agentDef.agent_id} has no llm_config_id set!`);
+      console.error(`   Set via Dashboard UI: Agents → Edit Agent → Select LLM Configuration`);
+      throw new Error('Agent has no LLM configuration set. Configure via Dashboard.');
+    }
     
     // Build messages for LLM
     const messages = [
@@ -127,28 +144,27 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       }
     ];
     
-    console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request (async)...`);
+    console.log(`📤 [${this.agentDef.agent_id}] Creating LLM request with config ID: ${configId}`);
     
     const requestId = `llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Create tool request (fire-and-forget!)
+    // Create tool request - Pass config ID (tool will load it!)
     await this.rcrtClient.createBreadcrumb({
       schema_name: 'tool.request.v1',
       title: 'LLM Request',
-      tags: ['tool:request', 'workspace:tools', `agent:${this.agentDef.agent_id}`],  // Tag with agent ID!
+      tags: ['tool:request', 'workspace:tools', `agent:${this.agentDef.agent_id}`],
       context: {
-        tool: 'openrouter',
+        tool: 'openrouter',  // Could also be read from config, but openrouter is the standard LLM tool
+        config_id: configId,  // ← SINGLE SOURCE OF TRUTH!
         input: {
-          model: this.agentDef.model,
-          messages: messages,
-          temperature: this.agentDef.temperature || 0.7
+          messages: messages  // ← ONLY messages, no config data!
         },
         requestId: requestId,
         requestedBy: this.agentDef.agent_id
       }
     });
     
-    console.log(`✅ [${this.agentDef.agent_id}] LLM request created, returning immediately`);
+    console.log(`✅ [${this.agentDef.agent_id}] LLM request created (config will be loaded by tool)`);
     // Return immediately! Response will arrive via SSE as tool.response.v1
   }
   

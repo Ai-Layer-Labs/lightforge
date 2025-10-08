@@ -12,7 +12,7 @@
       "type": "builtin",
       "runtime": "nodejs",
       "module": "@rcrt-builder/tools",
-      "export": "contextBuilderTool",
+      "export": "builtinTools['context-builder']",
       "instantiate": false
     },
     
@@ -53,8 +53,8 @@
             "consumer": "default-chat-assistant",
             "assembled_context": {
               "user_message": "Hello",
-              "tools": [...],
-              "history": [...]
+              "tools": [],
+              "history": []
             }
           },
           "explanation": "Context builder creates agent.context.v1 breadcrumb with assembled data"

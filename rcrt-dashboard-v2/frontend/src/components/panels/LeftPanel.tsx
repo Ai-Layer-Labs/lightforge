@@ -4,36 +4,118 @@ import { useNodes, useSelectedNodes, useDashboard } from '../../stores/Dashboard
 import { FilterPanel } from './FilterPanel';
 import { CreatePanel } from './CreatePanel';
 import { DetailsPanel } from './DetailsPanel';
+import { AgentConfigPanel } from './AgentConfigPanel';
 
 export function LeftPanel() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details' | 'agents'>('filters');
+  const [panelWidth, setPanelWidth] = useState(350);
+  const [isResizing, setIsResizing] = useState(false);
   
   const nodes = useNodes();
   const selectedNodes = useSelectedNodes();
   
-  // Auto-switch to details when node is selected
-  React.useEffect(() => {
-    if (selectedNodes.length > 0 && activeTab !== 'details') {
-      setActiveTab('details');
-    }
-  }, [selectedNodes.length, activeTab]);
+  // Handle resize
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startX;
+      const newWidth = Math.max(250, Math.min(600, startWidth + diff));
+      setPanelWidth(newWidth);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
   
-  const tabs = [
-    { id: 'filters', label: 'Filters', icon: '🔍', count: nodes.filter(n => !n.state.filtered).length },
-    { id: 'create', label: 'Create', icon: '➕', count: null },
-    { id: 'details', label: 'Details', icon: '📋', count: selectedNodes.length > 0 ? selectedNodes.length : null },
-  ];
+  // Auto-switch tabs based on what's selected
+  React.useEffect(() => {
+    if (selectedNodes.length > 0) {
+      const node = selectedNodes[0];
+      
+      // Agent-definition nodes → open Agent Config
+      if (node.type === 'agent-definition' || 
+          node.metadata?.schema === 'agent.def.v1' ||
+          node.data?.schema_name === 'agent.def.v1') {
+        setActiveTab('agents');
+      } 
+      // Other nodes → open Details
+      else if (activeTab !== 'details' && activeTab !== 'agents') {
+        setActiveTab('details');
+      }
+    }
+  }, [selectedNodes.length, selectedNodes]);
+  
+  // Dynamically organize tabs based on state
+  const tabs = React.useMemo(() => {
+    const allTabs = [
+      { 
+        id: 'filters', 
+        label: 'Filters', 
+        icon: '🔍', 
+        count: nodes.filter(n => !n.state.filtered).length,
+        priority: selectedNodes.length > 0 ? 2 : 1  // Lower priority when something selected
+      },
+      { 
+        id: 'create', 
+        label: 'Create', 
+        icon: '➕', 
+        count: null,
+        priority: 3  // Always available
+      },
+      { 
+        id: 'agents', 
+        label: 'Agents', 
+        icon: '🤖', 
+        count: null,
+        priority: 3  // Always available
+      },
+      { 
+        id: 'details', 
+        label: 'Details', 
+        icon: '📋', 
+        count: selectedNodes.length,
+        priority: selectedNodes.length > 0 ? 1 : 4,  // Highest priority when something selected
+        hidden: selectedNodes.length === 0  // Hide when nothing selected
+      },
+    ];
+    
+    // Filter out hidden tabs and sort by priority
+    return allTabs
+      .filter(tab => !tab.hidden)
+      .sort((a, b) => a.priority - b.priority);
+  }, [nodes, selectedNodes]);
   
   return (
     <motion.div
-      className="left-panel bg-black/20 backdrop-blur-md border-r border-white/10 flex flex-col"
-      animate={{ 
-        width: isCollapsed ? 60 : 350,
-        minWidth: isCollapsed ? 60 : 300,
+      className="left-panel bg-black/20 backdrop-blur-md border-r border-white/10 flex flex-col relative"
+      style={{ 
+        width: isCollapsed ? 60 : panelWidth,
+        minWidth: isCollapsed ? 60 : 250,
+        maxWidth: isCollapsed ? 60 : 600,
       }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
     >
+      {/* Resize Handle */}
+      {!isCollapsed && (
+        <div
+          className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors z-10 ${
+            isResizing ? 'bg-blue-500' : 'bg-transparent'
+          }`}
+          onMouseDown={handleMouseDown}
+          style={{ touchAction: 'none' }}
+        />
+      )}
       {/* Panel Header */}
       <div className="panel-header p-4 border-b border-white/10">
         <div className="flex items-center justify-between">
@@ -103,6 +185,7 @@ export function LeftPanel() {
             >
               {activeTab === 'filters' && <FilterPanel />}
               {activeTab === 'create' && <CreatePanel />}
+              {activeTab === 'agents' && <AgentConfigPanel />}
               {activeTab === 'details' && <DetailsPanel />}
             </motion.div>
           )}

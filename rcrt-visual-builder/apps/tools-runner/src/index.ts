@@ -207,12 +207,15 @@ async function dispatchEventToTool(
       
       // RCRT-Native: Load tool from breadcrumbs ONLY
       console.log(`🔍 Loading tool ${toolName} from breadcrumbs...`);
+      console.log(`🔍 Workspace: ${workspace}`);
+      
       const { ToolLoader } = await import('@rcrt-builder/tools');
       const loader = new ToolLoader(client, workspace);
       const underlyingTool = await loader.loadToolByName(toolName);
       
       if (!underlyingTool) {
         console.error(`❌ Tool ${toolName} not found in breadcrumbs`);
+        console.error(`❌ Available tools:`, await loader.discoverTools());
         
         // Create error response
         await client.createBreadcrumb({

@@ -111,13 +111,34 @@ export class OpenRouterTool extends SimpleLLMTool {
       throw new Error(validation as string);
     }
     
-    // Load tool configuration from breadcrumb
-    const config = await this.loadToolConfiguration(context);
+    // SINGLE SOURCE OF TRUTH: Load config from breadcrumb ID
+    const configId = (context as any).metadata?.config_id || 
+                    (context as any).requestMetadata?.config_id;
     
-    // Get API key from configured secret
-    const apiKey = await this.getConfiguredSecret(config.apiKey, context);
+    let config: any;
+    let apiKey: string;
     
-    // Choose model from config or input
+    if (configId) {
+      // Load config from specific breadcrumb
+      console.log(`[OpenRouter] Loading config from breadcrumb: ${configId}`);
+      const configBreadcrumb = await context.rcrtClient.getBreadcrumb(configId);
+      
+      if (configBreadcrumb.schema_name !== 'tool.config.v1') {
+        throw new Error(`Config breadcrumb ${configId} is not tool.config.v1`);
+      }
+      
+      config = configBreadcrumb.context.config || {};
+      apiKey = await this.getConfiguredSecret(configBreadcrumb.context.config?.apiKey, context);
+      
+      console.log(`✅ [OpenRouter] Using config from breadcrumb: model=${config.defaultModel}`);
+    } else {
+      // Fallback: load from tag-based search (backward compatibility)
+      console.warn(`[OpenRouter] No config_id provided, using fallback search`);
+      config = await this.loadToolConfiguration(context);
+      apiKey = await this.getConfiguredSecret(config.apiKey, context);
+    }
+    
+    // Use config from breadcrumb (input can override if needed for special cases)
     const model = input.model || config.defaultModel || 'google/gemini-2.5-flash';
     
     try {

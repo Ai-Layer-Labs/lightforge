@@ -4,9 +4,9 @@
   "tags": ["agent:def", "workspace:agents", "chat:default", "system:bootstrap"],
   "context": {
     "agent_id": "default-chat-assistant",
-    "model": "openrouter/anthropic/claude-3.5-sonnet",
-    "temperature": 0.7,
-    "max_tokens": 4000,
+    
+    "llm_config_id": null,
+    "llm_config_comment": "Set to tool.config.v1 breadcrumb ID. Agent will load config from that breadcrumb. Change via Dashboard UI.",
     
     "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\nYou receive pre-assembled context that includes:\n- Relevant conversation history (vector-searched for semantic similarity)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n\nThe context is already optimized and formatted. Just focus on:\n1. Understanding the user's request\n2. Using available tools when helpful\n3. Providing clear, concise responses\n\nTo invoke tools, respond with valid JSON:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\"],\n    \"context\": {\n      \"message\": \"Your response to the user\",\n      \"tool_requests\": [\n        {\"tool\": \"tool-name\", \"input\": {...}, \"requestId\": \"unique-id\"}\n      ]\n    }\n  }\n}\n\nIMPORTANT: \n- The context you receive is already filtered for relevance\n- Output ONLY the JSON object, no extra text\n- Use tools from the catalog when appropriate",
     
@@ -73,7 +73,7 @@
     },
     
     "metadata": {
-      "version": "3.1.0",
+      "version": "4.0.0",
       "architecture": "universal-executor",
       "created_by": "system",
       "purpose": "General purpose chat interface with context-builder integration",
@@ -84,7 +84,14 @@
         "Browser context awareness",
         "Dynamic tool discovery",
         "Fetch-on-trigger pattern",
+        "Configurable LLM via breadcrumb",
         "Zero hardcoding"
+      ],
+      "configuration_notes": [
+        "LLM configured via tool.config.v1 breadcrumb",
+        "Change LLM by updating tool:config breadcrumb tag",
+        "Supports any LLM tool (openrouter, ollama, custom)",
+        "No hardcoded defaults - fully dynamic"
       ]
     }
   }
