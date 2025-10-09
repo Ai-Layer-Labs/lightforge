@@ -410,6 +410,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   
   /**
    * Create agent response breadcrumb
+   * THE RCRT WAY: Inherit session tags from trigger to keep conversations isolated
    */
   protected async respond(trigger: any, result: any): Promise<void> {
     // If async action, don't create response (waiting for continuation)
@@ -420,6 +421,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     
     const breadcrumbDef = result.breadcrumb || result;
     
+    // THE RCRT WAY: Extract session tag from trigger to maintain conversation isolation
+    const sessionTag = trigger.tags?.find((t: string) => t.startsWith('session:'));
+    const baseTags = breadcrumbDef.tags || ['agent:response', 'chat:output'];
+    
+    // Add session tag if found (keeps responses in same session as trigger)
+    const tags = sessionTag && !baseTags.includes(sessionTag)
+      ? [...baseTags, sessionTag]
+      : baseTags;
+    
     // Add creator metadata
     const context = {
       ...breadcrumbDef.context,
@@ -427,17 +437,18 @@ export class AgentExecutorUniversal extends UniversalExecutor {
         type: 'agent',
         agent_id: this.agentDef.agent_id
       },
-      trigger_id: trigger.id
+      trigger_id: trigger.id,
+      session_id: sessionTag ? sessionTag.replace('session:', '') : undefined
     };
     
     await this.rcrtClient.createBreadcrumb({
       schema_name: breadcrumbDef.schema_name || 'agent.response.v1',
       title: breadcrumbDef.title || 'Agent Response',
-      tags: breadcrumbDef.tags || ['agent:response', 'chat:output'],
+      tags: tags,
       context: context
     });
     
-    console.log(`📤 [${this.agentDef.agent_id}] Response created`);
+    console.log(`📤 [${this.agentDef.agent_id}] Response created with tags:`, tags);
   }
   
   /**
