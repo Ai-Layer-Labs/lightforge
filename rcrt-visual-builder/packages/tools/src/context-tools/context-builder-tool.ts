@@ -516,19 +516,24 @@ export class ContextBuilderTool implements RCRTTool {
         const key = this.getContextKey(result.source);
         assembled[key] = result.breadcrumbs[0]?.context;
       } else if (schema === 'user.message.v1' || schema === 'agent.response.v1') {
-        // Chat messages - accumulate for deduplication
-        if (!messagesBySchema[schema]) {
-          messagesBySchema[schema] = [];
+        // THE RCRT WAY: Separate recent (session) from semantic (all sessions)
+        const isSessionFiltered = result.source.conversation_scope === 'current';
+        const category = isSessionFiltered ? 'session' : 'semantic';
+        const key = `${schema}-${category}`;
+        
+        if (!messagesBySchema[key]) {
+          messagesBySchema[key] = [];
         }
         
         const messages = result.breadcrumbs.map(b => ({
           id: b.id,  // For deduplication
           role: schema === 'user.message.v1' ? 'user' : 'assistant',
           content: b.context?.content || b.context?.message,
-          timestamp: b.updated_at
+          timestamp: b.updated_at,
+          source: category  // Tag source for clarity
         }));
         
-        messagesBySchema[schema].push(...messages);
+        messagesBySchema[key].push(...messages);
       } else {
         // Other breadcrumbs
         const key = this.getContextKey(result.source);
@@ -537,20 +542,57 @@ export class ContextBuilderTool implements RCRTTool {
       }
     }
     
-    // Deduplicate chat messages (same ID = same message from recent + vector)
-    for (const [schema, messages] of Object.entries(messagesBySchema)) {
+    // THE RCRT WAY: Merge session + semantic, then separate in output
+    // Combine user messages from both sources
+    const allUserMessages = [
+      ...(messagesBySchema['user.message.v1-session'] || []),
+      ...(messagesBySchema['user.message.v1-semantic'] || [])
+    ];
+    
+    const allAgentMessages = [
+      ...(messagesBySchema['agent.response.v1-session'] || []),
+      ...(messagesBySchema['agent.response.v1-semantic'] || [])
+    ];
+    
+    // Deduplicate by ID
+    const dedupeMessages = (messages: any[]) => {
       const seen = new Set<string>();
-      const deduplicated = messages.filter(m => {
+      return messages.filter(m => {
         if (seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
       });
-      
-      const key = this.getContextKey({ schema_name: schema } as any);
-      assembled[key] = deduplicated;
-      
-      console.log(`  🧹 Deduplicated ${schema}: ${messages.length} → ${deduplicated.length} messages`);
+    };
+    
+    const userMessages = dedupeMessages(allUserMessages);
+    const agentMessages = dedupeMessages(allAgentMessages);
+    
+    // Separate into current vs semantic for LLM clarity
+    const currentConversation = [...userMessages, ...agentMessages]
+      .filter(m => m.source === 'session')
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    const relevantHistory = [...userMessages, ...agentMessages]
+      .filter(m => m.source === 'semantic')
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Add to assembled context with clear labels
+    if (currentConversation.length > 0) {
+      assembled.current_conversation = currentConversation;
     }
+    
+    if (relevantHistory.length > 0) {
+      assembled.relevant_history = relevantHistory;
+    }
+    
+    // Legacy: Also provide combined chat_history for backwards compatibility
+    assembled.chat_history = [...currentConversation, ...relevantHistory]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    console.log(`  🧹 Deduplicated user.message.v1: ${allUserMessages.length} → ${userMessages.length} messages`);
+    console.log(`  🧹 Deduplicated agent.response.v1: ${allAgentMessages.length} → ${agentMessages.length} messages`);
+    console.log(`  📍 Current conversation: ${currentConversation.length} messages`);
+    console.log(`  🔍 Relevant history: ${relevantHistory.length} messages`);
     
     // 🔥 Deduplication using embedding similarity (if configured)
     // IMPORTANT: Always preserve the trigger event (newest user message)
@@ -578,7 +620,7 @@ export class ContextBuilderTool implements RCRTTool {
   private getContextKey(source: ContextSource): string {
     // Map schema names to friendly context keys
     const keyMap: Record<string, string> = {
-      'user.message.v1': 'chat_history',
+      'user.message.v1': 'user_messages',  // Changed for clarity
       'agent.response.v1': 'agent_responses',
       'tool.response.v1': 'tool_results',
       'tool.catalog.v1': 'tool_catalog',

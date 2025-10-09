@@ -1,22 +1,23 @@
 # Session Isolation Fix - THE RCRT WAY
 
-## 🐛 The Problem - Session Bleed
+## 🐛 The Problem - Confusing Session + Semantic Mix
 
-**Symptom**: Messages from Session A appear in Session B's chat history
+**Symptom**: Messages from old sessions appear in new session's chat history (but it's actually semantic search!)
 
-**Example**:
+**Example (Before Fix)**:
 ```
-Session 1 (4:45:10 PM):
-- "just running some tests"
-- "what about now?"  ← From Session 2!
-- "What am I looking at now"  ← From Session 2!
-- "generate a random number"  ← From Session 2!
-
-Session 2 (2:55:31 PM):
-- "what about now?"
-- "What am I looking at now"
-- "generate a random number"
+Session 1 (5:19 PM) - chat_history:
+- "I'm doing some testing"          ← Current session
+- "just running some tests"         ← Current session  
+- "what about now?"                 ← OLD session (semantic match!)
+- "What am I looking at now"        ← OLD session (semantic match!)
 ```
+
+**It LOOKS like session bleed, but actually:**
+- Recent (session-filtered): First 2 messages ✅
+- Semantic (all sessions): Last 2 messages ✅
+
+**The real problem**: They're mixed in ONE array, so you can't tell which is which!
 
 ## 🔍 Root Cause
 
@@ -36,7 +37,9 @@ tags: breadcrumbDef.tags || ['agent:response', 'chat:output'],
 
 The **LLM doesn't know about session tags** - they're infrastructure metadata, not something we want in the prompt.
 
-## ✅ The Fix - Session Tag Inheritance
+## ✅ The Fix - Hybrid Approach with Clear Separation
+
+### Fix #1: Session Tag Inheritance (Agent Responses)
 
 **File**: `rcrt-visual-builder/packages/runtime/src/agent/agent-executor.ts`
 
@@ -45,12 +48,12 @@ The **LLM doesn't know about session tags** - they're infrastructure metadata, n
 const sessionTag = trigger.tags?.find((t: string) => t.startsWith('session:'));
 const baseTags = breadcrumbDef.tags || ['agent:response', 'chat:output'];
 
-// Add session tag if found (keeps responses in same session as trigger)
+// Add session tag to responses (enables session filtering)
 const tags = sessionTag && !baseTags.includes(sessionTag)
   ? [...baseTags, sessionTag]
   : baseTags;
 
-// Also add to context for easy querying
+// Also add to context
 const context = {
   ...breadcrumbDef.context,
   session_id: sessionTag ? sessionTag.replace('session:', '') : undefined,
@@ -58,32 +61,73 @@ const context = {
 };
 ```
 
-## 🎯 How It Works
+### Fix #2: Separate Current vs Semantic Context
 
-### Before (Broken):
+**File**: `rcrt-visual-builder/packages/tools/src/context-tools/context-builder-tool.ts`
+
+**THE RCRT WAY - Hybrid Strategy**:
+- **Recent search** with `conversation_scope: 'current'` → Filters by session tag
+- **Vector search** with no session filter → Finds semantically relevant from ALL sessions
+
+**Output Format** (Now Clear):
+```javascript
+{
+  "current_conversation": [
+    // Only messages from THIS session (chronological)
+    {"role": "user", "content": "...", "source": "session"}
+  ],
+  "relevant_history": [
+    // Semantically similar from ALL sessions
+    {"role": "user", "content": "...", "source": "semantic"}
+  ],
+  "chat_history": [
+    // Combined (backwards compatibility)
+  ]
+}
 ```
-User Message:
-  tags: ['user:message', 'extension:chat', 'session:abc123']
 
-Context Update:
-  tags: ['agent:context', 'consumer:default-chat-assistant', 'session:abc123']
+## 🎯 How The Hybrid Strategy Works
 
-Agent Response:
-  tags: ['agent:response', 'chat:output']  ❌ No session tag!
+### Context Sources (2 searches per schema):
+
+**User Messages**:
+1. **Recent (session-filtered)**: Last 20 from THIS session only
+2. **Vector (semantic)**: Top 10 relevant from ALL sessions
+
+**Agent Responses**:
+1. **Recent (session-filtered)**: Last 20 from THIS session only  
+2. **Vector (semantic)**: Top 10 relevant from ALL sessions
+
+### Output (Now Separated):
+
+```javascript
+{
+  "current_conversation": [
+    // THIS session only (chronological order)
+    {"role": "user", "content": "I'm doing some testing", "source": "session"},
+    {"role": "user", "content": "just running some tests", "source": "session"}
+  ],
+  
+  "relevant_history": [
+    // ALL sessions (semantic relevance)
+    {"role": "user", "content": "what about now?", "source": "semantic"},
+    {"role": "user", "content": "What am I looking at", "source": "semantic"}
+  ],
+  
+  "chat_history": [
+    // Combined for backwards compatibility
+    // (All messages, deduplicated)
+  ]
+}
 ```
 
-### After (Fixed):
-```
-User Message:
-  tags: ['user:message', 'extension:chat', 'session:abc123']
+### Why This Is Better:
 
-Context Update:
-  tags: ['agent:context', 'consumer:default-chat-assistant', 'session:abc123']
-
-Agent Response:
-  tags: ['agent:response', 'chat:output', 'session:abc123']  ✅ Inherited!
-  context: { session_id: 'abc123' }  ✅ Also in context!
-```
+✅ **LLM can prioritize** current conversation over semantic matches
+✅ **Clear distinction** between "what we just talked about" vs "related topics"
+✅ **No confusion** - separated = self-documenting
+✅ **Semantic search still works** - finds relevant info across ALL sessions
+✅ **Session isolation maintained** - current conversation is clean
 
 ## 🔄 Why This Matters
 
