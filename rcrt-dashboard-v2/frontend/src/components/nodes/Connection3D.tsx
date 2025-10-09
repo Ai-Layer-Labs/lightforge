@@ -1,6 +1,10 @@
+/**
+ * THE RCRT WAY - 3D Connection Rendering
+ * Clean implementation using canonical connection types
+ */
+
 import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { RenderConnection, RenderNode } from '../../types/rcrt';
 
@@ -20,62 +24,71 @@ export function Connection3D({ connection, nodes }: Connection3DProps) {
   if (!fromNode || !toNode) return null;
   if (fromNode.state.filtered || toNode.state.filtered) return null;
   
-  // Calculate 3D positions (use actual positions, no scaling)
-  const fromPos = new THREE.Vector3(
+  // Calculate 3D positions
+  const fromPos = useMemo(() => new THREE.Vector3(
     fromNode.position.x,
     fromNode.position.y,
     fromNode.position.z
-  );
+  ), [fromNode.position.x, fromNode.position.y, fromNode.position.z]);
   
-  const toPos = new THREE.Vector3(
+  const toPos = useMemo(() => new THREE.Vector3(
     toNode.position.x,
     toNode.position.y,
     toNode.position.z
-  );
+  ), [toNode.position.x, toNode.position.y, toNode.position.z]);
   
   // Create curved path for connection
   const curve = useMemo(() => {
     const midPoint = fromPos.clone().add(toPos).multiplyScalar(0.5);
     
-    // Add some curve based on distance for better visibility
+    // Add curve height based on distance
     const distance = fromPos.distanceTo(toPos);
     const curveHeight = Math.min(distance * 0.1, 50);
     midPoint.y += curveHeight;
     
     return new THREE.QuadraticBezierCurve3(fromPos, midPoint, toPos);
-  }, [fromPos.x, fromPos.y, fromPos.z, toPos.x, toPos.y, toPos.z]);
+  }, [fromPos, toPos]);
   
-  // Generate points along the curve
-  const points = useMemo(() => curve.getPoints(50), [curve]);
+  // Tube radius based on connection weight and style
+  const tubeRadius = useMemo(() => {
+    const baseRadius = connection.metadata.weight * 0.1;
+    // Make dotted lines thinner
+    return connection.metadata.style === 'dotted' ? baseRadius * 0.7 : baseRadius;
+  }, [connection.metadata.weight, connection.metadata.style]);
   
-  // Create geometry from points
-  const geometry = useMemo(() => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return geometry;
-  }, [points]);
-  
-  // Line material based on connection type
-  const getMaterial = () => {
+  // Material for the tube
+  const tubeMaterial = useMemo(() => {
     const color = new THREE.Color(connection.metadata.color);
+    const opacity = connection.state.highlighted ? 0.7 : 0.4;
     
+    // For dotted/dashed, create segmented appearance
+    if (connection.metadata.style === 'dotted' || connection.metadata.style === 'dashed') {
+      return (
+        <meshBasicMaterial 
+          color={color}
+          transparent
+          opacity={opacity * 0.8}
+        />
+      );
+    }
+    
+    // Solid line - normal appearance
     return (
-      <lineBasicMaterial
+      <meshBasicMaterial 
         color={color}
-        transparent={true}
-        opacity={connection.state.highlighted ? 0.9 : 0.6}
-        linewidth={connection.metadata.weight} // Note: linewidth doesn't work in WebGL
+        transparent
+        opacity={opacity}
       />
     );
-  };
+  }, [connection.metadata.color, connection.metadata.style, connection.state.highlighted]);
   
-  // Animated flow particle for certain connection types
+  // Animated particle for triggered connections
   const AnimatedParticle = () => {
-    const particleRef = React.useRef<THREE.Mesh>(null);
+    const particleRef = useRef<THREE.Mesh>(null);
     
     useFrame((state) => {
       if (particleRef.current && connection.metadata.animated) {
-        // Move particle along curve
-        const t = (state.clock.elapsedTime * 0.2) % 1;
+        const t = (state.clock.elapsedTime * 0.3) % 1;
         const position = curve.getPoint(t);
         particleRef.current.position.copy(position);
       }
@@ -85,111 +98,95 @@ export function Connection3D({ connection, nodes }: Connection3DProps) {
     
     return (
       <mesh ref={particleRef}>
-        <sphereGeometry args={[1, 8, 8]} />
+        <sphereGeometry args={[1.5, 8, 8]} />
         <meshBasicMaterial 
           color={connection.metadata.color}
           transparent
-          opacity={0.8}
+          opacity={0.9}
         />
       </mesh>
     );
   };
   
-  // Get node colors for gradient
-  const getNodeColor = (node: RenderNode): string => {
-    switch (node.type) {
-      case 'breadcrumb': return '#00f5ff'; // Cyan
-      case 'agent': return '#ffa500'; // Orange
-      case 'agent-definition': return '#9333ea'; // Vibrant Purple
-      case 'tool': return '#00ff88'; // Green
-      case 'secret': return '#ff6b6b'; // Red
-      case 'chat': return '#8a2be2'; // Purple
-      default: return '#888888'; // Gray
-    }
-  };
-
-  const fromColor = getNodeColor(fromNode);
-  const toColor = getNodeColor(toNode);
-
+  // Calculate arrow direction
+  const arrowRotation = useMemo(() => {
+    const direction = toPos.clone().sub(fromPos).normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(up, direction);
+    return quaternion;
+  }, [fromPos, toPos]);
+  
+  // Arrow position (at destination, offset by node radius)
+  const arrowPosition = useMemo(() => {
+    const direction = toPos.clone().sub(fromPos).normalize();
+    return toPos.clone().sub(direction.multiplyScalar(8)); // Offset by ~8 units
+  }, [fromPos, toPos]);
+  
   return (
     <group>
-      {/* Use TubeGeometry with gradient material */}
+      {/* Main tube connection */}
       <mesh>
         <tubeGeometry 
-          args={[curve, 32, Math.max(0.2, connection.metadata.weight * 0.1), 8, false]} 
+          args={[curve, 32, tubeRadius, 8, false]} 
         />
-        <GradientTubeMaterial 
-          fromColor={fromColor}
-          toColor={toColor}
-          opacity={connection.state.highlighted ? 0.4 : 0.25}
-        />
+        {tubeMaterial}
       </mesh>
       
-      {/* Animated particle */}
+      {/* Animated particle for triggered connections */}
       <AnimatedParticle />
       
       {/* Arrow head at destination */}
-      <group position={toPos}>
+      <group position={arrowPosition} quaternion={arrowRotation}>
         <mesh>
           <coneGeometry args={[2, 6, 8]} />
-          <meshBasicMaterial color={connection.metadata.color} />
+          <meshBasicMaterial 
+            color={connection.metadata.color}
+            transparent
+            opacity={0.8}
+          />
         </mesh>
       </group>
+      
+      {/* For dotted/dashed - add spheres along path for visual effect */}
+      {(connection.metadata.style === 'dotted' || connection.metadata.style === 'dashed') && (
+        <DottedLine curve={curve} color={connection.metadata.color} isDashed={connection.metadata.style === 'dashed'} />
+      )}
     </group>
   );
 }
 
-// Gradient tube material component
-function GradientTubeMaterial({ fromColor, toColor, opacity }: {
-  fromColor: string;
-  toColor: string;
-  opacity: number;
-}) {
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-  
-  // Create gradient shader material
-  const shaderMaterial = useMemo(() => {
-    const fromColorObj = new THREE.Color(fromColor);
-    const toColorObj = new THREE.Color(toColor);
-    
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        fromColor: { value: fromColorObj },
-        toColor: { value: toColorObj },
-        opacity: { value: opacity },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+/**
+ * Render dotted/dashed line as series of spheres
+ */
+function DottedLine({ curve, color, isDashed }: { curve: THREE.QuadraticBezierCurve3; color: string; isDashed: boolean }) {
+  const points = useMemo(() => {
+    const count = isDashed ? 12 : 24;
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i <= count; i++) {
+      if (isDashed) {
+        // Dashed: show every other segment
+        if (i % 2 === 0) {
+          points.push(curve.getPoint(i / count));
         }
-      `,
-      fragmentShader: `
-        uniform vec3 fromColor;
-        uniform vec3 toColor;
-        uniform float opacity;
-        varying vec2 vUv;
-        
-        void main() {
-          // Create gradient along the tube length (v coordinate)
-          vec3 color = mix(fromColor, toColor, vUv.y);
-          gl_FragColor = vec4(color, opacity);
-        }
-      `,
-      transparent: true,
-      side: THREE.DoubleSide,
-    });
-  }, [fromColor, toColor, opacity]);
-  
-  // Update uniforms when colors change
-  React.useEffect(() => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.fromColor.value = new THREE.Color(fromColor);
-      materialRef.current.uniforms.toColor.value = new THREE.Color(toColor);
-      materialRef.current.uniforms.opacity.value = opacity;
+      } else {
+        // Dotted: show all points
+        points.push(curve.getPoint(i / count));
+      }
     }
-  }, [fromColor, toColor, opacity]);
+    return points;
+  }, [curve, isDashed]);
   
-  return <primitive ref={materialRef} object={shaderMaterial} />;
+  const colorObj = useMemo(() => new THREE.Color(color), [color]);
+  
+  return (
+    <>
+      {points.map((point, i) => (
+        <mesh key={i} position={point}>
+          <sphereGeometry args={[isDashed ? 0.8 : 0.5, 8, 8]} />
+          <meshBasicMaterial color={colorObj} transparent opacity={0.6} />
+        </mesh>
+      ))}
+    </>
+  );
 }

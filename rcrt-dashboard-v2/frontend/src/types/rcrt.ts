@@ -271,18 +271,16 @@ export type NodeType =
   | 'chat'
   | 'system';
 
+  
+/**
+ * THE RCRT WAY - Only 4 connection types
+ * Green = creates, Purple = config, Blue dotted = subscribed, Blue solid = triggered
+ */
 export type ConnectionType = 
-  | 'creation'
-  | 'subscription'
-  | 'emission'
-  | 'tool-response'
-  | 'agent-definition'
-  | 'secret-usage'
-  | 'acl-grant'
-  | 'webhook'
-  | 'agent-thinking'
-  | 'tool-request'
-  | 'tool-execution';
+  | 'creates'      // Green, solid - Agent/tool creates breadcrumb
+  | 'config'       // Purple, dashed - Tool uses config
+  | 'subscribed'   // Blue, dotted - Agent subscribed to events
+  | 'triggered';   // Blue, solid - Event triggers agent
 
 export interface RenderNode {
   id: string;

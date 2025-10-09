@@ -1,6 +1,12 @@
+/**
+ * THE RCRT WAY - 2D Connection Rendering
+ * Clean implementation using canonical connection types
+ */
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { RenderConnection, RenderNode } from '../../types/rcrt';
+import { getStrokeDashArray } from '../../utils/connectionTypes';
 
 interface Connection2DProps {
   connection: RenderConnection;
@@ -51,17 +57,8 @@ export function Connection2D({ connection, nodes }: Connection2DProps) {
   // SVG path for curved line
   const path = `M ${fromCenter.x} ${fromCenter.y} Q ${controlX} ${controlY} ${toCenter.x} ${toCenter.y}`;
   
-  // Line style based on connection type
-  const getStrokeStyle = () => {
-    switch (connection.metadata.style) {
-      case 'dashed':
-        return '8,4';
-      case 'dotted':
-        return '2,3';
-      default:
-        return 'none';
-    }
-  };
+  // Get stroke style from connection metadata
+  const strokeDashArray = getStrokeDashArray(connection.metadata.style);
   
   return (
     <g className="connection-2d">
@@ -71,7 +68,7 @@ export function Connection2D({ connection, nodes }: Connection2DProps) {
         fill="none"
         stroke={connection.metadata.color}
         strokeWidth={connection.metadata.weight}
-        strokeDasharray={getStrokeStyle()}
+        strokeDasharray={strokeDashArray}
         opacity={connection.state.highlighted ? 0.9 : 0.6}
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ 
@@ -85,7 +82,7 @@ export function Connection2D({ connection, nodes }: Connection2DProps) {
         className="transition-opacity duration-200"
       />
       
-      {/* Animated flow effect for certain connection types */}
+      {/* Animated flow effect for triggered connections */}
       {connection.metadata.animated && (
         <motion.circle
           r="3"

@@ -1,5 +1,6 @@
 import { RenderNode, RenderConnection, NodeType, ConnectionType, Position3D, Breadcrumb, Agent, Secret, Tool, SelectorSubscription, AgentDefinition } from '../types/rcrt';
 import { matchesSelector, findMatchingBreadcrumbs, matchesEmissionRules } from './selectorMatching';
+import { discoverConnections as discoverConnectionsClean } from './connectionDiscovery';
 
 /**
  * Data transformation utilities for converting RCRT API data to render format
@@ -347,43 +348,23 @@ export function discoverConnections(data: {
     })));
   }
   
-  // 1. DYNAMIC: Find subscription connections from agent definitions
-  const subscriptionConnections = findSubscriptionConnectionsFromAgentDefs(data.breadcrumbs);
-  console.log(`🔗 Found ${subscriptionConnections.length} subscription connections from agent definitions`);
-  connections.push(...subscriptionConnections);
+  // ============ THE RCRT WAY ============
+  // Use clean connection discovery - ONLY 4 connection types:
+  // 1. Creates (green, solid)
+  // 2. Config (purple, dashed)
+  // 3. Subscribed (blue, dotted)
+  // 4. Triggered (blue, solid)
   
-  // 2. DYNAMIC: Find emission connections using agent definition data
-  const emissionConnections = findEmissionConnectionsFromAgentDefs(data.breadcrumbs);
-  console.log(`🔗 Found ${emissionConnections.length} dynamic emission connections`);
-  connections.push(...emissionConnections);
+  // Import at runtime to avoid circular dependencies
+  // Note: Import statement moved to top of file
+  const cleanConnections = discoverConnectionsClean({
+    breadcrumbs: data.breadcrumbs,
+    agents: data.agents,
+    tools: data.tools || []
+  });
   
-  // 3. Keep essential hardcoded connections for system relationships
-  const creationConnections = findCreationConnections(data.breadcrumbs, data.agents);
-  console.log(`🔗 Found ${creationConnections.length} creation connections`);
-  connections.push(...creationConnections);
-  
-  // 4. Tool execution flow (request -> response correlation)
-  const toolFlowConnections = findToolExecutionFlow(data.breadcrumbs);
-  console.log(`🔗 Found ${toolFlowConnections.length} tool execution flow connections`);
-  connections.push(...toolFlowConnections);
-  
-  // 5. Chat conversation flow (message -> response correlation)
-  const chatFlowConnections = findChatConversationFlow(data.breadcrumbs);
-  console.log(`🔗 Found ${chatFlowConnections.length} chat conversation flow connections`);
-  connections.push(...chatFlowConnections);
-  
-  // 6. Tool configuration connections (tool -> tool.config.v1 breadcrumbs)
-  const toolConfigConnections = findToolConfigConnections(data.breadcrumbs, data.tools || []);
-  console.log(`🔗 Found ${toolConfigConnections.length} tool config connections`);
-  connections.push(...toolConfigConnections);
-  
-  // 7. Tool response connections (tool -> tool.response.v1 it created)
-  const toolResponseConnections = findToolResponseConnections(data.breadcrumbs, data.tools || []);
-  console.log(`🔗 Found ${toolResponseConnections.length} tool response connections`);
-  connections.push(...toolResponseConnections);
-  
-  console.log(`✅ Discovered ${connections.length} total connections (${data.subscriptions ? 'with' : 'without'} subscription data)`);
-  return connections;
+  console.log(`✅ [RCRT Way] Discovered ${cleanConnections.length} connections`);
+  return cleanConnections;
 }
 
 function findCreationConnections(breadcrumbs: Breadcrumb[], agents: Agent[]): RenderConnection[] {
