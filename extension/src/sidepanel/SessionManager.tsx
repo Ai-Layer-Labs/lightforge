@@ -132,66 +132,58 @@ export function SessionManager({ onSessionSelected, onNewSession }: SessionManag
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="session-manager">
       {/* Header */}
-      <div className="p-6 border-b border-gray-800">
-        <h1 className="text-2xl font-bold text-white mb-2">Chat Sessions</h1>
-        <p className="text-gray-400 text-sm">Select a session or create a new one</p>
+      <div className="session-header">
+        <h1 className="session-title">Chat Sessions</h1>
+        <p className="session-subtitle">Select a session or create a new one</p>
       </div>
 
       {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="session-list">
         {sessions.length === 0 ? (
-          <div className="text-center py-12">
-            <ChatBubbleLeftIcon className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-            <p className="text-gray-400 mb-4">No chat sessions yet</p>
+          <div className="empty-state">
+            <ChatBubbleLeftIcon style={{width: '64px', height: '64px', margin: '0 auto 16px', color: '#4B5563'}} />
+            <p className="empty-title">No chat sessions yet</p>
             <button
               onClick={onNewSession}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center gap-2 mx-auto"
+              className="new-session-button"
             >
-              <PlusIcon className="w-5 h-5" />
+              <PlusIcon style={{width: '20px', height: '20px'}} />
               Start Your First Chat
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="sessions-grid">
             {sessions.map(session => (
               <motion.div
                 key={session.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`
-                  bg-gray-800 border rounded-lg p-4 cursor-pointer
-                  hover:border-blue-500 transition-all
-                  ${session.isActive ? 'border-green-500 bg-green-500/5' : 'border-gray-700'}
-                `}
+                className={`session-card ${session.isActive ? 'session-active' : ''}`}
                 onClick={() => onSessionSelected(session.id)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ChatBubbleLeftIcon className="w-5 h-5 text-blue-400" />
-                      <h3 className="font-semibold text-white">{session.title}</h3>
-                      {session.isActive && (
-                        <span className="px-2 py-0.5 bg-green-500/20 text-green-300 rounded text-xs">
-                          Active
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <ClockIcon className="w-3 h-3" />
-                        {new Date(session.updated_at).toLocaleString()}
-                      </div>
-                      <div className="font-mono text-gray-500">
-                        {session.id.substring(0, 8)}...
-                      </div>
-                    </div>
+                <div className="session-card-content">
+                  <div className="session-card-header">
+                    <ChatBubbleLeftIcon style={{width: '20px', height: '20px'}} />
+                    <h3 className="session-card-title">{session.title}</h3>
+                    {session.isActive && (
+                      <span className="active-badge">Active</span>
+                    )}
                   </div>
                   
-                  <ArrowRightIcon className="w-5 h-5 text-gray-500" />
+                  <div className="session-card-meta">
+                    <div className="session-time">
+                      <ClockIcon style={{width: '12px', height: '12px'}} />
+                      {new Date(session.updated_at).toLocaleString()}
+                    </div>
+                    <div className="session-id">
+                      {session.id.substring(0, 8)}...
+                    </div>
+                  </div>
                 </div>
+                
+                <ArrowRightIcon style={{width: '20px', height: '20px'}} className="session-arrow" />
               </motion.div>
             ))}
           </div>
@@ -200,12 +192,12 @@ export function SessionManager({ onSessionSelected, onNewSession }: SessionManag
 
       {/* New Session Button */}
       {sessions.length > 0 && (
-        <div className="p-4 border-t border-gray-800">
+        <div className="session-footer">
           <button
             onClick={onNewSession}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center justify-center gap-2"
+            className="new-session-button-full"
           >
-            <PlusIcon className="w-5 h-5" />
+            <PlusIcon style={{width: '20px', height: '20px'}} />
             New Chat Session
           </button>
         </div>
