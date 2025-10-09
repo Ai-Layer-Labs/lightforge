@@ -12,6 +12,7 @@ interface WorkflowStep {
   tool: string;
   input: any;
   dependencies?: string[];
+  depends_on?: string[];  // Support both naming conventions
   outputMapping?: Record<string, any>;
 }
 
@@ -138,9 +139,10 @@ export class WorkflowOrchestratorTool implements RCRTTool {
     console.log(`[Workflow] Starting workflow with ${steps.length} steps`);
     
     // Auto-detect dependencies from variable references
+    // Support both "dependencies" and "depends_on" field names
     const stepsWithAutoDeps = steps.map(step => ({
       ...step,
-      dependencies: step.dependencies || this.extractDependencies(step.input, steps.map(s => s.id))
+      dependencies: step.dependencies || step.depends_on || this.extractDependencies(step.input, steps.map(s => s.id))
     }));
     
     console.log('[Workflow] Dependencies resolved:', 
@@ -404,11 +406,15 @@ export class WorkflowOrchestratorTool implements RCRTTool {
     const json = JSON.stringify(input);
     
     // Match ${stepId} or {{stepId}} patterns
-    const varPattern = /[\$\{]{2}([^}]+)[\}]{2}/g;
+    // Fixed regex: properly match both ${...} and {{...}} syntax
+    const varPattern = /\$\{([^}]+)\}|\{\{([^}]+)\}\}/g;
     const matches = json.matchAll(varPattern);
     
     for (const match of matches) {
-      const path = match[1];
+      // match[1] is for ${...}, match[2] is for {{...}}
+      const path = match[1] || match[2];
+      if (!path) continue;
+      
       // Get step ID (before any . or [ )
       const stepId = path.split('.')[0].split('[')[0].trim();
       
@@ -469,7 +475,7 @@ export class WorkflowOrchestratorTool implements RCRTTool {
           
           // Fix .output, .output.value, .result.number patterns
           // This intelligently maps wrong field access to actual data structure
-          corrected = corrected.replace(/\$\{(\w+)\.output(\.[\w]+)?\}/g, (match, id, subfield) => {
+          corrected = corrected.replace(/\$\{(\w+)\.output(\.[\w]+)?\}/g, (match: string, id: string, _subfield: string) => {
             const data = results.get(id);
             if (!data) return match;
             
@@ -483,18 +489,18 @@ export class WorkflowOrchestratorTool implements RCRTTool {
             if (data.waited !== undefined) return `\${${id}.waited}`;
             
             // Return first number-like field
-            const firstNum = Object.entries(data).find(([k, v]) => typeof v === 'number');
+            const firstNum = Object.entries(data).find(([_k, v]) => typeof v === 'number');
             if (firstNum) return `\${${id}.${firstNum[0]}}`;
             
             // Return first array field's first element
-            const firstArr = Object.entries(data).find(([k, v]) => Array.isArray(v));
+            const firstArr = Object.entries(data).find(([_k, v]) => Array.isArray(v));
             if (firstArr) return `\${${id}.${firstArr[0]}[0]}`;
             
             return match;
           });
           
           // Also fix .result and .result.number patterns
-          corrected = corrected.replace(/\$\{(\w+)\.result(\.[\w]+)?\}/g, (match, id, subfield) => {
+          corrected = corrected.replace(/\$\{(\w+)\.result(\.[\w]+)?\}/g, (match: string, id: string, _subfield: string) => {
             const data = results.get(id);
             if (!data) return match;
             
@@ -502,7 +508,7 @@ export class WorkflowOrchestratorTool implements RCRTTool {
             
             // If data has .result field, that's correct
             if (data.result !== undefined) {
-              return subfield ? match : `\${${id}.result}`;
+              return _subfield ? match : `\${${id}.result}`;
             }
             
             // Otherwise map to actual structure
