@@ -8,9 +8,12 @@ import {
   CpuChipIcon,
   FunnelIcon,
   TagIcon,
-  PlusIcon
+  PlusIcon,
+  ArrowLeftIcon,
+  ListBulletIcon
 } from '@heroicons/react/24/outline';
 import { rcrtClient, type SSEFilter } from '../lib/rcrt-client';
+import { SessionManager } from './SessionManager';
 
 type ChatMessage = {
   id: string;
@@ -25,6 +28,9 @@ export default function Panel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Two-panel UI: Session Manager vs Chat
+  const [view, setView] = useState<'sessions' | 'chat'>('sessions');
   
   // Session-based conversation tracking (RCRT way - via tags!)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -174,7 +180,24 @@ export default function Panel() {
     try {
       console.log('🆕 Creating new session...');
       
-      // Create new agent.context.v1 breadcrumb with consumer tag
+      // FIRST: Pause current active session if one exists
+      if (activeSessionId) {
+        console.log(`⏸️  Pausing current session: ${activeSessionId}`);
+        const currentSession = await rcrtClient.getBreadcrumb(activeSessionId);
+        
+        // Remove active tag, add paused tag
+        const pausedTags = currentSession.tags
+          .filter((t: string) => t !== 'consumer:default-chat-assistant')
+          .concat('consumer:default-chat-assistant-paused');
+        
+        await rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, {
+          tags: pausedTags
+        });
+        
+        console.log(`✅ Session ${activeSessionId} paused`);
+      }
+      
+      // THEN: Create new session with active tag
       const result = await rcrtClient.createBreadcrumb({
         schema_name: 'agent.context.v1',
         title: `Chat Session ${new Date().toLocaleTimeString()}`,
@@ -195,6 +218,10 @@ export default function Panel() {
       }]);
       
       console.log(`✅ New session created: ${result.id}`);
+      
+      // Switch to chat view
+      setView('chat');
+      
     } catch (error) {
       console.error('Failed to create new session:', error);
     }
@@ -202,37 +229,41 @@ export default function Panel() {
 
   // Switch sessions by updating tags
   const switchSession = async (sessionId: string) => {
-    if (!activeSessionId) return;
-    
     try {
-      console.log(`🔄 Switching from ${activeSessionId} to ${sessionId}...`);
+      console.log(`🔄 Activating session: ${sessionId}`);
       
-      // Get both sessions
-      const [currentSession, targetSession] = await Promise.all([
-        rcrtClient.getBreadcrumb(activeSessionId),
-        rcrtClient.getBreadcrumb(sessionId)
-      ]);
+      const targetSession = await rcrtClient.getBreadcrumb(sessionId);
       
-      // Remove consumer tag from current session (pause it)
-      const pausedTags = currentSession.tags.filter((t: string) => t !== 'consumer:default-chat-assistant');
-      pausedTags.push('consumer:default-chat-assistant-paused');
+      // Pause current session if different
+      if (activeSessionId && activeSessionId !== sessionId) {
+        const currentSession = await rcrtClient.getBreadcrumb(activeSessionId);
+        const pausedTags = currentSession.tags
+          .filter((t: string) => t !== 'consumer:default-chat-assistant')
+          .concat('consumer:default-chat-assistant-paused');
+        
+        await rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, {
+          tags: pausedTags
+        });
+        console.log(`⏸️  Paused session: ${activeSessionId}`);
+      }
       
-      // Add consumer tag to target session (activate it)
-      const activeTags = targetSession.tags.filter((t: string) => t !== 'consumer:default-chat-assistant-paused');
+      // Activate target session
+      const activeTags = targetSession.tags
+        .filter((t: string) => t !== 'consumer:default-chat-assistant-paused');
+      
       if (!activeTags.includes('consumer:default-chat-assistant')) {
         activeTags.push('consumer:default-chat-assistant');
       }
       
-      // Update both
-      await Promise.all([
-        rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, { tags: pausedTags }),
-        rcrtClient.updateBreadcrumb(sessionId, targetSession.version, { tags: activeTags })
-      ]);
+      await rcrtClient.updateBreadcrumb(sessionId, targetSession.version, {
+        tags: activeTags
+      });
       
       setActiveSessionId(sessionId);
-      setMessages([]);  // TODO: Load messages from new session
+      setMessages([]);  // TODO: Load message history for this session
+      setView('chat');
       
-      console.log(`✅ Switched to session: ${sessionId}`);
+      console.log(`✅ Session ${sessionId} activated`);
     } catch (error) {
       console.error('Failed to switch session:', error);
     }
@@ -308,6 +339,30 @@ export default function Panel() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; 
   }
 
+  // Return to session manager
+  const backToSessions = () => {
+    setView('sessions');
+  };
+
+  // Render based on view
+  if (view === 'sessions') {
+    return (
+      <div className="main-container">
+        <SessionManager
+          onSessionSelected={switchSession}
+          onNewSession={startNewSession}
+        />
+      </div>
+    );
+  }
+
+  // Chat view (only shown when session is active)
+  if (!activeSessionId) {
+    // Shouldn't happen, but safety check
+    setView('sessions');
+    return null;
+  }
+
   return (
     <div className="main-container">
       {/* Header */}
@@ -334,6 +389,14 @@ export default function Panel() {
             
             <div className="header-actions">
               <button
+                onClick={backToSessions}
+                className="icon-button"
+                title="Back to sessions"
+              >
+                <ListBulletIcon />
+              </button>
+              
+              <button
                 onClick={startNewSession}
                 className="icon-button"
                 title="New session"
@@ -344,7 +407,7 @@ export default function Panel() {
               <button
                 onClick={clearChat}
                 className="icon-button"
-                title="Clear chat"
+                title="Clear current chat"
               >
                 <TrashIcon />
               </button>

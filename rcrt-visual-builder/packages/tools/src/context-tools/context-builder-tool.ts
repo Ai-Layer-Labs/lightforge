@@ -446,11 +446,16 @@ export class ContextBuilderTool implements RCRTTool {
               
               // If source has conversation_scope: "current" and we have a sessionId, filter by it
               if (source.conversation_scope === 'current' && contextId) {
-                // Add session tag to filter
+                // IMPORTANT: Only include messages that HAVE session tags
+                // Old messages without session tags should be excluded
                 const existingTags = recentFilters.any_tags || recentFilters.tag ? 
                   (Array.isArray(recentFilters.any_tags) ? recentFilters.any_tags : [recentFilters.tag]) : [];
-                recentFilters.any_tags = [...existingTags, `session:${contextId}`];
-                console.log(`  🎯 Filtering recent ${source.schema_name} by session:${contextId}`);
+                
+                // Replace base tag filter with session-specific tag
+                // This ensures ONLY messages from this session are included
+                recentFilters.any_tags = [`session:${contextId}`];
+                
+                console.log(`  🎯 Filtering recent ${source.schema_name} ONLY by session:${contextId}`);
               }
               
               breadcrumbs = await client.searchBreadcrumbsWithContext({
