@@ -288,12 +288,61 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   
   /**
    * Format assembled context for LLM
+   * THE RCRT WAY: Clear, concise, human-readable
    */
   private formatContextForLLM(context: Record<string, any>): string {
     let formatted = '';
     
+    // 1. Current Conversation (if present)
+    if (context.current_conversation && context.current_conversation.length > 0) {
+      formatted += `## Current Conversation\n\n`;
+      context.current_conversation.forEach((msg: any) => {
+        if (!msg.content) return;  // Skip messages with no content
+        const role = msg.role === 'user' ? 'User' : 'Assistant';
+        formatted += `${role}: ${msg.content}\n`;
+      });
+      formatted += '\n';
+    }
+    
+    // 2. Relevant History (if present)
+    if (context.relevant_history && context.relevant_history.length > 0) {
+      formatted += `## Relevant History\n\n`;
+      const validHistory = context.relevant_history.filter((msg: any) => msg.content);
+      if (validHistory.length > 0) {
+        validHistory.forEach((msg: any) => {
+          const role = msg.role === 'user' ? 'User' : 'Assistant';
+          formatted += `${role}: ${msg.content}\n`;
+        });
+        formatted += '\n';
+      }
+    }
+    
+    // 3. Browser Context (if present)
+    if (context.browser) {
+      formatted += `## Browser\n\n`;
+      formatted += `Page: ${context.browser.title}\n`;
+      formatted += `URL: ${context.browser.url}\n`;
+      if (context.browser.dom?.interactiveCount) {
+        formatted += `Interactive elements: ${context.browser.dom.interactiveCount}\n`;
+      }
+      formatted += '\n';
+    }
+    
+    // 4. Tools (if present)
+    if (context.tool_catalog?.tools) {
+      formatted += `## Available Tools\n\n`;
+      const tools = context.tool_catalog.tools.slice(0, 15);  // Limit to 15
+      tools.forEach((tool: any) => {
+        formatted += `- ${tool.name}: ${tool.category || 'utility'}\n`;
+      });
+      formatted += '\n';
+    }
+    
+    // 5. Other context (fallback - use JSON for unknown structures)
     for (const [key, value] of Object.entries(context)) {
-      if (key === 'trigger') continue;  // Already in user message
+      if (['current_conversation', 'relevant_history', 'browser', 'tool_catalog', 'trigger'].includes(key)) {
+        continue;  // Already handled
+      }
       
       const title = this.humanizeKey(key);
       formatted += `## ${title}\n\n`;

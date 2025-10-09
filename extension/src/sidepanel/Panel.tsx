@@ -175,49 +175,44 @@ export default function Panel() {
     }
   }
 
-  // Create new session (creates new agent.context.v1 breadcrumb)
+  // Create new session - THE RCRT WAY
   const startNewSession = async () => {
     try {
       console.log('🆕 Creating new session...');
       
-      // FIRST: Pause current active session if one exists
+      // FIRST: Pause current session by updating its context breadcrumb tags
       if (activeSessionId) {
-        console.log(`⏸️  Pausing current session: ${activeSessionId}`);
-        const currentSession = await rcrtClient.getBreadcrumb(activeSessionId);
-        
-        // Remove active tag, add paused tag
-        const pausedTags = currentSession.tags
-          .filter((t: string) => t !== 'consumer:default-chat-assistant')
-          .concat('consumer:default-chat-assistant-paused');
-        
-        await rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, {
-          tags: pausedTags
-        });
-        
-        console.log(`✅ Session ${activeSessionId} paused`);
+        try {
+          // Find the context breadcrumb for current session
+          const contexts = await rcrtClient.listBreadcrumbs(`session:${activeSessionId}`);
+          const contextBreadcrumb = contexts.find((b: any) => b.schema_name === 'agent.context.v1');
+          
+          if (contextBreadcrumb) {
+            console.log(`⏸️  Pausing context for session: ${activeSessionId}`);
+            await rcrtClient.updateBreadcrumb(contextBreadcrumb.id, contextBreadcrumb.version, {
+              tags: contextBreadcrumb.tags
+                .filter((t: string) => t !== 'consumer:default-chat-assistant')
+                .concat('consumer:default-chat-assistant-paused')
+            });
+          }
+        } catch (pauseError) {
+          console.warn('Could not pause previous session (might not exist yet):', pauseError);
+        }
       }
       
-      // THEN: Create new session with active tag
-      const result = await rcrtClient.createBreadcrumb({
-        schema_name: 'agent.context.v1',
-        title: `Chat Session ${new Date().toLocaleTimeString()}`,
-        tags: ['agent:context', 'consumer:default-chat-assistant', `session:${Date.now()}`],
-        context: {
-          consumer_id: 'default-chat-assistant',
-          created_at: new Date().toISOString(),
-          messages: []
-        }
-      });
+      // THEN: Generate new session ID (timestamp-based, unique)
+      const newSessionId = `session-${Date.now()}`;
       
-      setActiveSessionId(result.id);
+      setActiveSessionId(newSessionId);
       setMessages([]);
       setSessions(prev => [...prev, {
-        id: result.id,
+        id: newSessionId,
         title: `Session ${new Date().toLocaleTimeString()}`,
         lastActivity: new Date()
       }]);
       
-      console.log(`✅ New session created: ${result.id}`);
+      console.log(`✅ New session ID generated: ${newSessionId}`);
+      console.log(`   Context-builder will create context breadcrumb on first message`);
       
       // Switch to chat view
       setView('chat');
@@ -227,40 +222,49 @@ export default function Panel() {
     }
   };
 
-  // Switch sessions by updating tags
+  // Switch sessions - THE RCRT WAY
   const switchSession = async (sessionId: string) => {
     try {
-      console.log(`🔄 Activating session: ${sessionId}`);
+      console.log(`🔄 Switching to session: ${sessionId}`);
       
-      const targetSession = await rcrtClient.getBreadcrumb(sessionId);
-      
-      // Pause current session if different
+      // Pause current session's context breadcrumb
       if (activeSessionId && activeSessionId !== sessionId) {
-        const currentSession = await rcrtClient.getBreadcrumb(activeSessionId);
-        const pausedTags = currentSession.tags
-          .filter((t: string) => t !== 'consumer:default-chat-assistant')
-          .concat('consumer:default-chat-assistant-paused');
+        try {
+          const currentContexts = await rcrtClient.listBreadcrumbs(`session:${activeSessionId}`);
+          const currentContext = currentContexts.find((b: any) => b.schema_name === 'agent.context.v1');
+          
+          if (currentContext) {
+            console.log(`⏸️  Pausing session: ${activeSessionId}`);
+            await rcrtClient.updateBreadcrumb(currentContext.id, currentContext.version, {
+              tags: currentContext.tags
+                .filter((t: string) => t !== 'consumer:default-chat-assistant')
+                .concat('consumer:default-chat-assistant-paused')
+            });
+          }
+        } catch (pauseError) {
+          console.warn('Could not pause current session:', pauseError);
+        }
+      }
+      
+      // Activate target session's context breadcrumb
+      try {
+        const targetContexts = await rcrtClient.listBreadcrumbs(`session:${sessionId}`);
+        const targetContext = targetContexts.find((b: any) => b.schema_name === 'agent.context.v1');
         
-        await rcrtClient.updateBreadcrumb(activeSessionId, currentSession.version, {
-          tags: pausedTags
-        });
-        console.log(`⏸️  Paused session: ${activeSessionId}`);
+        if (targetContext) {
+          console.log(`▶️  Activating session: ${sessionId}`);
+          await rcrtClient.updateBreadcrumb(targetContext.id, targetContext.version, {
+            tags: targetContext.tags
+              .filter((t: string) => t !== 'consumer:default-chat-assistant-paused')
+              .concat('consumer:default-chat-assistant')
+          });
+        }
+      } catch (activateError) {
+        console.warn('Could not activate target session (might not exist yet):', activateError);
       }
-      
-      // Activate target session
-      const activeTags = targetSession.tags
-        .filter((t: string) => t !== 'consumer:default-chat-assistant-paused');
-      
-      if (!activeTags.includes('consumer:default-chat-assistant')) {
-        activeTags.push('consumer:default-chat-assistant');
-      }
-      
-      await rcrtClient.updateBreadcrumb(sessionId, targetSession.version, {
-        tags: activeTags
-      });
       
       setActiveSessionId(sessionId);
-      setMessages([]);  // TODO: Load message history for this session
+      setMessages([]);  // Clear UI
       setView('chat');
       
       console.log(`✅ Session ${sessionId} activated`);

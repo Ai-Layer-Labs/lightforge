@@ -198,13 +198,14 @@ export class ContextBuilderTool implements RCRTTool {
     // Assemble context (with session for filtering)
     const assembled = await this.assembleContext(client, config, triggerEvent, sessionId);
     
-    // Find ACTIVE context breadcrumb for this consumer
-    // Agent subscribes to consumer:default-chat-assistant tag
-    // Multiple sessions can exist, but only one has the active tag
+    // THE RCRT WAY: Search by session tag ONLY (no fallback!)
+    // If it doesn't exist, we create it. If fallback finds wrong session = BUG!
     const existing = await client.searchBreadcrumbs({
       schema_name: config.output.schema_name,
-      tag: `consumer:${consumerId}`  // Only finds the ACTIVE one
+      tag: sessionId ? `session:${sessionId}` : `consumer:${consumerId}`
     });
+    
+    console.log(`  🔍 Searched for session:${sessionId || 'none'}, found: ${existing.length} context breadcrumbs`);
     
     const contextData = {
       consumer_id: consumerId,
@@ -220,27 +221,45 @@ export class ContextBuilderTool implements RCRTTool {
       console.log(`  📝 Updating existing context: ${existing[0].id}`);
       const existingBreadcrumb = await client.getBreadcrumb(existing[0].id);
       console.log(`  📌 Current version: ${existingBreadcrumb.version}`);
+      console.log(`  📌 Existing tags:`, existingBreadcrumb.tags);
+      
+      // THE RCRT WAY: Ensure session tag is on the context breadcrumb
+      const contextTags = existingBreadcrumb.tags || config.output.tags || [];
+      const sessionTagExists = contextTags.some(t => t.startsWith('session:'));
+      
+      const updatedTags = sessionId && !sessionTagExists
+        ? [...contextTags.filter(t => !t.startsWith('session:')), `session:${sessionId}`]
+        : contextTags;
       
       await client.updateBreadcrumb(existing[0].id, existingBreadcrumb.version, {
-        context: contextData
+        context: contextData,
+        tags: updatedTags  // Ensure session tag is present
       });
       
-      console.log(`  ✅ Update complete, fetching new version...`);
+      console.log(`  ✅ Update complete with tags:`, updatedTags);
       const updated = await client.getBreadcrumb(existing[0].id);
       console.log(`  📌 New version: ${updated.version}`);
       
       return { success: true, action: 'updated', context_id: existing[0].id, version: updated.version };
     } else {
       // Create new context breadcrumb with required fields
+      // THE RCRT WAY: Include session tag on creation
+      const createTags = [...(config.output.tags || [])];
+      if (sessionId && !createTags.some(t => t.startsWith('session:'))) {
+        createTags.push(`session:${sessionId}`);
+      }
+      
       const created = await client.createBreadcrumb({
         schema_name: config.output.schema_name,
-        title: `Context for ${consumerId}`,  // ← REQUIRED FIELD!
-        tags: config.output.tags,
+        title: `Context for ${consumerId}`,
+        tags: createTags,
         ttl: config.output.ttl_seconds 
           ? new Date(Date.now() + config.output.ttl_seconds * 1000).toISOString()
           : undefined,
         context: contextData
       });
+      
+      console.log(`  🆕 Created new context with tags:`, createTags);
       return { success: true, action: 'created', context_id: created.id };
     }
   }
@@ -446,24 +465,31 @@ export class ContextBuilderTool implements RCRTTool {
               
               // If source has conversation_scope: "current" and we have a sessionId, filter by it
               if (source.conversation_scope === 'current' && contextId) {
-                // IMPORTANT: Only include messages that HAVE session tags
-                // Old messages without session tags should be excluded
-                const existingTags = recentFilters.any_tags || recentFilters.tag ? 
-                  (Array.isArray(recentFilters.any_tags) ? recentFilters.any_tags : [recentFilters.tag]) : [];
-                
-                // Replace base tag filter with session-specific tag
+                // THE RCRT WAY: Use session tag as THE ONLY filter (no base filters!)
                 // This ensures ONLY messages from this session are included
-                recentFilters.any_tags = [`session:${contextId}`];
+                recentFilters.tag = `session:${contextId}`;
+                delete recentFilters.any_tags;  // Remove any other tag filters
+                delete recentFilters.all_tags;
                 
-                console.log(`  🎯 Filtering recent ${source.schema_name} ONLY by session:${contextId}`);
+                console.log(`  🎯 Filtering recent ${source.schema_name} ONLY by tag=session:${contextId}`);
               }
               
-              breadcrumbs = await client.searchBreadcrumbsWithContext({
+              const searchParams: any = {
                 schema_name: source.schema_name,
-                ...recentFilters,
                 include_context: true,
                 limit: source.limit || 10
-              });
+              };
+              
+              // Add tag filter if present
+              if (recentFilters.tag) {
+                searchParams.tag = recentFilters.tag;
+              } else if (recentFilters.any_tags) {
+                searchParams.tag = recentFilters.any_tags[0];  // SDK uses 'tag' not 'any_tags'
+              }
+              
+              console.log(`  🔍 Search params:`, searchParams);
+              
+              breadcrumbs = await client.searchBreadcrumbsWithContext(searchParams);
               console.log(`  📊 Recent search for ${source.schema_name}: ${breadcrumbs.length} results`);
               break;
             
@@ -525,13 +551,27 @@ export class ContextBuilderTool implements RCRTTool {
           messagesBySchema[key] = [];
         }
         
-        const messages = result.breadcrumbs.map(b => ({
-          id: b.id,  // For deduplication
-          role: schema === 'user.message.v1' ? 'user' : 'assistant',
-          content: b.context?.content || b.context?.message,
-          timestamp: b.updated_at,
-          source: category  // Tag source for clarity
-        }));
+        const messages = result.breadcrumbs.map(b => {
+          // Extract content from various possible fields
+          const content = b.context?.content || 
+                         b.context?.message || 
+                         b.context?.text ||
+                         b.context?.response_text ||
+                         (typeof b.context === 'string' ? b.context : '');
+          
+          // Debug if content is missing
+          if (!content) {
+            console.warn(`⚠️  Message ${b.id} has no content field:`, Object.keys(b.context || {}));
+          }
+          
+          return {
+            id: b.id,
+            role: schema === 'user.message.v1' ? 'user' : 'assistant',
+            content: content || '[no content]',
+            timestamp: b.updated_at,
+            source: category
+          };
+        });
         
         messagesBySchema[key].push(...messages);
       } else {
@@ -576,7 +616,7 @@ export class ContextBuilderTool implements RCRTTool {
       .filter(m => m.source === 'semantic')
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
-    // Add to assembled context with clear labels
+    // THE RCRT WAY: Only two arrays, no redundancy
     if (currentConversation.length > 0) {
       assembled.current_conversation = currentConversation;
     }
@@ -585,10 +625,6 @@ export class ContextBuilderTool implements RCRTTool {
       assembled.relevant_history = relevantHistory;
     }
     
-    // Legacy: Also provide combined chat_history for backwards compatibility
-    assembled.chat_history = [...currentConversation, ...relevantHistory]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    
     console.log(`  🧹 Deduplicated user.message.v1: ${allUserMessages.length} → ${userMessages.length} messages`);
     console.log(`  🧹 Deduplicated agent.response.v1: ${allAgentMessages.length} → ${agentMessages.length} messages`);
     console.log(`  📍 Current conversation: ${currentConversation.length} messages`);
@@ -596,14 +632,25 @@ export class ContextBuilderTool implements RCRTTool {
     
     // 🔥 Deduplication using embedding similarity (if configured)
     // IMPORTANT: Always preserve the trigger event (newest user message)
-    if (formatting.deduplication_threshold && assembled.chat_history) {
+    if (formatting.deduplication_threshold) {
       const triggerBreadcrumbId = triggerEvent?.breadcrumb_id;
       
-      assembled.chat_history = await this.deduplicateByEmbedding(
-        assembled.chat_history,
-        formatting.deduplication_threshold,
-        triggerBreadcrumbId // Pass trigger ID to preserve it
-      );
+      // Apply to both conversation arrays
+      if (assembled.current_conversation) {
+        assembled.current_conversation = await this.deduplicateByEmbedding(
+          assembled.current_conversation,
+          formatting.deduplication_threshold,
+          triggerBreadcrumbId
+        );
+      }
+      
+      if (assembled.relevant_history) {
+        assembled.relevant_history = await this.deduplicateByEmbedding(
+          assembled.relevant_history,
+          formatting.deduplication_threshold,
+          triggerBreadcrumbId
+        );
+      }
     }
     
     // Token budget enforcement
