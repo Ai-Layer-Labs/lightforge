@@ -10,7 +10,8 @@
     "scripting",
     "debugger",
     "alarms",
-    "sidePanel"
+    "sidePanel",
+    "webNavigation"
   ],
   "host_permissions": [
     "http://localhost:3000/*",
