@@ -479,9 +479,14 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       ? [...baseTags, sessionTag]
       : baseTags;
     
-    // Add creator metadata
+    // THE RCRT WAY: Preserve ALL context from LLM, add metadata
+    // CRITICAL: LLM returns context.message - we must preserve it!
+    const originalContext = breadcrumbDef.context || {};
+    
+    console.log(`🔍 [${this.agentDef.agent_id}] Original context keys:`, Object.keys(originalContext));
+    
     const context = {
-      ...breadcrumbDef.context,
+      ...originalContext,  // Preserve message and any other LLM fields
       creator: {
         type: 'agent',
         agent_id: this.agentDef.agent_id
@@ -489,6 +494,8 @@ export class AgentExecutorUniversal extends UniversalExecutor {
       trigger_id: trigger.id,
       session_id: sessionTag ? sessionTag.replace('session:', '') : undefined
     };
+    
+    console.log(`🔍 [${this.agentDef.agent_id}] Final context keys:`, Object.keys(context));
     
     await this.rcrtClient.createBreadcrumb({
       schema_name: breadcrumbDef.schema_name || 'agent.response.v1',
