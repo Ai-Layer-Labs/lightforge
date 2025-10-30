@@ -32,7 +32,7 @@ FROM base AS runtime
 
 # Install Deno for self-contained tools execution using official installer
 RUN apk add --no-cache curl bash ca-certificates \
-    && curl -fsSL https://deno.land/install.sh | sh -s v1.48.1 \
+    && curl -fsSL https://deno.land/install.sh | sh \
     && mv /root/.deno/bin/deno /usr/local/bin/deno \
     && chmod +x /usr/local/bin/deno \
     && deno --version
