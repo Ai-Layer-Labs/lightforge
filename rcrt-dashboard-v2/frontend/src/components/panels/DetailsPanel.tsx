@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelectedNodes, useDashboard } from '../../stores/DashboardStore';
 import { useAuthentication } from '../../hooks/useAuthentication';
-import { useQueryClient, useQuery } from '@tantml:function_calls>
-<invoke name="read_file">
-<parameter name="target_file">rcrt-dashboard-v2/frontend/src/components/panels/DetailsPanel.tsx
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();

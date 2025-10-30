@@ -33,7 +33,7 @@ FROM base AS runtime
 # Install Deno for self-contained tools execution
 ARG DENO_VERSION=1.45.5
 RUN apk add --no-cache curl unzip bash ca-certificates \
-    && curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip" -o /tmp/deno.zip \
+    && curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-musl.zip" -o /tmp/deno.zip \
     && unzip /tmp/deno.zip -d /usr/local/bin \
     && chmod +x /usr/local/bin/deno \
     && rm /tmp/deno.zip \
