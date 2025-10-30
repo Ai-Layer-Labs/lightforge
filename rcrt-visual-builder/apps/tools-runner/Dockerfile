@@ -31,7 +31,7 @@ RUN pnpm --filter @rcrt-builder/tools-runner build
 FROM base AS runtime
 
 # Install Deno for self-contained tools execution
-ARG DENO_VERSION=1.45.5
+ARG DENO_VERSION=2.0.6
 RUN apk add --no-cache curl unzip bash ca-certificates \
     && curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-musl.zip" -o /tmp/deno.zip \
     && unzip /tmp/deno.zip -d /usr/local/bin \
