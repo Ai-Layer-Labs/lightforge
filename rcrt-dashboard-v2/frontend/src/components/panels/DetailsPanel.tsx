@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSelectedNodes, useDashboard } from '../../stores/DashboardStore';
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { DynamicConfigForm } from '../forms/DynamicConfigForm';
 
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
@@ -831,10 +832,42 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
   const queryClient = useQueryClient();
   
-  // Fetch models from catalog for OpenRouter
+  // Check if tool has ui_schema for dynamic configuration
+  const toolData = node.data;
+  const uiSchema = toolData?.context?.ui_schema;
+  
+  // If tool has dynamic UI schema, use DynamicConfigForm
+  if (uiSchema?.configurable) {
+    const handleSaveConfig = async () => {
+      setIsSaving(true);
+      try {
+        // DynamicConfigForm handles the save internally
+        await queryClient.invalidateQueries({ queryKey: ['breadcrumb-details'] });
+        onSave();
+      } catch (error) {
+        console.error('Failed to save config:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <DynamicConfigForm
+        tool={toolData}
+        config={config}
+        onConfigChange={setConfig}
+        secrets={secrets}
+        onSave={handleSaveConfig}
+        onCancel={() => {}}
+        isSaving={isSaving}
+      />
+    );
+  }
+  
+  // Fetch models from catalog for OpenRouter (legacy tools only)
   const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
 
-  // Get tool UI variables based on tool name or schema
+  // Get tool UI variables based on tool name or schema (legacy hardcoded UI)
   const getToolUIVariables = (toolNameOrSchema: string): UIVariable[] => {
     const name = toolNameOrSchema.toLowerCase();
     
