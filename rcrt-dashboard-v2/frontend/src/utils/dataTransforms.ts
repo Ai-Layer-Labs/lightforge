@@ -70,6 +70,13 @@ function convertBreadcrumbToNode(breadcrumb: Breadcrumb, position: Position3D): 
       }
       if (schema.startsWith('tool.code.') || schema === 'tool.code.v1') {
         nodeType = 'tool';
+        // Ensure green color for self-contained tools
+        metadata = {
+          ...metadata,
+          icon: '🛠️',
+          color: '#10b981', // Green for self-contained tools
+          size: { width: 140, height: 100 },
+        };
         console.log(`🛠️ Converting to tool node type for: ${breadcrumb.title}`);
       }
       if (schema.startsWith('dashboard.')) nodeType = 'system';
@@ -274,6 +281,7 @@ function getSchemaConfig(schema: string) {
     'agent.response.v1': { icon: '🤖', color: '#8a2be2', size: 'medium' },
     'agent.thinking.v1': { icon: '🧠', color: '#ff6b6b', size: 'small' },
     'agent.definition.v1': { icon: '🧠', color: '#8a2be2', size: 'medium' },
+    'tool.code.v1': { icon: '🛠️', color: '#10b981', size: 'medium' }, // Green for self-contained tools
     'tool.response.v1': { icon: '🛠️', color: '#ffa500', size: 'medium' },
     'tool.request.v1': { icon: '⚡', color: '#ffa500', size: 'small' },
     'dashboard.config.v1': { icon: '⚙️', color: '#64748b', size: 'small' },

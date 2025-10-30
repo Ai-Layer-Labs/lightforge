@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "code": {
       "language": "typescript",
-      "source": "/**\n * OpenRouter Models Sync Tool - Self-Contained Deno Version\n * Fetches latest models from OpenRouter public API and publishes as breadcrumb\n */\n\ninterface Input {\n  force_refresh?: boolean;\n}\n\ninterface Output {\n  models_count: number;\n  catalog_id: string;\n  last_updated: string;\n  message: string;\n}\n\ninterface Context {\n  api: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  console.log('🔄 Starting OpenRouter models sync...');\n  \n  // Check if we need to refresh\n  if (!input.force_refresh) {\n    try {\n      const existing = await context.api.searchBreadcrumbs({\n        schema_name: 'openrouter.models.catalog.v1',\n        tag: 'openrouter:models',\n        limit: 1\n      });\n      \n      if (existing.length > 0) {\n        const catalog = existing[0];\n        const lastUpdated = new Date(catalog.context.last_updated || catalog.updated_at);\n        const hoursSinceUpdate = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60);\n        \n        // Only refresh if older than 24 hours\n        if (hoursSinceUpdate < 24) {\n          console.log(`✅ Catalog is fresh (${hoursSinceUpdate.toFixed(1)} hours old)`);\n          return {\n            models_count: catalog.context.models?.length || 0,\n            catalog_id: catalog.id,\n            last_updated: catalog.context.last_updated || catalog.updated_at,\n            message: `Catalog is up-to-date (${hoursSinceUpdate.toFixed(1)} hours old). Use force_refresh: true to update anyway.`\n          };\n        }\n      }\n    } catch (error) {\n      console.warn('Failed to check existing catalog:', error);\n    }\n  }\n  \n  // Fetch models from OpenRouter public API\n  console.log('📥 Fetching models from OpenRouter...');\n  const response = await fetch('https://openrouter.ai/api/v1/models');\n  \n  if (!response.ok) {\n    throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);\n  }\n  \n  const data = await response.json();\n  \n  if (!data.data || !Array.isArray(data.data)) {\n    throw new Error('Invalid response format from OpenRouter API');\n  }\n  \n  const models = data.data;\n  console.log(`✅ Fetched ${models.length} models`);\n  \n  // Check if catalog breadcrumb exists\n  const existingCatalogs = await context.api.searchBreadcrumbs({\n    schema_name: 'openrouter.models.catalog.v1',\n    tag: 'openrouter:models'\n  });\n  \n  const now = new Date().toISOString();\n  const catalogData = {\n    title: 'OpenRouter Models Catalog',\n    schema_name: 'openrouter.models.catalog.v1',\n    tags: ['openrouter:models', 'catalog', 'sync', 'system'],\n    context: {\n      models: models,\n      last_updated: now,\n      source: 'https://openrouter.ai/api/v1/models',\n      total_count: models.length,\n      sync_tool: 'openrouter_models_sync'\n    }\n  };\n  \n  let catalogId: string;\n  \n  if (existingCatalogs.length > 0) {\n    // Update existing catalog\n    const existing = existingCatalogs[0];\n    catalogId = existing.id;\n    \n    console.log(`🔄 Updating existing catalog: ${catalogId}`);\n    await context.api.updateBreadcrumb(catalogId, catalogData);\n  } else {\n    // Create new catalog\n    console.log('➕ Creating new models catalog breadcrumb');\n    const created = await context.api.createBreadcrumb(catalogData);\n    catalogId = created.id;\n  }\n  \n  console.log(`✅ Models catalog synced successfully!`);\n  \n  return {\n    models_count: models.length,\n    catalog_id: catalogId,\n    last_updated: now,\n    message: `Successfully synced ${models.length} models from OpenRouter`\n  };\n}\n"
+      "source": "/**\n * OpenRouter Models Sync Tool - Self-Contained Deno Version\n * Fetches latest models from OpenRouter public API and publishes as breadcrumb\n */\n\ninterface Input {\n  force_refresh?: boolean;\n}\n\ninterface Output {\n  models_count: number;\n  catalog_id: string;\n  last_updated: string;\n  message: string;\n}\n\ninterface Context {\n  api: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  // Detect invocation source\n  const triggerSchema = context.request?.trigger_event?.schema_name;\n  const isBootstrap = triggerSchema === 'system.startup.v1';\n  const isScheduled = triggerSchema === 'schedule.tick.v1';\n  const isManual = triggerSchema === 'tool.request.v1' && !context.request?.trigger_event?.tags?.includes('auto-trigger');\n  \n  let invocationSource = 'unknown';\n  if (isBootstrap) invocationSource = 'bootstrap';\n  else if (isScheduled) invocationSource = 'scheduled';\n  else if (isManual) invocationSource = 'manual/UI';\n  \n  console.log(`🔄 Starting OpenRouter models sync (invoked from: ${invocationSource})`);\n  \n  // Check if we need to refresh\n  if (!input.force_refresh) {\n    try {\n      const existing = await context.api.searchBreadcrumbs({\n        schema_name: 'openrouter.models.catalog.v1',\n        tag: 'openrouter:models',\n        limit: 1\n      });\n      \n      if (existing.length > 0) {\n        const catalog = existing[0];\n        const lastUpdated = new Date(catalog.context.last_updated || catalog.updated_at);\n        const hoursSinceUpdate = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60);\n        \n        // Only refresh if older than 24 hours\n        if (hoursSinceUpdate < 24) {\n          console.log(`✅ Catalog is fresh (${hoursSinceUpdate.toFixed(1)} hours old)`);\n          return {\n            models_count: catalog.context.models?.length || 0,\n            catalog_id: catalog.id,\n            last_updated: catalog.context.last_updated || catalog.updated_at,\n            message: `Catalog is up-to-date (${hoursSinceUpdate.toFixed(1)} hours old). Use force_refresh: true to update anyway.`\n          };\n        }\n      }\n    } catch (error) {\n      console.warn('Failed to check existing catalog:', error);\n    }\n  }\n  \n  // Fetch models from OpenRouter public API\n  console.log('📥 Fetching models from OpenRouter...');\n  const response = await fetch('https://openrouter.ai/api/v1/models');\n  \n  if (!response.ok) {\n    throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);\n  }\n  \n  const data = await response.json();\n  \n  if (!data.data || !Array.isArray(data.data)) {\n    throw new Error('Invalid response format from OpenRouter API');\n  }\n  \n  const models = data.data;\n  console.log(`✅ Fetched ${models.length} models`);\n  \n  // Check if catalog breadcrumb exists\n  const existingCatalogs = await context.api.searchBreadcrumbs({\n    schema_name: 'openrouter.models.catalog.v1',\n    tag: 'openrouter:models'\n  });\n  \n  const now = new Date().toISOString();\n  const catalogData = {\n    title: 'OpenRouter Models Catalog',\n    schema_name: 'openrouter.models.catalog.v1',\n    tags: ['openrouter:models', 'catalog', 'sync', 'system'],\n    context: {\n      models: models,\n      last_updated: now,\n      source: 'https://openrouter.ai/api/v1/models',\n      total_count: models.length,\n      sync_tool: 'openrouter_models_sync'\n    }\n  };\n  \n  let catalogId: string;\n  \n  if (existingCatalogs.length > 0) {\n    // Update existing catalog\n    const existing = existingCatalogs[0];\n    catalogId = existing.id;\n    \n    console.log(`🔄 Updating existing catalog: ${catalogId}`);\n    await context.api.updateBreadcrumb(catalogId, catalogData);\n  } else {\n    // Create new catalog\n    console.log('➕ Creating new models catalog breadcrumb');\n    const created = await context.api.createBreadcrumb(catalogData);\n    catalogId = created.id;\n  }\n  \n  console.log(`✅ Models catalog synced successfully!`);\n  \n  return {\n    models_count: models.length,\n    catalog_id: catalogId,\n    last_updated: now,\n    message: `Successfully synced ${models.length} models from OpenRouter`\n  };\n}\n"
     },
     "input_schema": {
       "type": "object",
@@ -64,7 +64,8 @@
           "last_updated": "2025-10-30T10:00:00Z",
           "message": "Successfully synced 150 models from OpenRouter"
         },
-        "description": "Sync models (uses cache if fresh)"
+        "description": "Sync models (uses cache if fresh)",
+        "explanation": "Tool checks if catalog exists and is less than 24 hours old. If so, returns existing catalog without fetching from API."
       },
       {
         "input": {
@@ -76,12 +77,28 @@
           "last_updated": "2025-10-30T12:00:00Z",
           "message": "Successfully synced 152 models from OpenRouter"
         },
-        "description": "Force refresh regardless of cache age"
+        "description": "Force refresh regardless of cache age",
+        "explanation": "With force_refresh=true, tool always fetches latest models from OpenRouter API and updates catalog, ignoring cache age."
       }
     ],
     "ui_schema": {
       "configurable": false,
       "description": "This tool syncs the OpenRouter models catalog from the public API. No configuration needed - just run it! The catalog is cached for 24 hours."
+    },
+    "subscriptions": [
+      {
+        "schema_name": "schedule.tick.v1",
+        "tag": "interval:daily",
+        "description": "Auto-sync models catalog daily"
+      }
+    ],
+    "bootstrap": {
+      "enabled": true,
+      "mode": "once",
+      "priority": 50,
+      "input": {
+        "force_refresh": false
+      }
     }
   }
 }

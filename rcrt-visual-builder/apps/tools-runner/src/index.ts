@@ -145,6 +145,48 @@ async function startCentralizedSSEDispatcher(
   await connect();
 }
 
+/**
+ * Start a continuous tool (long-running background tool)
+ */
+async function startContinuousTool(
+  tool: any,
+  denoRuntime: DenoToolRuntime,
+  client: RcrtClientEnhanced,
+  workspace: string
+): Promise<void> {
+  const toolName = tool.context.name;
+  console.log(`🔄 Starting continuous tool: ${toolName}`);
+  
+  // Execute tool in background (it should have an infinite loop or long-running process)
+  const input = tool.context.bootstrap?.input || {};
+  
+  try {
+    // Note: This will run indefinitely until the process is killed
+    const result = await denoRuntime.executeTool({
+      tool_name: toolName,
+      input,
+      request_id: `continuous-${toolName}-${Date.now()}`,
+      agent_id: 'bootstrap',
+      workspace,
+      trigger_event: {
+        schema_name: 'system.startup.v1',
+        timestamp: new Date().toISOString(),
+        mode: 'continuous'
+      }
+    });
+    
+    // If the tool exits (it shouldn't for continuous tools), log it
+    console.warn(`⚠️ Continuous tool ${toolName} exited:`, result);
+  } catch (error) {
+    console.error(`❌ Continuous tool ${toolName} error:`, error);
+    // Optionally: restart the tool after a delay
+    console.log(`🔄 Restarting ${toolName} in 10 seconds...`);
+    setTimeout(() => {
+      startContinuousTool(tool, denoRuntime, client, workspace);
+    }, 10000);
+  }
+}
+
 // Dispatch SSE events to appropriate tools
 async function dispatchEventToTool(
   eventData: any, 
@@ -500,6 +542,31 @@ async function main() {
       console.warn('⚠️ Deno runtime initialization failed - self-contained tools disabled:', error);
       console.warn('   Install Deno to enable self-contained tools: https://deno.land/');
       globalDenoRuntime = null;
+    }
+    
+    // Execute bootstrap tools
+    if (globalDenoRuntime) {
+      console.log('🚀 Running bootstrap tools...');
+      try {
+        const bootstrapResult = await globalDenoRuntime.executeBootstrap();
+        console.log(`✅ Bootstrap complete: ${bootstrapResult.successful} successful, ${bootstrapResult.failed} failed, ${bootstrapResult.skipped} skipped`);
+        
+        // Start continuous tools
+        const continuousTools = globalDenoRuntime.getBootstrapTools()
+          .filter(t => t.context.bootstrap?.mode === 'continuous');
+        
+        if (continuousTools.length > 0) {
+          console.log(`🔄 Starting ${continuousTools.length} continuous tool(s)...`);
+          for (const tool of continuousTools) {
+            startContinuousTool(tool, globalDenoRuntime, client, config.workspace)
+              .catch(error => {
+                console.error(`❌ Continuous tool ${tool.context.name} failed:`, error);
+              });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Bootstrap execution failed:', error);
+      }
     }
     
     // Discover available tools

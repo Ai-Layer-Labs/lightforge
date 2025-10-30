@@ -3,6 +3,8 @@
  * Manages Deno subprocess lifecycle
  */
 
+import { spawn } from 'child_process';
+
 export interface ProcessOptions {
   timeout_ms: number;
   memory_mb?: number;
@@ -30,64 +32,89 @@ export class ProcessManager {
   ): Promise<ProcessResult> {
     const startTime = Date.now();
     
-    // Spawn Deno process
-    const process = Bun.spawn([denoPath, ...args], {
-      stdin: 'pipe',
-      stdout: 'pipe',
-      stderr: 'pipe'
-    });
-    
-    let timedOut = false;
-    let killed = false;
-    
-    // Set timeout
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      if (!killed) {
-        process.kill();
-        killed = true;
-      }
-    }, options.timeout_ms);
-    
-    try {
+    return new Promise((resolve) => {
+      // Spawn Deno process
+      const process = spawn(denoPath, args, {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      let timedOut = false;
+      let killed = false;
+      let stdout = '';
+      let stderr = '';
+      let exitCode: number | null = null;
+      
+      // Set timeout
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        if (!killed) {
+          process.kill('SIGTERM');
+          killed = true;
+        }
+      }, options.timeout_ms);
+      
+      // Collect stdout
+      process.stdout?.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      // Collect stderr
+      process.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      // Handle process exit
+      process.on('exit', (code) => {
+        exitCode = code;
+        clearTimeout(timeout);
+        
+        const duration_ms = Date.now() - startTime;
+        
+        resolve({
+          success: code === 0 && !timedOut,
+          stdout,
+          stderr,
+          exitCode,
+          duration_ms,
+          timedOut
+        });
+      });
+      
+      // Handle process error
+      process.on('error', (error) => {
+        clearTimeout(timeout);
+        
+        const duration_ms = Date.now() - startTime;
+        
+        resolve({
+          success: false,
+          stdout,
+          stderr: stderr + '\n' + error.message,
+          exitCode: null,
+          duration_ms,
+          timedOut
+        });
+      });
+      
       // Write script to stdin
-      const writer = process.stdin.getWriter();
-      await writer.write(new TextEncoder().encode(script));
-      await writer.close();
-      
-      // Wait for completion
-      const exitCode = await process.exited;
-      
-      clearTimeout(timeout);
-      
-      // Read outputs
-      const stdout = await new Response(process.stdout).text();
-      const stderr = await new Response(process.stderr).text();
-      
-      const duration_ms = Date.now() - startTime;
-      
-      return {
-        success: exitCode === 0 && !timedOut,
-        stdout,
-        stderr,
-        exitCode,
-        duration_ms,
-        timedOut
-      };
-    } catch (error: any) {
-      clearTimeout(timeout);
-      
-      const duration_ms = Date.now() - startTime;
-      
-      return {
-        success: false,
-        stdout: '',
-        stderr: error.message || 'Process execution failed',
-        exitCode: null,
-        duration_ms,
-        timedOut
-      };
-    }
+      try {
+        process.stdin?.write(script);
+        process.stdin?.end();
+      } catch (error: any) {
+        clearTimeout(timeout);
+        
+        const duration_ms = Date.now() - startTime;
+        
+        resolve({
+          success: false,
+          stdout: '',
+          stderr: error.message || 'Failed to write to process stdin',
+          exitCode: null,
+          duration_ms,
+          timedOut
+        });
+      }
+    });
   }
   
   /**

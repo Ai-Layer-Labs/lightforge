@@ -833,6 +833,49 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
   const queryClient = useQueryClient();
   
+  // IMPORTANT: All hooks must be called before any early returns!
+  // Fetch models from catalog for OpenRouter (used by legacy tools only, but must be called unconditionally)
+  const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
+  
+  // Load secrets and config (used by both dynamic and legacy forms)
+  useEffect(() => {
+    const loadSecrets = async () => {
+      try {
+        const response = await authenticatedFetch('/api/secrets');
+        if (response.ok) {
+          const secretsList = await response.json();
+          setSecrets(secretsList);
+        }
+      } catch (error) {
+        console.warn('Failed to load secrets:', error);
+      }
+    };
+    
+    const loadToolConfig = async () => {
+      try {
+        const response = await authenticatedFetch('/api/breadcrumbs');
+        if (!response.ok) return;
+        
+        const breadcrumbs = await response.json();
+        const configBreadcrumb = breadcrumbs.find((b: any) =>
+          b.tags?.includes(`tool:config:${node.metadata.title}`) ||
+          (b.tags?.includes('tool:config') && b.title?.includes(node.metadata.title))
+        );
+        
+        if (configBreadcrumb) {
+          setConfig(configBreadcrumb.context?.config || {});
+        }
+      } catch (error) {
+        console.warn('Failed to load tool config:', error);
+      }
+    };
+    
+    if (isAuthenticated) {
+      loadSecrets();
+      loadToolConfig();
+    }
+  }, [node.id, node.metadata.title, isAuthenticated, authenticatedFetch]);
+  
   // Check if tool has ui_schema for dynamic configuration
   const toolData = node.data;
   const uiSchema = toolData?.context?.ui_schema;
@@ -864,9 +907,6 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
       />
     );
   }
-  
-  // Fetch models from catalog for OpenRouter (legacy tools only)
-  const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
 
   // Get tool UI variables based on tool name or schema (legacy hardcoded UI)
   const getToolUIVariables = (toolNameOrSchema: string): UIVariable[] => {
@@ -1056,120 +1096,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
 
   const uiVariables = getToolUIVariables(node.metadata.title);
 
-  // Load current configuration only after authentication
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadToolConfig();
-      loadSecrets();
-    }
-  }, [node.id, isAuthenticated]);
-
-  const loadSecrets = async () => {
-    try {
-      const response = await authenticatedFetch('/api/secrets');
-      if (response.ok) {
-        const secretsList = await response.json();
-        setSecrets(secretsList);
-      }
-    } catch (error) {
-      console.warn('Failed to load secrets:', error);
-    }
-  };
-
-  const loadToolConfig = async () => {
-    try {
-      console.log('🛠️ Loading tool configuration for:', node.metadata.title);
-      
-      // Search for tool config breadcrumb
-      const response = await authenticatedFetch('/api/breadcrumbs');
-      if (!response.ok) return;
-      
-      const breadcrumbs = await response.json();
-      
-      // Check if this is a context-builder tool or context.config.v1 breadcrumb
-      const isContextBuilderTool = node.metadata.title.toLowerCase() === 'context-builder' || 
-                                    node.metadata.title.toLowerCase() === 'context_builder';
-      const isContextConfig = node.data?.schema_name === 'context.config.v1' || 
-                              node.metadata.tags.includes('context:config');
-      
-      const configBreadcrumb = breadcrumbs.find((b: Breadcrumb) => {
-        if (isContextBuilderTool || isContextConfig) {
-          // For context-builder tool or context configs, look for context:config tag
-          return b.tags?.includes('context:config') && b.schema_name === 'context.config.v1';
-        } else {
-          // For other tools, look for tool:config tag
-          return b.tags?.includes(`tool:config:${node.metadata.title}`) ||
-                 (b.tags?.includes('tool:config') && b.title?.includes(node.metadata.title));
-        }
-      });
-      
-      if (configBreadcrumb) {
-        console.log('✅ Found config breadcrumb:', configBreadcrumb.id);
-        
-        // Load full context
-        const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}`);
-        if (detailResponse.ok) {
-          const detail = await detailResponse.json();
-          
-          if (isContextBuilderTool || isContextConfig) {
-            // For context-builder tool or context configs, read values from nested structure
-            const loadedConfig: ToolConfigValue = {};
-            const ctx = detail.context;
-            
-            // Read from sources array
-            if (ctx?.sources && Array.isArray(ctx.sources)) {
-              const recentUserSource = ctx.sources.find(s => 
-                s.schema_name === 'user.message.v1' && s.method === 'recent'
-              );
-              const vectorUserSource = ctx.sources.find(s => 
-                s.schema_name === 'user.message.v1' && s.method === 'vector'
-              );
-              const recentAgentSource = ctx.sources.find(s => 
-                s.schema_name === 'agent.response.v1' && s.method === 'recent'
-              );
-              const vectorAgentSource = ctx.sources.find(s => 
-                s.schema_name === 'agent.response.v1' && s.method === 'vector'
-              );
-              
-              loadedConfig.recent_user_limit = recentUserSource?.limit ?? 20;
-              loadedConfig.vector_user_nn = vectorUserSource?.nn ?? 10;
-              loadedConfig.recent_agent_limit = recentAgentSource?.limit ?? 20;
-              loadedConfig.vector_agent_nn = vectorAgentSource?.nn ?? 10;
-            }
-            
-            // Read from formatting object
-            if (ctx?.formatting) {
-              loadedConfig.max_tokens = ctx.formatting.max_tokens ?? 400000;
-              loadedConfig.deduplication_threshold = ctx.formatting.deduplication_threshold ?? 0.95;
-              loadedConfig.include_metadata = ctx.formatting.include_metadata ?? false;
-            }
-            
-            // Read TTL and strategy
-            loadedConfig.context_ttl = ctx?.output?.ttl_seconds ?? 3600;
-            loadedConfig.strategy = ctx?.strategy ?? 'hybrid';
-            
-            setConfig(loadedConfig);
-            console.log('🏗️ Loaded context config from nested structure:', loadedConfig);
-          } else {
-            // For other tools, read from context.config
-            if (detail.context?.config) {
-              setConfig(detail.context.config);
-              console.log('🛠️ Loaded tool config:', detail.context.config);
-            }
-          }
-        }
-      } else {
-        // Initialize with defaults
-        const defaultConfig: ToolConfigValue = {};
-        uiVariables.forEach(variable => {
-          defaultConfig[variable.key] = variable.defaultValue;
-        });
-        setConfig(defaultConfig);
-      }
-    } catch (error) {
-      console.warn('Failed to load tool config:', error);
-    }
-  };
+  // Note: Secrets and config are now loaded in the shared useEffect at the top of the component
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
@@ -1485,7 +1412,8 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           </button>
           <button
             onClick={() => {
-              loadToolConfig(); // Reset to saved config
+              // Reload config by invalidating queries
+              queryClient.invalidateQueries({ queryKey: ['breadcrumb-details', node.id] });
             }}
             className="px-3 py-2 bg-gray-500/20 border border-gray-400/50 rounded text-gray-300 text-sm hover:bg-gray-500/30 transition-colors"
           >
