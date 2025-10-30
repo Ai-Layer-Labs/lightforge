@@ -68,6 +68,10 @@ function convertBreadcrumbToNode(breadcrumb: Breadcrumb, position: Position3D): 
         };
         console.log(`🧠 Converting to agent-definition node type for: ${breadcrumb.title}`);
       }
+      if (schema.startsWith('tool.code.') || schema === 'tool.code.v1') {
+        nodeType = 'tool';
+        console.log(`🛠️ Converting to tool node type for: ${breadcrumb.title}`);
+      }
       if (schema.startsWith('dashboard.')) nodeType = 'system';
     }
   }

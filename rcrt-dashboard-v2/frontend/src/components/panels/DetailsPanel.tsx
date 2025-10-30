@@ -4,6 +4,7 @@ import { useSelectedNodes, useDashboard } from '../../stores/DashboardStore';
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { DynamicConfigForm } from '../forms/DynamicConfigForm';
+import { useModelsFromCatalog } from '../../hooks/useModelsFromCatalog';
 
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
