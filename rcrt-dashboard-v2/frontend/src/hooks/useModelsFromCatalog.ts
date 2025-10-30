@@ -89,34 +89,9 @@ const mapModelsToOptions = (models: ModelsCatalogEntry[]): ModelOption[] => {
     .sort((a, b) => a.label.localeCompare(b.label));
 };
 
-const fetchDirectOpenRouterModels = async (): Promise<ModelOption[]> => {
-  try {
-    console.log('[useModelsFromCatalog] Fetching models directly from OpenRouter API...');
-    const response = await fetch('https://openrouter.ai/api/v1/models', {
-      headers: { Accept: 'application/json' },
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter API responded with ${response.status}`);
-    }
-
-    const payload = await response.json();
-    const models = Array.isArray(payload?.data) ? payload.data : [];
-    console.log(`[useModelsFromCatalog] Received ${models.length} models from OpenRouter API`);
-
-    const filteredModels = models.filter((model: ModelsCatalogEntry & { pricing?: { prompt?: string; completion?: string } }) => {
-      const promptCost = Number(model.pricing?.prompt ?? 0);
-      const completionCost = Number(model.pricing?.completion ?? 0);
-      // Skip models without pricing info or extremely high cost
-      return (promptCost > 0 || completionCost > 0) && (promptCost + completionCost) < 0.1;
-    });
-
-    return mapModelsToOptions(filteredModels);
-  } catch (error) {
-    console.warn('[useModelsFromCatalog] Direct OpenRouter fetch failed:', error);
-    return [];
-  }
-};
+// REMOVED: Direct fetch from OpenRouter API
+// The RCRT way: UI reads breadcrumbs, tools write breadcrumbs
+// Run the "OpenRouter Models Sync" tool to populate the catalog
 
 export function useModelsFromCatalog() {
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
@@ -140,9 +115,15 @@ export function useModelsFromCatalog() {
         console.log('[useModelsFromCatalog] API response:', catalogs);
 
         if (!Array.isArray(catalogs) || catalogs.length === 0) {
-          console.warn('No OpenRouter models catalog found in breadcrumbs');
-          const directModels = await fetchDirectOpenRouterModels();
-          return directModels.length > 0 ? directModels : FALLBACK_MODELS;
+          console.warn('No OpenRouter models catalog found in breadcrumbs - run sync tool');
+          return [
+            {
+              value: '_sync_needed',
+              label: '⚠️ Run "OpenRouter Models Sync" tool first',
+              description: 'Models catalog not found. Run the sync tool to populate the list.'
+            },
+            ...FALLBACK_MODELS
+          ];
         }
 
         // Get the most recent catalog
@@ -170,9 +151,15 @@ export function useModelsFromCatalog() {
           : [];
 
         if (options.length === 0) {
-          console.warn('OpenRouter models catalog breadcrumb had no models, falling back to direct fetch');
-          const directModels = await fetchDirectOpenRouterModels();
-          return directModels.length > 0 ? directModels : FALLBACK_MODELS;
+          console.warn('OpenRouter models catalog breadcrumb had no models');
+          return [
+            {
+              value: '_sync_needed',
+              label: '⚠️ Models catalog is empty - run sync tool',
+              description: 'The catalog exists but has no models. Run the sync tool to update it.'
+            },
+            ...FALLBACK_MODELS
+          ];
         }
 
         console.log('[useModelsFromCatalog] Returning options from catalog:', options.length);
@@ -180,8 +167,14 @@ export function useModelsFromCatalog() {
 
       } catch (error) {
         console.error('Failed to fetch models from catalog:', error);
-        const directModels = await fetchDirectOpenRouterModels();
-        return directModels.length > 0 ? directModels : FALLBACK_MODELS;
+        return [
+          {
+            value: '_error',
+            label: '⚠️ Error loading models catalog',
+            description: 'Failed to load models. Check console for details.'
+          },
+          ...FALLBACK_MODELS
+        ];
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
