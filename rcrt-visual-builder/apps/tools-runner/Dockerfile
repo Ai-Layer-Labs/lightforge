@@ -1,6 +1,6 @@
 # RCRT Tools Runner - Docker deployment
-FROM node:18-alpine AS base
-RUN apk add --no-cache dumb-init
+FROM node:18-bullseye-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Install pnpm
@@ -31,11 +31,12 @@ RUN pnpm --filter @rcrt-builder/tools-runner build
 FROM base AS runtime
 
 # Install Deno for self-contained tools execution using official installer
-RUN apk add --no-cache curl bash ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends curl bash ca-certificates unzip \
+    && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://deno.land/install.sh | sh \
-    && mv /root/.deno/bin/deno /usr/local/bin/deno \
+    && cp /root/.deno/bin/deno /usr/local/bin/deno \
     && chmod +x /usr/local/bin/deno \
-    && deno --version
+    && /usr/local/bin/deno --version
 
 # Copy built output with dependencies embedded
 COPY --from=build /app/apps/tools-runner/dist ./apps/tools-runner/dist
