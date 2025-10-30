@@ -838,43 +838,74 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
   
   // Load secrets and config (used by both dynamic and legacy forms)
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  
   useEffect(() => {
-    const loadSecrets = async () => {
+    if (isLoadingConfig || !isAuthenticated) return; // Prevent duplicate loads
+    
+    const loadData = async () => {
+      setIsLoadingConfig(true);
+      
       try {
-        const response = await authenticatedFetch('/api/secrets');
-        if (response.ok) {
-          const secretsList = await response.json();
-          setSecrets(secretsList);
+        // Load secrets
+        try {
+          const response = await authenticatedFetch('/api/secrets');
+          if (response.ok) {
+            const secretsList = await response.json();
+            setSecrets(secretsList);
+          }
+        } catch (error) {
+          console.warn('Failed to load secrets:', error);
         }
-      } catch (error) {
-        console.warn('Failed to load secrets:', error);
+        
+        // Load tool config
+        const toolName = node.data?.context?.name;
+        
+        if (!toolName) {
+          console.log('📝 No tool name found, skipping config load');
+          return;
+        }
+        
+        console.log('🔍 Loading config for tool:', toolName);
+        
+        try {
+          const searchParams = new URLSearchParams({
+            schema_name: 'tool.config.v1',
+            tag: `tool:${toolName}`
+          });
+          
+          const response = await authenticatedFetch(`/api/breadcrumbs?${searchParams.toString()}`);
+          
+          if (!response.ok) {
+            console.log('📝 No config breadcrumb found (HTTP', response.status, '), using defaults');
+            return;
+          }
+          
+          const configBreadcrumbs = await response.json();
+          
+          if (configBreadcrumbs.length > 0) {
+            const configBreadcrumb = configBreadcrumbs[0];
+            const loadedConfig = configBreadcrumb.context?.config;
+            
+            if (loadedConfig && Object.keys(loadedConfig).length > 0) {
+              console.log('📥 Loaded tool configuration:', loadedConfig);
+              setConfig(loadedConfig);
+            } else {
+              console.log('📝 Config breadcrumb found but empty, using defaults');
+            }
+          } else {
+            console.log('📝 No existing config found, using defaults');
+          }
+        } catch (error) {
+          console.log('📝 Failed to load config, using defaults:', error.message);
+        }
+      } finally {
+        setIsLoadingConfig(false);
       }
     };
     
-    const loadToolConfig = async () => {
-      try {
-        const response = await authenticatedFetch('/api/breadcrumbs');
-        if (!response.ok) return;
-        
-        const breadcrumbs = await response.json();
-        const configBreadcrumb = breadcrumbs.find((b: any) =>
-          b.tags?.includes(`tool:config:${node.metadata.title}`) ||
-          (b.tags?.includes('tool:config') && b.title?.includes(node.metadata.title))
-        );
-        
-        if (configBreadcrumb) {
-          setConfig(configBreadcrumb.context?.config || {});
-        }
-      } catch (error) {
-        console.warn('Failed to load tool config:', error);
-      }
-    };
-    
-    if (isAuthenticated) {
-      loadSecrets();
-      loadToolConfig();
-    }
-  }, [node.id, node.metadata.title, isAuthenticated, authenticatedFetch]);
+    loadData();
+  }, [node.id, isAuthenticated]);
   
   // Check if tool has ui_schema for dynamic configuration
   const toolData = node.data;
@@ -885,11 +916,74 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
     const handleSaveConfig = async () => {
       setIsSaving(true);
       try {
-        // DynamicConfigForm handles the save internally
+        console.log('💾 Saving tool configuration:', { toolName: toolData.context.name, config });
+        
+        // Search for existing tool config breadcrumb
+        const searchParams = new URLSearchParams({
+          schema_name: 'tool.config.v1',
+          tag: `tool:${toolData.context.name}`
+        });
+        
+        const searchResponse = await authenticatedFetch(`/api/breadcrumbs?${searchParams.toString()}`);
+        if (!searchResponse.ok) {
+          throw new Error('Failed to search for tool config');
+        }
+        
+        const existingConfigs = await searchResponse.json();
+        const configData = {
+          title: `${toolData.context.name} Configuration`,
+          schema_name: 'tool.config.v1',
+          tags: ['tool:config', `tool:${toolData.context.name}`, 'workspace:tools'],
+          context: {
+            tool_name: toolData.context.name,
+            config: config,
+            last_updated: new Date().toISOString()
+          }
+        };
+        
+        if (existingConfigs.length > 0) {
+          // Update existing config
+          const existingConfig = existingConfigs[0];
+          console.log('🔄 Updating existing tool config:', existingConfig.id);
+          
+          // Load full breadcrumb to get current version for optimistic concurrency
+          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`);
+          if (!fullResponse.ok) {
+            throw new Error('Failed to load existing config for version check');
+          }
+          const fullConfig = await fullResponse.json();
+          
+          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`, {
+            method: 'PATCH',
+            headers: {
+              'If-Match': String(fullConfig.version)
+            },
+            body: JSON.stringify(configData)
+          });
+          
+          if (!updateResponse.ok) {
+            throw new Error('Failed to update tool config');
+          }
+        } else {
+          // Create new config breadcrumb
+          console.log('➕ Creating new tool config breadcrumb');
+          
+          const createResponse = await authenticatedFetch('/api/breadcrumbs', {
+            method: 'POST',
+            body: JSON.stringify(configData)
+          });
+          
+          if (!createResponse.ok) {
+            throw new Error('Failed to create tool config');
+          }
+        }
+        
+        console.log('✅ Tool configuration saved successfully');
         await queryClient.invalidateQueries({ queryKey: ['breadcrumb-details'] });
         onSave();
       } catch (error) {
-        console.error('Failed to save config:', error);
+        console.error('❌ Failed to save config:', error);
+        alert(`Failed to save configuration: ${error.message}`);
       } finally {
         setIsSaving(false);
       }

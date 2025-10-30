@@ -82,23 +82,26 @@ export function DynamicConfigForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, Array<{ value: any; label: string }>>>({});
   const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
-  const { authenticatedFetch } = useAuthentication();
+  const { authenticatedFetch, isAuthenticated } = useAuthentication();
 
   const uiSchema = tool.context?.ui_schema;
   const fields = uiSchema?.config_fields || [];
 
-  // Load dynamic options for fields
+  // Load dynamic options for fields (only when authenticated)
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     fields.forEach((field) => {
       if (field.options_source) {
         loadDynamicOptions(field);
       }
     });
-  }, [fields]);
+  }, [fields, isAuthenticated]);
 
   const loadDynamicOptions = async (field: UIConfigField) => {
     if (!field.options_source) return;
 
+    console.log(`[DynamicConfigForm] Loading options for field: ${field.key}`, field.options_source);
     setLoadingOptions((prev) => ({ ...prev, [field.key]: true }));
 
     try {
@@ -111,16 +114,25 @@ export function DynamicConfigForm({
         if (field.options_source.tag) {
           params.append('tag', field.options_source.tag);
         }
+        params.append('include_context', 'true');
 
         const response = await authenticatedFetch(`/api/breadcrumbs?${params.toString()}`);
+        console.log(`[DynamicConfigForm] Response status: ${response.status}`);
+        
         if (response.ok) {
           const breadcrumbs = await response.json();
+          console.log(`[DynamicConfigForm] Found ${breadcrumbs.length} breadcrumbs`, breadcrumbs);
           
           // Extract values and labels using JSONPath
           const options: Array<{ value: any; label: string }> = [];
           
           breadcrumbs.forEach((breadcrumb: any) => {
             try {
+              console.log(`[DynamicConfigForm] Extracting from breadcrumb:`, breadcrumb.id, {
+                value_path: field.options_source!.value_path,
+                label_path: field.options_source!.label_path
+              });
+              
               const values = JSONPath({
                 path: field.options_source!.value_path || '$',
                 json: breadcrumb,
@@ -128,6 +140,11 @@ export function DynamicConfigForm({
               const labels = JSONPath({
                 path: field.options_source!.label_path || '$',
                 json: breadcrumb,
+              });
+
+              console.log(`[DynamicConfigForm] JSONPath results:`, {
+                values: values?.length || 0,
+                labels: labels?.length || 0
               });
 
               // Flatten if arrays
@@ -145,7 +162,10 @@ export function DynamicConfigForm({
             }
           });
 
+          console.log(`[DynamicConfigForm] Extracted ${options.length} options for ${field.key}`);
           setDynamicOptions((prev) => ({ ...prev, [field.key]: options }));
+        } else {
+          console.error(`[DynamicConfigForm] Failed to fetch breadcrumbs: ${response.status}`);
         }
       } else if (field.options_source.type === 'api') {
         // Fetch from API
