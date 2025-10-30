@@ -1,0 +1,71 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "Echo Tool (Self-Contained)",
+  "tags": ["tool", "tool:echo", "workspace:tools", "self-contained"],
+  "context": {
+    "name": "echo",
+    "description": "Returns the input unchanged - useful for testing",
+    "version": "2.0.0",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * Echo Tool - Self-Contained Deno Version\n * Returns input unchanged for testing\n */\n\ninterface Input {\n  message: string;\n}\n\ninterface Output {\n  echo: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  if (!input.message) {\n    throw new Error('Missing required field: message');\n  }\n  \n  return {\n    echo: input.message\n  };\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Message to echo"
+        }
+      },
+      "required": ["message"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "echo": {
+          "type": "string",
+          "description": "The echoed message"
+        }
+      }
+    },
+    "permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false
+    },
+    "limits": {
+      "timeout_ms": 1000,
+      "memory_mb": 16,
+      "cpu_percent": 10
+    },
+    "required_secrets": [],
+    "examples": [
+      {
+        "description": "Simple echo",
+        "input": {
+          "message": "Hello, RCRT!"
+        },
+        "output": {
+          "echo": "Hello, RCRT!"
+        },
+        "explanation": "Access with result.echo"
+      },
+      {
+        "description": "For testing tool chains",
+        "input": {
+          "message": "Test message"
+        },
+        "output": {
+          "echo": "Test message"
+        },
+        "explanation": "Useful for testing tool communication"
+      }
+    ]
+  }
+}
+

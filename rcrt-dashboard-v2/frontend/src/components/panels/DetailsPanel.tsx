@@ -6,10 +6,11 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { RenderNode, Breadcrumb } from '../../types/rcrt';
 import { UIVariable, ToolConfigValue } from '../../types/toolConfig';
 import { useModelsFromCatalog } from '../../hooks/useModelsFromCatalog';
-
+import { DynamicConfigForm } from '../forms/DynamicConfigForm';
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
   const { deselectAll } = useDashboard();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

@@ -2,6 +2,37 @@
 
 ## Recent Major Milestones (September-October 2025)
 
+### October 29, 2025 - Self-Contained Tools System (v2.1.0)
+**Major Feature: Deno-Based Self-Contained Tools**
+
+#### Added
+- **Deno Runtime Integration**: Tools stored as `tool.code.v1` breadcrumbs execute in sandboxed Deno processes
+- **Parallel Tool System**: Old (`tool.v1`) and new (`tool.code.v1`) systems coexist with automatic routing
+- **Multi-Layer Security**:
+  - `CodeValidator`: Dangerous pattern detection, function signature validation
+  - `SchemaValidator`: JSON Schema and example validation
+  - `PermissionValidator`: Network/filesystem/subprocess access control
+- **Resource Management**: Concurrency control, timeouts, memory/CPU limits
+- **Context Serialization**: Secure HTTP API wrapper for RCRT operations within tools
+- **Standardized Templates**: HTTP API, RCRT Data, Transform, and Async Event tool templates
+- **Migrated Tools**: calculator, echo, timer, random (self-contained versions)
+- **Bootstrap Integration**: Automatic loading via `bootstrap-breadcrumbs/tools-self-contained/`
+- **Docker Support**: Deno pre-installed in tools-runner container
+
+#### Changed
+- `ToolLoader` discovers both `tool.v1` and `tool.code.v1` schemas (prefers new format)
+- `tools-runner` initializes `DenoToolRuntime` on startup with graceful fallback
+- Tool routing: `tool.code.v1` → Deno runtime, `tool.v1` → legacy system
+- Bootstrap loads self-contained tools automatically
+
+#### Documentation
+- Added `docs/SELF_CONTAINED_TOOLS.md`: Comprehensive guide
+- Security model, permissions, resource limits
+- Tool creation templates and examples
+- Migration strategy and troubleshooting
+
+## Recent Major Milestones (September-October 2025)
+
 ### September 10, 2025
 - **Session Management**: Fixed session isolation, conversation tracking, and tag switching
 - **LLM Context**: Improved context formatting and prompt clarity for better LLM responses

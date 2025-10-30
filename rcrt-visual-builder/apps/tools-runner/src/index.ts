@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { ToolLoader, bootstrapTools, bootstrapContextConfigs } from '@rcrt-builder/tools';
+import { ToolLoader, bootstrapTools, bootstrapContextConfigs, DenoToolRuntime } from '@rcrt-builder/tools';
 import { jsonrepair } from 'jsonrepair';
 import { EventBridge } from './event-bridge.js';
 
@@ -16,6 +16,9 @@ const processingStatus = new Map<string, 'processing' | 'completed'>();
 
 // Global event bridge for tools to wait for events
 const globalEventBridge = new EventBridge();
+
+// Global Deno runtime for self-contained tools (Phase 1)
+let globalDenoRuntime: DenoToolRuntime | null = null;
 
 // 🎯 CLEAN CENTRALIZED SSE DISPATCHER
 // Single SSE connection that routes to individual tools (more efficient than 14 connections)
@@ -211,6 +214,58 @@ async function dispatchEventToTool(
       
       const { ToolLoader } = await import('@rcrt-builder/tools');
       const loader = new ToolLoader(client, workspace);
+      
+      // Check if tool exists as tool.code.v1 (new self-contained format)
+      const newToolBreadcrumbs = await client.searchBreadcrumbs({
+        schema_name: 'tool.code.v1',
+        tag: `tool:${toolName}`
+      });
+      
+      if (newToolBreadcrumbs.length > 0 && globalDenoRuntime) {
+        // Execute via Deno runtime (new system)
+        console.log(`🦕 Executing ${toolName} via Deno runtime (tool.code.v1)`);
+        
+        const startTime = Date.now();
+        const executionResult = await globalDenoRuntime.executeTool({
+          tool_name: toolName,
+          input: toolInput,
+          request_id: breadcrumb.id,
+          agent_id: breadcrumb.created_by || 'tools-runner',
+          workspace: workspace,
+          trigger_event: eventData
+        });
+        
+        const executionTime = Date.now() - startTime;
+        
+        if (!executionResult.success) {
+          throw new Error(executionResult.error || 'Tool execution failed');
+        }
+        
+        // Create response breadcrumb
+        const responseRequestId = breadcrumb.context?.requestId || breadcrumb.id;
+        const responseTag = responseRequestId.startsWith('llm-') ? 'request:llm' : `request:${responseRequestId}`;
+        
+        await client.createBreadcrumb({
+          schema_name: 'tool.response.v1',
+          title: `Response: ${toolName}`,
+          tags: [workspace, 'tool:response', responseTag, `request:${responseRequestId}`],
+          context: {
+            request_id: responseRequestId,
+            tool: toolName,
+            status: 'success',
+            output: executionResult.result,
+            execution_time_ms: executionTime,
+            metadata: executionResult.metadata,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        console.log(`✅ Tool ${toolName} executed successfully via Deno in ${executionTime}ms`);
+        processingStatus.set(requestId, 'completed');
+        return;
+      }
+      
+      // Fallback to old system (tool.v1)
       const underlyingTool = await loader.loadToolByName(toolName);
       
       if (!underlyingTool) {
@@ -226,14 +281,14 @@ async function dispatchEventToTool(
             request_id: breadcrumb.context?.requestId || breadcrumb.id,
             tool: toolName,
             status: 'error',
-            error: `Tool ${toolName} not found. Ensure it has a tool.v1 breadcrumb.`,
+            error: `Tool ${toolName} not found. Ensure it has a tool.v1 or tool.code.v1 breadcrumb.`,
             timestamp: new Date().toISOString()
           }
         });
         return;
       }
       
-      console.log(`🛠️  Executing tool: ${toolName} (from breadcrumb)`);
+      console.log(`🛠️  Executing tool: ${toolName} (from tool.v1 breadcrumb)`);
       
       
       // Execute tool with proper context (including event bridge AND breadcrumb!)
@@ -434,6 +489,18 @@ async function main() {
     // 🎯 THE RCRT WAY: Bootstrap context configurations (same pattern as tools!)
     console.log('🏗️ Bootstrapping context configurations...');
     await bootstrapContextConfigs(client, config.workspace);
+    
+    // Initialize Deno runtime for self-contained tools (Phase 1)
+    console.log('🦕 Initializing Deno Tool Runtime...');
+    try {
+      globalDenoRuntime = new DenoToolRuntime(client, config.workspace);
+      await globalDenoRuntime.initialize();
+      console.log(`✅ Deno runtime initialized with ${globalDenoRuntime.getAllTools().length} self-contained tools`);
+    } catch (error) {
+      console.warn('⚠️ Deno runtime initialization failed - self-contained tools disabled:', error);
+      console.warn('   Install Deno to enable self-contained tools: https://deno.land/');
+      globalDenoRuntime = null;
+    }
     
     // Discover available tools
     const loader = new ToolLoader(client, config.workspace);

@@ -131,11 +131,42 @@ async function bootstrap() {
       }
     }
 
-    // 3. Tools are now dynamically discovered by tools-runner!
-    console.log('\n3️⃣ Tools discovery...');
-    console.log('   ℹ️  Tools are dynamically discovered by tools-runner');
-    console.log('   ℹ️  Each tool folder with definition.json auto-registers');
-    console.log('   ℹ️  No pre-loading needed - tools work on-demand!');
+    // 3. Load self-contained tools (tool.code.v1)
+    console.log('\n3️⃣ Loading self-contained tools...');
+    const selfContainedToolsDir = path.join(__dirname, 'tools-self-contained');
+    if (fs.existsSync(selfContainedToolsDir)) {
+      const toolFiles = fs.readdirSync(selfContainedToolsDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of toolFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(selfContainedToolsDir, file), 'utf-8'));
+          
+          // Check if tool already exists
+          const existing = await searchBreadcrumbs({
+            schema_name: 'tool.code.v1',
+            tag: `tool:${data.context.name}`
+          });
+          
+          if (existing.length > 0) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No self-contained tools directory found (tools-self-contained/)');
+    }
 
     // 4. Load template breadcrumbs
     console.log('\n4️⃣ Loading template library...');

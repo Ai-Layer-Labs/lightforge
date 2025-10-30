@@ -126,6 +126,21 @@ export { bootstrapContextConfigs } from './context-tools/index.js';
 // Export LLM tools for external use
 export { OpenRouterTool, OllamaTool, SimpleLLMTool, OpenRouterModelsCatalog } from './llm-tools/index.js';
 
+// Export new Deno runtime (Phase 1)
+export { DenoToolRuntime } from './deno-runtime';
+export { DenoExecutor } from './deno-executor';
+export { ContextSerializer } from './context-serializer';
+export { CodeValidator } from './validation/code-validator';
+export { SchemaValidator } from './validation/schema-validator';
+export { PermissionValidator } from './validation/permission-validator';
+export { ExecutionQueue } from './utils/execution-queue';
+export { ProcessManager } from './utils/process-manager';
+
+// Export types for new runtime
+export type { ToolCodeBreadcrumb, ToolExecutionRequest } from './deno-runtime';
+export type { ExecutionResult, ToolCode, ToolLimits, ToolPermissions } from './deno-executor';
+export type { ToolExecutionContext as DenoToolExecutionContext } from './context-serializer';
+
 // Built-in simple tools
 export const builtinTools = {
   // Agent Helper tool for system guidance

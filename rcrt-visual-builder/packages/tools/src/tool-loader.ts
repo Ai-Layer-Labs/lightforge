@@ -34,22 +34,28 @@ export class ToolLoader {
 
   /**
    * Load a tool from its breadcrumb definition
+   * Supports both tool.v1 (old) and tool.code.v1 (new)
    */
   async loadToolFromBreadcrumb(breadcrumbId: string): Promise<RCRTTool | null> {
     try {
       const breadcrumb = await this.client.getBreadcrumb(breadcrumbId);
-      if (breadcrumb.schema_name !== 'tool.v1') {
-        console.error(`[ToolLoader] Breadcrumb ${breadcrumbId} is not a tool.v1`);
+      
+      // Support both old and new schemas
+      if (breadcrumb.schema_name === 'tool.v1') {
+        const { implementation } = breadcrumb.context;
+        if (!implementation) {
+          console.error(`[ToolLoader] Tool ${breadcrumb.context.name} has no implementation reference`);
+          return null;
+        }
+        
+        return await this.loadImplementation(implementation, breadcrumb.context);
+      } else if (breadcrumb.schema_name === 'tool.code.v1') {
+        // New self-contained tool format
+        return await this.loadSelfContainedTool(breadcrumb);
+      } else {
+        console.error(`[ToolLoader] Breadcrumb ${breadcrumbId} is neither tool.v1 nor tool.code.v1`);
         return null;
       }
-      
-      const { implementation } = breadcrumb.context;
-      if (!implementation) {
-        console.error(`[ToolLoader] Tool ${breadcrumb.context.name} has no implementation reference`);
-        return null;
-      }
-      
-      return await this.loadImplementation(implementation, breadcrumb.context);
     } catch (error) {
       console.error(`[ToolLoader] Failed to load tool from breadcrumb ${breadcrumbId}:`, error);
       return null;
@@ -58,27 +64,40 @@ export class ToolLoader {
 
   /**
    * Load tool by name
+   * Searches both tool.v1 (old) and tool.code.v1 (new)
+   * Prefers tool.code.v1 if both exist
    */
   async loadToolByName(toolName: string): Promise<RCRTTool | null> {
     try {
       console.log(`[ToolLoader] Searching for tool: ${toolName} with tag tool:${toolName}`);
       
-      // Search for tool.v1 breadcrumb
-      const toolBreadcrumbs = await this.client.searchBreadcrumbs({
+      // First try tool.code.v1 (new self-contained format)
+      const newToolBreadcrumbs = await this.client.searchBreadcrumbs({
+        schema_name: 'tool.code.v1',
+        tag: `tool:${toolName}`
+      });
+      
+      if (newToolBreadcrumbs.length > 0) {
+        console.log(`[ToolLoader] Found tool.code.v1 for ${toolName}`);
+        return await this.loadToolFromBreadcrumb(newToolBreadcrumbs[0].id);
+      }
+      
+      // Fallback to tool.v1 (old format)
+      const oldToolBreadcrumbs = await this.client.searchBreadcrumbs({
         schema_name: 'tool.v1',
         tag: `tool:${toolName}`
       });
       
-      console.log(`[ToolLoader] Found ${toolBreadcrumbs.length} breadcrumbs for ${toolName}`);
+      console.log(`[ToolLoader] Found ${oldToolBreadcrumbs.length} tool.v1 breadcrumbs for ${toolName}`);
       
-      if (toolBreadcrumbs.length === 0) {
-        console.error(`[ToolLoader] No tool.v1 breadcrumb found for ${toolName}`);
-        console.error(`[ToolLoader] Searched with: schema_name=tool.v1, tag=tool:${toolName}`);
+      if (oldToolBreadcrumbs.length === 0) {
+        console.error(`[ToolLoader] No tool breadcrumb found for ${toolName}`);
+        console.error(`[ToolLoader] Searched for both tool.v1 and tool.code.v1 with tag tool:${toolName}`);
         return null;
       }
       
-      console.log(`[ToolLoader] Loading tool from breadcrumb: ${toolBreadcrumbs[0].id}`);
-      return await this.loadToolFromBreadcrumb(toolBreadcrumbs[0].id);
+      console.log(`[ToolLoader] Loading tool from breadcrumb: ${oldToolBreadcrumbs[0].id}`);
+      return await this.loadToolFromBreadcrumb(oldToolBreadcrumbs[0].id);
     } catch (error) {
       console.error(`[ToolLoader] Failed to load tool ${toolName}:`, error);
       return null;
@@ -375,24 +394,74 @@ export class ToolLoader {
   }
 
   /**
-   * Discover all available tools
+   * Load self-contained tool from tool.code.v1 breadcrumb
+   * Note: This creates a stub RCRTTool. Actual execution happens in DenoToolRuntime.
    */
-  async discoverTools(): Promise<Array<{ id: string; name: string; description: string; category: string }>> {
+  private async loadSelfContainedTool(breadcrumb: any): Promise<RCRTTool | null> {
     try {
-      const toolBreadcrumbs = await this.client.searchBreadcrumbs({
-        schema_name: 'tool.v1',
-        tag: this.workspace
-      });
+      const { name, description, input_schema, output_schema, examples } = breadcrumb.context;
+      
+      // Create a stub tool that will be recognized by the tool registry
+      // but won't actually execute here - execution happens in DenoToolRuntime
+      return {
+        name,
+        description,
+        category: 'self-contained',
+        version: breadcrumb.context.version,
+        inputSchema: input_schema,
+        outputSchema: output_schema,
+        examples: examples || [],
+        
+        // Stub execute - actual execution routed through DenoToolRuntime
+        execute: async (input: any, context?: any) => {
+          throw new Error(
+            `Tool ${name} is a self-contained Deno tool. ` +
+            `It should be executed via DenoToolRuntime, not directly. ` +
+            `This is a configuration error in tools-runner.`
+          );
+        }
+      };
+    } catch (error) {
+      console.error('[ToolLoader] Failed to load self-contained tool:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Discover all available tools
+   * Searches both tool.v1 and tool.code.v1
+   */
+  async discoverTools(): Promise<Array<{ id: string; name: string; description: string; category: string; schema: string }>> {
+    try {
+      // Get both old and new format tools
+      const [oldToolBreadcrumbs, newToolBreadcrumbs] = await Promise.all([
+        this.client.searchBreadcrumbs({
+          schema_name: 'tool.v1',
+          tag: this.workspace
+        }),
+        this.client.searchBreadcrumbs({
+          schema_name: 'tool.code.v1',
+          tag: this.workspace
+        })
+      ]);
+      
+      console.log(`[ToolLoader] Discovered ${oldToolBreadcrumbs.length} tool.v1 and ${newToolBreadcrumbs.length} tool.code.v1`);
+      
+      const allBreadcrumbs = [
+        ...oldToolBreadcrumbs.map(tb => ({ ...tb, _schema: 'tool.v1' })),
+        ...newToolBreadcrumbs.map(tb => ({ ...tb, _schema: 'tool.code.v1' }))
+      ];
       
       const tools = await Promise.all(
-        toolBreadcrumbs.map(async (tb) => {
+        allBreadcrumbs.map(async (tb) => {
           try {
             const breadcrumb = await this.client.getBreadcrumb(tb.id);
             return {
               id: tb.id,
               name: breadcrumb.context.name,
               description: breadcrumb.context.description,
-              category: breadcrumb.context.category || 'general'
+              category: breadcrumb.context.category || 'general',
+              schema: tb._schema
             };
           } catch {
             return null;

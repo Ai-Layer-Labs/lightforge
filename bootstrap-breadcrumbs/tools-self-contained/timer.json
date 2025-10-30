@@ -1,0 +1,79 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "Timer Tool (Self-Contained)",
+  "tags": ["tool", "tool:timer", "workspace:tools", "self-contained"],
+  "context": {
+    "name": "timer",
+    "description": "Wait for a specified number of seconds",
+    "version": "2.0.0",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * Timer Tool - Self-Contained Deno Version\n * Waits for specified duration\n */\n\ninterface Input {\n  seconds: number;\n}\n\ninterface Output {\n  waited: number;\n  message: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  if (typeof input.seconds !== 'number') {\n    throw new Error('Missing or invalid field: seconds (must be a number)');\n  }\n  \n  if (input.seconds < 0 || input.seconds > 60) {\n    throw new Error('seconds must be between 0 and 60');\n  }\n  \n  // Wait for the specified duration\n  await new Promise(resolve => setTimeout(resolve, input.seconds * 1000));\n  \n  return {\n    waited: input.seconds,\n    message: `Waited ${input.seconds} seconds`\n  };\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "number",
+          "description": "Seconds to wait",
+          "minimum": 0,
+          "maximum": 60
+        }
+      },
+      "required": ["seconds"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "waited": {
+          "type": "number",
+          "description": "Number of seconds waited"
+        },
+        "message": {
+          "type": "string",
+          "description": "Confirmation message"
+        }
+      }
+    },
+    "permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false
+    },
+    "limits": {
+      "timeout_ms": 65000,
+      "memory_mb": 16,
+      "cpu_percent": 10
+    },
+    "required_secrets": [],
+    "examples": [
+      {
+        "description": "Short delay",
+        "input": {
+          "seconds": 2
+        },
+        "output": {
+          "waited": 2,
+          "message": "Waited 2 seconds"
+        },
+        "explanation": "Access duration with result.waited"
+      },
+      {
+        "description": "For workflow delays",
+        "input": {
+          "seconds": 5
+        },
+        "output": {
+          "waited": 5,
+          "message": "Waited 5 seconds"
+        },
+        "explanation": "Useful for adding delays between workflow steps"
+      }
+    ]
+  }
+}
+
