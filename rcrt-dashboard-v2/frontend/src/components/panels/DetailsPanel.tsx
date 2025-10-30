@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelectedNodes, useDashboard } from '../../stores/DashboardStore';
 import { useAuthentication } from '../../hooks/useAuthentication';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { RenderNode, Breadcrumb } from '../../types/rcrt';
-import { UIVariable, ToolConfigValue } from '../../types/toolConfig';
-import { useModelsFromCatalog } from '../../hooks/useModelsFromCatalog';
-import { DynamicConfigForm } from '../forms/DynamicConfigForm';
+import { useQueryClient, useQuery } from '@tantml:function_calls>
+<invoke name="read_file">
+<parameter name="target_file">rcrt-dashboard-v2/frontend/src/components/panels/DetailsPanel.tsx
+
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
   const { deselectAll } = useDashboard();
-
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

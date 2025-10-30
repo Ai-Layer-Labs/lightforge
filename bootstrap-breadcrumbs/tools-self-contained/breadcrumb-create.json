@@ -1,0 +1,112 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "Breadcrumb Create Tool (Self-Contained)",
+  "tags": ["tool", "tool:breadcrumb-create", "workspace:tools", "self-contained"],
+  "context": {
+    "name": "breadcrumb-create",
+    "description": "Create new breadcrumbs with schema, title, tags, and context",
+    "version": "2.0.0",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * Breadcrumb Create Tool - Self-Contained Deno Version\n * Creates new breadcrumbs in the RCRT system\n */\n\ninterface Input {\n  schema_name: string;\n  title: string;\n  tags?: string[];\n  context?: any;\n  visibility?: 'public' | 'private';\n  sensitivity?: 'public' | 'internal' | 'confidential';\n}\n\ninterface Output {\n  success: boolean;\n  id?: string;\n  breadcrumb?: any;\n  error?: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  // Validate required fields\n  if (!input.schema_name) {\n    throw new Error('schema_name is required');\n  }\n  \n  if (!input.title) {\n    throw new Error('title is required');\n  }\n  \n  try {\n    // Create breadcrumb\n    const result = await context.api.createBreadcrumb({\n      schema_name: input.schema_name,\n      title: input.title,\n      tags: input.tags || [],\n      context: input.context || {},\n      visibility: input.visibility,\n      sensitivity: input.sensitivity\n    });\n    \n    return {\n      success: true,\n      id: result.id,\n      breadcrumb: result\n    };\n  } catch (error: any) {\n    return {\n      success: false,\n      error: error.message || 'Failed to create breadcrumb'\n    };\n  }\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "schema_name": {
+          "type": "string",
+          "description": "Schema name (e.g., 'user.message.v1', 'note.v1')"
+        },
+        "title": {
+          "type": "string",
+          "description": "Breadcrumb title"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for categorization and search"
+        },
+        "context": {
+          "type": "object",
+          "description": "Breadcrumb context data (any JSON)"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private"],
+          "description": "Visibility level"
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": ["public", "internal", "confidential"],
+          "description": "Sensitivity level"
+        }
+      },
+      "required": ["schema_name", "title"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether creation succeeded"
+        },
+        "id": {
+          "type": "string",
+          "description": "ID of created breadcrumb"
+        },
+        "breadcrumb": {
+          "type": "object",
+          "description": "Full created breadcrumb"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if failed"
+        }
+      },
+      "required": ["success"]
+    },
+    "permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false
+    },
+    "limits": {
+      "timeout_ms": 5000,
+      "memory_mb": 64,
+      "cpu_percent": 30
+    },
+    "required_secrets": [],
+    "ui_schema": {
+      "configurable": false
+    },
+    "examples": [
+      {
+        "description": "Create a note",
+        "input": {
+          "schema_name": "note.v1",
+          "title": "Meeting Notes",
+          "tags": ["notes", "meeting"],
+          "context": {
+            "content": "Discussed project timeline",
+            "date": "2025-10-29"
+          }
+        },
+        "output": {
+          "success": true,
+          "id": "uuid-123",
+          "breadcrumb": {
+            "id": "uuid-123",
+            "schema_name": "note.v1",
+            "title": "Meeting Notes"
+          }
+        },
+        "explanation": "Creates a breadcrumb and returns its ID"
+      }
+    ]
+  }
+}
+

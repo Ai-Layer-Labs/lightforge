@@ -53,6 +53,9 @@
       "cpu_percent": 50
     },
     "required_secrets": [],
+    "ui_schema": {
+      "configurable": false
+    },
     "examples": [
       {
         "description": "Basic arithmetic",

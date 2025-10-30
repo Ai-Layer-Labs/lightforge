@@ -2,6 +2,52 @@
 
 ## Recent Major Milestones (September-October 2025)
 
+### October 30, 2025 - Dynamic Tool Configuration System (v2.2.0)
+**Major Feature: Universal Dynamic Configuration UI**
+
+#### Added
+- **Dynamic Form Generation**: Tools define their own configuration UI via `ui_schema` in `tool.code.v1` breadcrumbs
+- **Field Component Library**: Complete set of reusable form components:
+  - `TextField` (text/textarea), `NumberField`, `SliderField`, `BooleanField`
+  - `SelectField` (static/dynamic options), `SecretSelectField`, `JsonField`
+  - `FormField` base wrapper with validation and help text
+- **DynamicConfigForm**: Master component that renders configuration UI from `ui_schema`
+- **Dynamic Options Loading**: Fetch options from breadcrumbs (via JSONPath) or API endpoints
+- **Client-Side Validation**: Required fields, min/max ranges, regex patterns, JSON syntax
+- **Secret Management Integration**: Secure ID-based secret references (stores UUID, not plaintext)
+  - SecretSelectField stores secret IDs for secure lookup
+  - Context API enhanced with `decryptSecret(id, reason)` method
+  - Tools decrypt secrets at runtime via REST API
+  - Full audit trail for all secret access
+- **JSONPath Support**: Extract values/labels from complex breadcrumb structures
+- **Configuration Breadcrumbs**: Standardized `tool.config.v1` schema for storing user configuration
+
+#### Enhanced
+- All 9 tool breadcrumbs updated with `ui_schema`:
+  - **Non-Configurable**: calculator, echo, timer, random, breadcrumb-search, breadcrumb-create, json-transform
+  - **Configurable**: openrouter (4 fields), ollama_local (4 fields)
+- OpenRouter: API key (secret-select), model (dynamic from catalog), maxTokens, temperature (slider)
+- Ollama: Host (text), model (text), temperature (slider), topP (slider)
+
+#### Documentation
+- Added `docs/UI_SCHEMA_REFERENCE.md`: Complete field type reference with examples
+- Added `docs/TOOL_CONFIGURATION.md`: User guide for tool configuration
+- Field types, validation rules, dynamic options, secret handling
+- Best practices, troubleshooting, migration guide
+
+#### Architecture
+- **Zero Dashboard Changes**: New tools work automatically without code updates
+- **Consistent UX**: All tools configured the same way
+- **Agent-Friendly**: Agents can create tools with custom configuration UIs
+- **Version Controlled**: Configuration stored as breadcrumbs
+- **Hot-Reloadable**: Update configuration without restarting tools
+
+#### Benefits
+- Eliminates 200+ lines of hardcoded switch statements in dashboard
+- Tools self-document their configuration requirements
+- Extensible: 8 standard field types + dynamic options
+- Type-safe: Client-side + server-side validation
+
 ### October 29, 2025 - Self-Contained Tools System (v2.1.0)
 **Major Feature: Deno-Based Self-Contained Tools**
 
@@ -15,7 +61,10 @@
 - **Resource Management**: Concurrency control, timeouts, memory/CPU limits
 - **Context Serialization**: Secure HTTP API wrapper for RCRT operations within tools
 - **Standardized Templates**: HTTP API, RCRT Data, Transform, and Async Event tool templates
-- **Migrated Tools**: calculator, echo, timer, random (self-contained versions)
+- **Migrated Tools**: 9 tools migrated to self-contained format:
+  - **Simple**: calculator, echo, timer, random
+  - **LLM**: openrouter, ollama_local
+  - **Data**: breadcrumb-search, breadcrumb-create, json-transform
 - **Bootstrap Integration**: Automatic loading via `bootstrap-breadcrumbs/tools-self-contained/`
 - **Docker Support**: Deno pre-installed in tools-runner container
 

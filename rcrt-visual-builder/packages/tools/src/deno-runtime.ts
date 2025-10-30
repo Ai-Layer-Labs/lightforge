@@ -99,23 +99,31 @@ export class DenoToolRuntime {
     try {
       const breadcrumbs = await this.client.searchBreadcrumbs({
         schema_name: 'tool.code.v1',
-        tag: `workspace:${this.workspace}`,
+        tag: this.workspace,
         limit: 100
       });
-      
+
       for (const breadcrumb of breadcrumbs) {
-        const tool = breadcrumb as unknown as ToolCodeBreadcrumb;
-        
-        // Validate tool
-        const validation = await this.validateTool(tool);
-        if (!validation.valid) {
-          console.error(`[DenoToolRuntime] Invalid tool ${tool.context.name}:`, validation.errors);
-          continue;
+        try {
+          const fullBreadcrumb = await this.client.getBreadcrumb(breadcrumb.id);
+          const tool = fullBreadcrumb as unknown as ToolCodeBreadcrumb;
+
+          if (!tool.context || !tool.context.code) {
+            console.error(`[DenoToolRuntime] Skipping tool ${breadcrumb.id} - missing context or code`);
+            continue;
+          }
+
+          const validation = await this.validateTool(tool);
+          if (!validation.valid) {
+            console.error(`[DenoToolRuntime] Invalid tool ${tool.context.name}:`, validation.errors);
+            continue;
+          }
+
+          this.tools.set(tool.context.name, tool);
+          console.log(`[DenoToolRuntime] Registered tool: ${tool.context.name}`);
+        } catch (error) {
+          console.error('[DenoToolRuntime] Failed to load tool breadcrumb:', breadcrumb.id, error);
         }
-        
-        // Register tool
-        this.tools.set(tool.context.name, tool);
-        console.log(`[DenoToolRuntime] Registered tool: ${tool.context.name}`);
       }
     } catch (error) {
       console.error('[DenoToolRuntime] Failed to load tools:', error);

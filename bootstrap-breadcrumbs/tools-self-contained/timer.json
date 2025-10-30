@@ -50,6 +50,9 @@
       "cpu_percent": 10
     },
     "required_secrets": [],
+    "ui_schema": {
+      "configurable": false
+    },
     "examples": [
       {
         "description": "Short delay",

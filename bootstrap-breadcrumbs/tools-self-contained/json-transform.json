@@ -1,0 +1,107 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "JSON Transform Tool (Self-Contained)",
+  "tags": ["tool", "tool:json-transform", "workspace:tools", "self-contained"],
+  "context": {
+    "name": "json-transform",
+    "description": "Transform JSON data using JSONPath queries and mappings",
+    "version": "2.0.0",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * JSON Transform Tool - Self-Contained Deno Version\n * Transform JSON using simple path-based mappings\n */\n\ninterface Input {\n  data: any;\n  operation: 'extract' | 'map' | 'filter' | 'sort';\n  path?: string;           // For extract: $.field.nested\n  mapping?: Record<string, string>;  // For map: {newField: '$.oldField'}\n  condition?: any;         // For filter\n  sort_by?: string;        // For sort\n}\n\ninterface Output {\n  result: any;\n  operation: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nfunction getByPath(obj: any, path: string): any {\n  const cleanPath = path.replace(/^\\$\\./, '');\n  const parts = cleanPath.split('.');\n  let current = obj;\n  \n  for (const part of parts) {\n    if (current === undefined || current === null) return undefined;\n    current = current[part];\n  }\n  \n  return current;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  if (!input.data) {\n    throw new Error('data is required');\n  }\n  \n  if (!input.operation) {\n    throw new Error('operation is required');\n  }\n  \n  let result: any;\n  \n  switch (input.operation) {\n    case 'extract':\n      if (!input.path) {\n        throw new Error('path is required for extract operation');\n      }\n      result = getByPath(input.data, input.path);\n      break;\n      \n    case 'map':\n      if (!input.mapping) {\n        throw new Error('mapping is required for map operation');\n      }\n      result = {};\n      for (const [newKey, oldPath] of Object.entries(input.mapping)) {\n        result[newKey] = getByPath(input.data, oldPath);\n      }\n      break;\n      \n    case 'filter':\n      if (!Array.isArray(input.data)) {\n        throw new Error('data must be an array for filter operation');\n      }\n      if (!input.condition) {\n        throw new Error('condition is required for filter operation');\n      }\n      // Simple filtering by exact match\n      result = input.data.filter((item: any) => {\n        for (const [key, value] of Object.entries(input.condition)) {\n          if (item[key] !== value) return false;\n        }\n        return true;\n      });\n      break;\n      \n    case 'sort':\n      if (!Array.isArray(input.data)) {\n        throw new Error('data must be an array for sort operation');\n      }\n      if (!input.sort_by) {\n        throw new Error('sort_by is required for sort operation');\n      }\n      result = [...input.data].sort((a, b) => {\n        const aVal = getByPath(a, input.sort_by!);\n        const bVal = getByPath(b, input.sort_by!);\n        if (aVal < bVal) return -1;\n        if (aVal > bVal) return 1;\n        return 0;\n      });\n      break;\n      \n    default:\n      throw new Error(`Unknown operation: ${input.operation}`);\n  }\n  \n  return {\n    result,\n    operation: input.operation\n  };\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "description": "JSON data to transform"
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["extract", "map", "filter", "sort"],
+          "description": "Transform operation"
+        },
+        "path": {
+          "type": "string",
+          "description": "JSONPath for extract (e.g., '$.field.nested')"
+        },
+        "mapping": {
+          "type": "object",
+          "description": "Field mapping for map operation"
+        },
+        "condition": {
+          "type": "object",
+          "description": "Filter condition (exact match)"
+        },
+        "sort_by": {
+          "type": "string",
+          "description": "Field path to sort by"
+        }
+      },
+      "required": ["data", "operation"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "description": "Transformed data"
+        },
+        "operation": {
+          "type": "string",
+          "description": "Operation performed"
+        }
+      },
+      "required": ["result", "operation"]
+    },
+    "permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false
+    },
+    "limits": {
+      "timeout_ms": 5000,
+      "memory_mb": 128,
+      "cpu_percent": 50
+    },
+    "required_secrets": [],
+    "ui_schema": {
+      "configurable": false
+    },
+    "examples": [
+      {
+        "description": "Extract nested field",
+        "input": {
+          "data": { "user": { "name": "Alice", "age": 30 } },
+          "operation": "extract",
+          "path": "$.user.name"
+        },
+        "output": {
+          "result": "Alice",
+          "operation": "extract"
+        },
+        "explanation": "Extract a specific field from nested JSON"
+      },
+      {
+        "description": "Map fields",
+        "input": {
+          "data": { "old_name": "value1", "old_age": 25 },
+          "operation": "map",
+          "mapping": {
+            "name": "$.old_name",
+            "age": "$.old_age"
+          }
+        },
+        "output": {
+          "result": { "name": "value1", "age": 25 },
+          "operation": "map"
+        },
+        "explanation": "Rename and restructure fields"
+      }
+    ]
+  }
+}
+

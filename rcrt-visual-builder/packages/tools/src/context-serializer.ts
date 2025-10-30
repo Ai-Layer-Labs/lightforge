@@ -267,6 +267,27 @@ const api = {
     }
     
     return await response.json();
+  },
+  
+  /**
+   * Decrypt a secret by ID
+   */
+  async decryptSecret(secretId: string, reason: string): Promise<{ value: string }> {
+    const response = await fetch(\`\${API_BASE_URL}/secrets/\${secretId}/decrypt\`, {
+      method: 'POST',
+      headers: {
+        'Authorization': \`Bearer \${API_TOKEN}\`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason: reason || 'Tool execution' })
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(\`Failed to decrypt secret: \${response.status} - \${error}\`);
+    }
+    
+    return await response.json();
   }
 };
 `;
