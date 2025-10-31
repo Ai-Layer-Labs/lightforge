@@ -97,7 +97,8 @@ export class ContextSerializer {
   private async getSecret(secretName: string): Promise<string> {
     try {
       // Try to find secret breadcrumb by name
-      const secrets = await this.client.listSecrets('workspace', this.workspace);
+      // Get all secrets for the authenticated owner (no scope filtering needed)
+      const secrets = await this.client.listSecrets();
       const secret = secrets.find(s => s.name === secretName);
       
       if (secret) {
@@ -288,6 +289,13 @@ const api = {
     }
     
     return await response.json();
+  },
+  
+  /**
+   * Get a secret by ID (alias for decryptSecret)
+   */
+  async getSecret(secretId: string, reason: string): Promise<{ value: string }> {
+    return this.decryptSecret(secretId, reason);
   }
 };
 `;

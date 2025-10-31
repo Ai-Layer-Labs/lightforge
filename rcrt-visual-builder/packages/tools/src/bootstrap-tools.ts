@@ -136,34 +136,52 @@ export async function bootstrapTools(client: RcrtClientEnhanced, workspace: stri
 
 async function updateToolCatalog(client: RcrtClientEnhanced, workspace: string): Promise<void> {
   try {
-    // Search for all tool.v1 breadcrumbs
-    const toolBreadcrumbs = await client.searchBreadcrumbs({
-      schema_name: 'tool.v1',
-      tag: workspace
-    });
+    // Search for BOTH tool.v1 AND tool.code.v1 breadcrumbs
+    const [toolV1Breadcrumbs, toolCodeV1Breadcrumbs] = await Promise.all([
+      client.searchBreadcrumbs({
+        schema_name: 'tool.v1',
+        tag: workspace
+      }),
+      client.searchBreadcrumbs({
+        schema_name: 'tool.code.v1',
+        tag: workspace
+      })
+    ]);
     
-    console.log(`📚 Found ${toolBreadcrumbs.length} tools`);
+    const totalTools = toolV1Breadcrumbs.length + toolCodeV1Breadcrumbs.length;
+    console.log(`📚 Found ${totalTools} tools (${toolV1Breadcrumbs.length} tool.v1 + ${toolCodeV1Breadcrumbs.length} tool.code.v1)`);
     
-    // Fetch full details
-    const tools = await Promise.all(
-      toolBreadcrumbs.map(async (tb) => {
+    // Fetch full details for tool.v1
+    const toolsV1 = await Promise.all(
+      toolV1Breadcrumbs.map(async (tb) => {
         const breadcrumb = await client.getBreadcrumb(tb.id);
         return breadcrumb.context;
       })
     );
     
-    // Build catalog
-    const catalog = tools.map(tool => ({
+    // Fetch full details for tool.code.v1
+    const toolsCodeV1 = await Promise.all(
+      toolCodeV1Breadcrumbs.map(async (tb) => {
+        const breadcrumb = await client.getBreadcrumb(tb.id);
+        return breadcrumb.context;
+      })
+    );
+    
+    // Combine both tool types
+    const allTools = [...toolsV1, ...toolsCodeV1];
+    
+    // Build catalog - tool.code.v1 has schemas directly, tool.v1 has them in definition
+    const catalog = allTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       category: tool.category || 'general',
       version: tool.version || '1.0.0',
-      inputSchema: tool.definition?.inputSchema || {},
-      outputSchema: tool.definition?.outputSchema || {},
-      examples: tool.definition?.examples || [],
+      inputSchema: tool.input_schema || tool.definition?.inputSchema || {},
+      outputSchema: tool.output_schema || tool.definition?.outputSchema || {},
+      examples: tool.examples || tool.definition?.examples || [],
       capabilities: tool.capabilities || {
         async: true,
-        timeout: 30000,
+        timeout: tool.limits?.timeout_ms || 30000,
         retries: 0
       },
       status: 'active',
