@@ -121,41 +121,14 @@ export class AgentExecutorUniversal extends UniversalExecutor {
             }
           }
           
-          // Return - tool responses will trigger agent again
-          return { action: 'tools_requested', count: breadcrumbDef.context.tool_requests.length };
+          // Return async=true to prevent respond() from creating duplicate
+          return { action: 'tools_requested', count: breadcrumbDef.context.tool_requests.length, async: true };
         }
         
-        // Otherwise, create the response breadcrumb directly
-        console.log(`📤 Creating agent response breadcrumb...`);
-        
-        // Extract session from trigger to tag response
-        const sessionId = trigger.context?.session_id;
-        const sessionTag = trigger.tags?.find((t: string) => t.startsWith('session:'));
-        
-        // Add session to response tags and context
-        const tags = breadcrumbDef.tags || ['agent:response', 'chat:output'];
-        if (sessionTag) {
-          tags.push(sessionTag);
-          console.log(`🏷️  Tagging response with ${sessionTag}`);
-        }
-        
-        const contextWithSession = {
-          ...breadcrumbDef.context,
-          session_id: sessionId  // Include session for routing
-        };
-        
-        try {
-          const result = await this.rcrtClient.createBreadcrumb({
-            ...breadcrumbDef,
-            tags: tags,
-            context: contextWithSession
-          });
-          console.log(`✅ Agent response created: ${result.id}`);
-          return { action: 'breadcrumb_created', id: result.id };
-        } catch (error) {
-          console.error(`❌ Failed to create agent response:`, error);
-          return { action: 'create_failed', error };
-        }
+        // Otherwise, return breadcrumb definition for respond() to handle
+        // This ensures SINGLE creation point and consistent session tag handling
+        console.log(`📤 Returning breadcrumb for response creation...`);
+        return { action: 'create', breadcrumb: breadcrumbDef };
       }
         
         return parsed;
@@ -205,8 +178,8 @@ export class AgentExecutorUniversal extends UniversalExecutor {
         }
         
         if (!shouldReturnToLLM) {
-          // Send result directly to user
-          console.log(`📤 [${this.agentDef.agent_id}] Tool result sent directly to user (no LLM)`);
+          // Send result directly to user - return breadcrumb for respond() to handle
+          console.log(`📤 [${this.agentDef.agent_id}] Tool result will be sent directly to user (no LLM)`);
           
           // Format simple response with tool result
           const resultText = typeof llmOutput === 'object' 
@@ -215,21 +188,22 @@ export class AgentExecutorUniversal extends UniversalExecutor {
           
           const message = `✅ ${toolName}: ${resultText}`;
           
-          await this.rcrtClient.createBreadcrumb({
-            schema_name: 'agent.response.v1',
-            title: 'Tool Result',
-            tags: ['agent:response', 'chat:output'],
-            context: {
-              message: message,
-              tool_result: {
-                tool: toolName,
-                output: llmOutput
+          // Return breadcrumb definition for respond() to create
+          return {
+            action: 'create',
+            breadcrumb: {
+              schema_name: 'agent.response.v1',
+              title: 'Tool Result',
+              tags: ['agent:response', 'chat:output'],
+              context: {
+                message: message,
+                tool_result: {
+                  tool: toolName,
+                  output: llmOutput
+                }
               }
             }
-          });
-          
-          console.log(`✅ Direct response created (skipped LLM)`);
-          return { action: 'direct_response', tool: toolName };
+          };
         } else {
           // Send back to LLM for reasoning
           console.log(`🔄 [${this.agentDef.agent_id}] Sending tool result back to LLM for reasoning`);
@@ -460,6 +434,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   /**
    * Create agent response breadcrumb
    * THE RCRT WAY: Inherit session tags from trigger to keep conversations isolated
+   * SINGLE SOURCE OF TRUTH: All agent.response.v1 breadcrumbs created here
    */
   protected async respond(trigger: any, result: any): Promise<void> {
     // If async action, don't create response (waiting for continuation)
@@ -485,14 +460,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     
     console.log(`🔍 [${this.agentDef.agent_id}] Original context keys:`, Object.keys(originalContext));
     
+    // STANDARDIZED SCHEMA: Use consistent field names
     const context = {
       ...originalContext,  // Preserve message and any other LLM fields
       creator: {
         type: 'agent',
-        agent_id: this.agentDef.agent_id
+        agent_id: this.agentDef.agent_id  // Standardized: agent_id not agentId
       },
-      trigger_id: trigger.id,
-      session_id: sessionTag ? sessionTag.replace('session:', '') : undefined
+      trigger_event_id: trigger.id,  // Standardized: trigger_event_id not trigger_id
+      timestamp: new Date().toISOString()  // Always include timestamp
     };
     
     console.log(`🔍 [${this.agentDef.agent_id}] Final context keys:`, Object.keys(context));

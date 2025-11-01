@@ -183,6 +183,26 @@ services:
       DEPLOYMENT_MODE: docker
     restart: unless-stopped
 
+  context-builder:
+    build:
+      context: .
+      dockerfile: crates/rcrt-context-builder/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      rcrt:
+        condition: service_started
+    environment:
+      RCRT_API_URL: http://rcrt:8080
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/rcrt
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AGENT_ID: 00000000-0000-0000-0000-0000000000cb
+      CACHE_SIZE_MB: "1024"
+      MAX_SESSIONS: "100"
+      MAX_DB_CONNECTIONS: "10"
+      RUST_LOG: rcrt_context_builder=info
+    restart: unless-stopped
+
   dashboard:
     build:
       context: ./rcrt-dashboard-v2/frontend

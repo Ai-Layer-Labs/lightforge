@@ -181,6 +181,12 @@ services:
     environment:
       - RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
       
+  context-builder:
+    container_name: ${PROJECT_PREFIX}context-builder
+    environment:
+      - RCRT_API_URL=http://${PROJECT_PREFIX}rcrt:8080
+      - DATABASE_URL=postgresql://postgres:postgres@${PROJECT_PREFIX}db/rcrt
+      
   builder:
     container_name: ${PROJECT_PREFIX}builder
     environment:
@@ -191,11 +197,11 @@ fi
 
 # Start services
 echo "🚀 Starting services with prefix: ${PROJECT_PREFIX:-none}"
-docker compose up -d db nats rcrt dashboard tools-runner
+docker compose up -d db nats rcrt context-builder dashboard tools-runner
 
 # Wait for core services to be ready
 echo "⏳ Waiting for core services..."
-sleep 20
+sleep 15
 
 # Try to start builder (may fail due to node_modules issues)
 echo "🔨 Starting builder (optional)..."
@@ -218,9 +224,9 @@ else
     echo "⚠️  psql not found - skipping system agent creation (database will handle on first use)"
 fi
 
-# Wait a bit more for tools-runner to register tools
-echo "⏳ Waiting for tool catalog to be created..."
-sleep 10
+# Wait for tools-runner to fully initialize and register tools
+echo "⏳ Waiting for tools-runner to initialize..."
+sleep 15
 
 # Bootstrap system using SINGLE SOURCE OF TRUTH
 echo "🌱 Bootstrapping system from bootstrap-breadcrumbs/ ..."
@@ -236,6 +242,16 @@ if command -v node >/dev/null 2>&1; then
         echo ""
         exit 1
     }
+    
+    # Wait for bootstrap tools to execute (openrouter-models-sync needs to run)
+    echo "⏳ Waiting for bootstrap tools to complete initial execution..."
+    echo "   (This includes syncing OpenRouter model catalog)"
+    sleep 20
+    
+    # Restart tools-runner to ensure it picks up the model catalog
+    echo "🔄 Restarting tools-runner to load model catalog..."
+    docker compose restart tools-runner
+    sleep 10
 else
     echo "❌ Node.js not found - bootstrap requires Node.js"
     echo "   Install Node.js and run: cd bootstrap-breadcrumbs && node bootstrap.js"
@@ -278,7 +294,8 @@ docker compose ps --format "table {{.Service}}\t{{.Status}}"
 echo ""
 echo "🤖 System Components:"
 echo "   ✅ Modern Agent Runner  - Executes agent definitions"
-echo "   ✅ Tools Runner         - Handles tool invocations"
+echo "   ✅ Tools Runner         - Handles tool invocations (Deno-based)"
+echo "   ✅ Context Builder      - Rust-based context assembly"
 echo "   ✅ Database & NATS      - Core infrastructure"
 echo "   ✅ Dashboard            - Visual management interface"
 echo ""
