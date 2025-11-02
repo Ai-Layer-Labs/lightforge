@@ -49,6 +49,16 @@ struct TokenResponse {
     token: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct CreateResponse {
+    id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+struct OkResponse {
+    ok: bool,
+}
+
 pub struct RcrtClient {
     base_url: String,
     http_client: reqwest::Client,
@@ -196,12 +206,12 @@ impl RcrtClient {
         // and filter the rest client-side
         let url = if let Some(tag_list) = &tags {
             if let Some(first_tag) = tag_list.first() {
-                format!("{}/api/breadcrumbs?tag={}", self.base_url, first_tag)
+                format!("{}/breadcrumbs?tag={}", self.base_url, first_tag)
             } else {
-                format!("{}/api/breadcrumbs", self.base_url)
+                format!("{}/breadcrumbs", self.base_url)
             }
         } else {
-            format!("{}/api/breadcrumbs", self.base_url)
+            format!("{}/breadcrumbs", self.base_url)
         };
         
         let response = self.http_client
@@ -252,7 +262,7 @@ impl RcrtClient {
     
     pub async fn get_breadcrumb(&self, id: Uuid) -> Result<Breadcrumb> {
         let token = self.token.read().await.clone();
-        let url = format!("{}/api/breadcrumbs/{}", self.base_url, id);
+        let url = format!("{}/breadcrumbs/{}", self.base_url, id);
         
         let response = self.http_client
             .get(&url)
@@ -274,9 +284,9 @@ impl RcrtClient {
         title: &str,
         tags: Vec<String>,
         context: serde_json::Value,
-    ) -> Result<Breadcrumb> {
+    ) -> Result<Uuid> {
         let token = self.token.read().await.clone();
-        let url = format!("{}/api/breadcrumbs", self.base_url);
+        let url = format!("{}/breadcrumbs", self.base_url);
         
         let payload = serde_json::json!({
             "schema_name": schema_name,
@@ -285,19 +295,29 @@ impl RcrtClient {
             "context": context,
         });
         
+        info!("📤 Creating breadcrumb: POST {}", url);
+        info!("📤 Schema: {}, Title: {}, Tags: {:?}", schema_name, title, tags);
+        
         let response = self.http_client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
             .json(&payload)
             .send()
             .await?;
         
-        if !response.status().is_success() {
-            anyhow::bail!("Create breadcrumb failed: {}", response.status());
+        let status = response.status();
+        
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_else(|_| "Unable to read response".to_string());
+            error!("❌ Create breadcrumb failed: {} - {}", status, body);
+            error!("❌ Payload was: {}", serde_json::to_string_pretty(&payload)?);
+            anyhow::bail!("Create breadcrumb failed: {} - {}", status, body);
         }
         
-        let breadcrumb = response.json().await?;
-        Ok(breadcrumb)
+        let create_response: CreateResponse = response.json().await?;
+        info!("✅ Breadcrumb created successfully: {}", create_response.id);
+        Ok(create_response.id)
     }
     
     pub async fn update_breadcrumb(
@@ -305,13 +325,15 @@ impl RcrtClient {
         id: Uuid,
         version: i32,
         context: serde_json::Value,
-    ) -> Result<Breadcrumb> {
+    ) -> Result<()> {
         let token = self.token.read().await.clone();
-        let url = format!("{}/api/breadcrumbs/{}", self.base_url, id);
+        let url = format!("{}/breadcrumbs/{}", self.base_url, id);
         
         let payload = serde_json::json!({
             "context": context,
         });
+        
+        info!("🔄 Updating breadcrumb: PATCH {}", url);
         
         let response = self.http_client
             .patch(&url)
@@ -321,12 +343,17 @@ impl RcrtClient {
             .send()
             .await?;
         
-        if !response.status().is_success() {
-            anyhow::bail!("Update breadcrumb failed: {}", response.status());
+        let status = response.status();
+        
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_else(|_| "Unable to read response".to_string());
+            error!("❌ Update breadcrumb failed: {} - {}", status, body);
+            anyhow::bail!("Update breadcrumb failed: {} - {}", status, body);
         }
         
-        let breadcrumb = response.json().await?;
-        Ok(breadcrumb)
+        let _ok_response: OkResponse = response.json().await?;
+        info!("✅ Breadcrumb updated successfully");
+        Ok(())
     }
 }
 

@@ -1,9 +1,50 @@
 # Context Builder Bug Fixes
 
-## Issue 1: Multi-Tag Search 404 Errors
+## Issue 1: Incorrect API Path (404 on all requests)
 
 ### Problem
-The Rust context-builder was failing with 404 errors when searching for existing `agent.context.v1` breadcrumbs:
+**ROOT CAUSE FOUND**: The Rust context-builder was using `/api/breadcrumbs` instead of `/breadcrumbs`, causing 404 on ALL API operations:
+
+```rust
+// ❌ WRONG - was using /api prefix
+let url = format!("{}/api/breadcrumbs", self.base_url);
+// Returns: http://rcrt:8080/api/breadcrumbs → 404 Not Found
+
+// ✅ CORRECT - no /api prefix
+let url = format!("{}/breadcrumbs", self.base_url);
+// Returns: http://rcrt:8080/breadcrumbs → 200 OK
+```
+
+**Discovered by**: Testing with curl manually before implementing code fixes.
+
+### Solution
+Removed `/api` prefix from all endpoints in `rcrt_client.rs`:
+- ✅ `/breadcrumbs` (create, list)
+- ✅ `/breadcrumbs/{id}` (get, update)
+- ✅ Kept `/auth/token` and `/events/stream` as-is
+
+### Testing with curl
+```bash
+# Get token
+TOKEN=$(curl -s -X POST http://localhost:8081/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"owner_id":"00000000-0000-0000-0000-000000000001","agent_id":"00000000-0000-0000-0000-0000000000cb","roles":["curator","emitter","subscriber"]}' \
+  | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+# Test breadcrumb creation
+curl -s -w "\nHTTP Status: %{http_code}\n" \
+  -X POST http://localhost:8081/breadcrumbs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"schema_name":"agent.context.v1","title":"Test","tags":["test"],"context":{}}'
+```
+
+---
+
+## Issue 2: Multi-Tag Search Client-Side Filtering
+
+### Problem
+The Rust context-builder was also failing with 404 errors when searching for existing `agent.context.v1` breadcrumbs with multiple tags:
 
 ```
 ❌ Search failed: 404 Not Found -
