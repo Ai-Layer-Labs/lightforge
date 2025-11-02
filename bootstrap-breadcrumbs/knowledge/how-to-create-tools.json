@@ -1,0 +1,563 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Complete Guide: Creating Self-Contained Tools in RCRT",
+  "tags": ["knowledge", "documentation", "tools", "development", "tutorial", "workspace:system"],
+  "context": {
+    "topic": "tool-development",
+    "audience": "LLM agents and developers",
+    "version": "1.0.0",
+    "last_updated": "2025-11-02",
+    "content": {
+      "summary": "Comprehensive guide for creating tool.code.v1 self-contained tools in the RCRT system, including structure, schemas, permissions, secrets management, and upload process.",
+      
+      "quick_start": {
+        "overview": "Self-contained tools are Deno-based, sandboxed tools defined as tool.code.v1 breadcrumbs. They execute in an isolated environment with explicitly declared permissions.",
+        "process": [
+          "1. Copy an existing working tool as a template (timer.json or echo.json)",
+          "2. Modify the code, schemas, and metadata",
+          "3. Validate the structure matches the schema",
+          "4. Upload using breadcrumb-create tool",
+          "5. Verify it appears in the tool catalog"
+        ]
+      },
+      
+      "required_structure": {
+        "description": "Every tool.code.v1 breadcrumb MUST follow this exact structure",
+        "template": {
+          "schema_name": "tool.code.v1",
+          "title": "Tool Name (Self-Contained)",
+          "tags": ["tool", "tool:toolname", "workspace:tools", "self-contained"],
+          "context": {
+            "name": "toolname",
+            "description": "What the tool does",
+            "version": "1.0.0",
+            "code": {
+              "language": "typescript",
+              "source": "// Your Deno TypeScript code here"
+            },
+            "input_schema": {},
+            "output_schema": {},
+            "permissions": {},
+            "limits": {},
+            "required_secrets": [],
+            "ui_schema": {},
+            "examples": []
+          }
+        },
+        "critical_rules": [
+          "✅ MUST have 'code' wrapper object with 'language' and 'source'",
+          "✅ MUST use tags: ['tool', 'tool:name', 'workspace:tools', 'self-contained']",
+          "✅ MUST include required_secrets (array, even if empty)",
+          "✅ MUST include ui_schema (even if configurable: false)",
+          "❌ NEVER put 'source' directly in context (must be in code.source)",
+          "❌ NEVER use fields like 'runtime' or 'entry_point' (not in schema)",
+          "❌ NEVER forget the code wrapper - this is the #1 mistake"
+        ]
+      },
+      
+      "code_section": {
+        "description": "The code.source field contains your Deno TypeScript code",
+        "structure": {
+          "export_function": "export async function execute(input, context): Promise<Output>",
+          "input_parameter": "The input object, validated against input_schema",
+          "context_parameter": {
+            "api": "RCRT API methods (createBreadcrumb, searchBreadcrumbs, getBreadcrumb, getSecret)",
+            "request": "Information about the tool invocation (request_id, trigger_event, etc.)",
+            "secrets": "DO NOT USE - secrets should be loaded via context.api.getSecret()"
+          }
+        },
+        "example": "export async function execute(input, context) {\n  // Validate input\n  if (!input.message) {\n    throw new Error('message is required');\n  }\n  \n  // Use RCRT API\n  await context.api.createBreadcrumb({\n    schema_name: 'my.output.v1',\n    title: 'Tool Output',\n    tags: ['tool:output'],\n    context: { result: input.message }\n  });\n  \n  // Return output matching output_schema\n  return { echo: input.message };\n}",
+        "best_practices": [
+          "Always validate input at the start",
+          "Use context.api methods for RCRT interactions",
+          "Throw errors for invalid input or failures",
+          "Return output matching your output_schema",
+          "Use async/await for API calls",
+          "Include helpful error messages"
+        ]
+      },
+      
+      "schemas": {
+        "input_schema": {
+          "purpose": "Defines what inputs the tool accepts",
+          "format": "JSON Schema (type, properties, required, etc.)",
+          "example": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Message to process"
+              },
+              "count": {
+                "type": "number",
+                "description": "Number of times to repeat",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": ["message"]
+          }
+        },
+        "output_schema": {
+          "purpose": "Defines what the tool returns",
+          "format": "JSON Schema describing the return value",
+          "example": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string",
+                "description": "Processed result"
+              },
+              "timestamp": {
+                "type": "string",
+                "description": "ISO timestamp"
+              }
+            },
+            "required": ["result"]
+          }
+        }
+      },
+      
+      "permissions": {
+        "description": "Deno permissions control what the tool can access",
+        "available_permissions": {
+          "net": "Network access (true for all, false for none, or array of domains)",
+          "read": "File system read (true/false or array of paths)",
+          "write": "File system write (true/false or array of paths)",
+          "env": "Environment variables (true/false or array of var names)",
+          "run": "Run subprocesses (true/false or array of commands)",
+          "ffi": "Foreign function interface (true/false)",
+          "hrtime": "High-resolution time (true/false)"
+        },
+        "examples": {
+          "api_only": {
+            "net": true,
+            "read": false,
+            "write": false,
+            "env": false,
+            "run": false
+          },
+          "no_network": {
+            "net": false,
+            "read": false,
+            "write": false,
+            "env": false,
+            "run": false
+          },
+          "specific_domain": {
+            "net": ["openrouter.ai", "api.openai.com"],
+            "read": false,
+            "write": false,
+            "env": false,
+            "run": false
+          }
+        },
+        "best_practices": [
+          "Grant minimum permissions needed",
+          "Use net: true if tool needs RCRT API access",
+          "Use domain arrays for external APIs",
+          "Avoid write and run permissions unless absolutely necessary"
+        ]
+      },
+      
+      "secrets_management": {
+        "philosophy": "THE RCRT WAY - Never hardcode secret names, always reference by ID",
+        "wrong_way": {
+          "description": "❌ NEVER do this - hardcoding secret names",
+          "example": "const apiKey = context.secrets['OPENROUTER_API_KEY']; // WRONG!"
+        },
+        "right_way": {
+          "description": "✅ ALWAYS do this - load secrets by ID from config",
+          "steps": [
+            "1. Tool config stores the secret breadcrumb ID (not the name)",
+            "2. Tool loads config using input.config_id or from tool.config.v1 breadcrumb",
+            "3. Tool calls context.api.getSecret(secretId, 'reason for access')",
+            "4. RCRT decrypts and returns the secret value"
+          ],
+          "example_code": "// Get config (contains secret IDs, not values)\nlet config = {};\nif (input.config_id) {\n  const configBreadcrumb = await context.api.getBreadcrumb(input.config_id);\n  if (configBreadcrumb.schema_name === 'tool.config.v1') {\n    config = configBreadcrumb.context.config || {};\n  }\n}\n\n// Load secret by ID\nif (config.apiKeySecretId) {\n  const secretBreadcrumb = await context.api.getSecret(\n    config.apiKeySecretId,\n    'API authentication'\n  );\n  const apiKey = secretBreadcrumb.value;\n} else {\n  throw new Error('No API key configured. Please set apiKeySecretId in tool config.');\n}"
+        },
+        "ui_schema_for_secrets": {
+          "description": "Define UI for secret selection in tool configuration",
+          "example": {
+            "configurable": true,
+            "config_fields": [
+              {
+                "key": "apiKeySecretId",
+                "label": "API Key Secret",
+                "type": "secret",
+                "ui_type": "secret-select",
+                "description": "Select which secret contains your API key",
+                "required": true,
+                "placeholder": "Select a secret...",
+                "help_text": "Choose any secret that contains your API key"
+              }
+            ]
+          }
+        }
+      },
+      
+      "ui_schema": {
+        "description": "Defines how the tool's configuration UI is generated in the dashboard",
+        "simple_example": {
+          "configurable": false
+        },
+        "complex_example": {
+          "configurable": true,
+          "config_fields": [
+            {
+              "key": "apiKeySecretId",
+              "label": "API Key",
+              "type": "secret",
+              "ui_type": "secret-select",
+              "description": "Secret containing API key",
+              "required": true
+            },
+            {
+              "key": "defaultModel",
+              "label": "Default Model",
+              "type": "string",
+              "ui_type": "select",
+              "description": "Default model when none specified",
+              "default_value": "gpt-4",
+              "options_source": {
+                "type": "breadcrumb-search",
+                "schema_name": "models.catalog.v1",
+                "tag": "models:list",
+                "value_path": "$.context.models[*].id",
+                "label_path": "$.context.models[*].name"
+              }
+            },
+            {
+              "key": "temperature",
+              "label": "Temperature",
+              "type": "number",
+              "ui_type": "slider",
+              "description": "Creativity level (0-2)",
+              "default_value": 0.7,
+              "validation": {
+                "min": 0,
+                "max": 2,
+                "step": 0.1
+              }
+            }
+          ]
+        },
+        "ui_types": [
+          "text - Simple text input",
+          "number - Numeric input",
+          "slider - Numeric slider with min/max",
+          "select - Dropdown with options",
+          "secret-select - Dropdown of available secrets",
+          "textarea - Multi-line text input",
+          "checkbox - Boolean on/off"
+        ]
+      },
+      
+      "limits": {
+        "description": "Resource limits for tool execution",
+        "fields": {
+          "timeout_ms": "Maximum execution time in milliseconds",
+          "memory_mb": "Maximum memory usage in megabytes",
+          "cpu_percent": "Maximum CPU usage percentage"
+        },
+        "examples": {
+          "quick_tool": {
+            "timeout_ms": 5000,
+            "memory_mb": 32,
+            "cpu_percent": 25
+          },
+          "llm_tool": {
+            "timeout_ms": 60000,
+            "memory_mb": 128,
+            "cpu_percent": 50
+          },
+          "long_running": {
+            "timeout_ms": 300000,
+            "memory_mb": 256,
+            "cpu_percent": 75
+          }
+        }
+      },
+      
+      "examples": {
+        "description": "Provide usage examples to help LLMs understand how to use the tool",
+        "structure": {
+          "description": "What the example demonstrates",
+          "input": "Example input object",
+          "output": "Expected output object",
+          "explanation": "How to interpret and use the result"
+        },
+        "example": [
+          {
+            "description": "Simple greeting",
+            "input": {
+              "name": "Alice"
+            },
+            "output": {
+              "greeting": "Hello, Alice!"
+            },
+            "explanation": "Access the greeting with result.greeting"
+          }
+        ],
+        "best_practices": [
+          "Include at least 2-3 examples",
+          "Show different use cases",
+          "Include edge cases if relevant",
+          "Always add explanation field",
+          "Show how to access nested output fields"
+        ]
+      },
+      
+      "complete_working_example": {
+        "description": "A complete, minimal working tool (echo)",
+        "json": {
+          "schema_name": "tool.code.v1",
+          "title": "Echo Tool (Self-Contained)",
+          "tags": ["tool", "tool:echo", "workspace:tools", "self-contained"],
+          "context": {
+            "name": "echo",
+            "description": "Returns the input unchanged - useful for testing",
+            "version": "1.0.0",
+            "code": {
+              "language": "typescript",
+              "source": "export async function execute(input, context) {\n  if (!input.message || typeof input.message !== 'string') {\n    throw new Error('message is required and must be a string');\n  }\n  return { echo: input.message };\n}"
+            },
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "Message to echo"
+                }
+              },
+              "required": ["message"]
+            },
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "echo": {
+                  "type": "string",
+                  "description": "The echoed message"
+                }
+              }
+            },
+            "permissions": {
+              "net": false,
+              "read": false,
+              "write": false,
+              "env": false,
+              "run": false
+            },
+            "limits": {
+              "timeout_ms": 1000,
+              "memory_mb": 16,
+              "cpu_percent": 10
+            },
+            "required_secrets": [],
+            "ui_schema": {
+              "configurable": false
+            },
+            "examples": [
+              {
+                "description": "Simple echo",
+                "input": {
+                  "message": "Hello, RCRT!"
+                },
+                "output": {
+                  "echo": "Hello, RCRT!"
+                },
+                "explanation": "Access with result.echo"
+              }
+            ]
+          }
+        }
+      },
+      
+      "uploading_your_tool": {
+        "description": "How to upload your tool to RCRT using the breadcrumb-create tool",
+        "method_1_direct": {
+          "description": "Use breadcrumb-create tool to upload the definition",
+          "tool_request": {
+            "tool": "breadcrumb-create",
+            "input": {
+              "schema_name": "tool.code.v1",
+              "title": "Your Tool Name (Self-Contained)",
+              "tags": ["tool", "tool:yourname", "workspace:tools", "self-contained"],
+              "context": {
+                "name": "yourname",
+                "description": "What your tool does",
+                "version": "1.0.0",
+                "code": {
+                  "language": "typescript",
+                  "source": "export async function execute(input, context) { ... }"
+                },
+                "input_schema": {},
+                "output_schema": {},
+                "permissions": {},
+                "limits": {},
+                "required_secrets": [],
+                "ui_schema": {},
+                "examples": []
+              }
+            }
+          }
+        },
+        "method_2_file": {
+          "description": "Save as JSON file and use bootstrap script",
+          "steps": [
+            "1. Save your tool definition as bootstrap-breadcrumbs/tools-self-contained/yourtool.json",
+            "2. Run: cd bootstrap-breadcrumbs && node bootstrap.js",
+            "3. Restart tools-runner: docker compose restart tools-runner",
+            "4. Verify: docker compose logs tools-runner | grep yourtool"
+          ]
+        },
+        "verification": {
+          "check_database": "Tool should appear in tool.code.v1 breadcrumbs",
+          "check_catalog": "Tool should appear in tool.catalog.v1",
+          "check_dashboard": "Tool should be visible in the dashboard UI",
+          "check_logs": "Tools-runner should log 'Registered tool: yourtool'"
+        }
+      },
+      
+      "common_mistakes": {
+        "description": "Mistakes to avoid (learned from real experience)",
+        "mistakes": [
+          {
+            "mistake": "Putting source directly in context",
+            "wrong": "{ context: { source: '...' } }",
+            "right": "{ context: { code: { language: 'typescript', source: '...' } } }",
+            "why": "The Deno runtime expects code.source, not just source"
+          },
+          {
+            "mistake": "Using wrong tags",
+            "wrong": "['tool:code', 'category:something']",
+            "right": "['tool', 'tool:yourname', 'workspace:tools', 'self-contained']",
+            "why": "Tool discovery looks for 'tool' tag, not 'tool:code'"
+          },
+          {
+            "mistake": "Hardcoding secret names",
+            "wrong": "context.secrets['API_KEY']",
+            "right": "await context.api.getSecret(config.apiKeySecretId, 'reason')",
+            "why": "RCRT principle: everything is a breadcrumb, reference by ID"
+          },
+          {
+            "mistake": "Missing required_secrets or ui_schema",
+            "wrong": "Not including these fields",
+            "right": "Always include, even if empty: required_secrets: [], ui_schema: { configurable: false }",
+            "why": "Bootstrap validation expects these fields"
+          },
+          {
+            "mistake": "Adding non-existent fields",
+            "wrong": "runtime: 'deno', entry_point: 'execute'",
+            "right": "Only use documented schema fields",
+            "why": "Validation will reject unknown fields"
+          },
+          {
+            "mistake": "Forgetting to export execute function",
+            "wrong": "async function execute(...) { }",
+            "right": "export async function execute(...) { }",
+            "why": "Deno runtime imports and calls the exported function"
+          },
+          {
+            "mistake": "Not matching output_schema",
+            "wrong": "return { wrong_field: value };",
+            "right": "return { field_in_schema: value };",
+            "why": "Output is validated against output_schema"
+          }
+        ]
+      },
+      
+      "testing_your_tool": {
+        "description": "How to test your tool after upload",
+        "steps": [
+          "1. Check logs: docker compose logs tools-runner | grep yourtool",
+          "2. Verify in dashboard: Click on the tool, should show config UI",
+          "3. Create tool request: Use breadcrumb-create to create tool.request.v1",
+          "4. Watch for response: Check for tool.response.v1 with matching request ID",
+          "5. Debug errors: Check tools-runner logs for execution errors"
+        ],
+        "test_request_example": {
+          "tool": "breadcrumb-create",
+          "input": {
+            "schema_name": "tool.request.v1",
+            "title": "Test: Your Tool",
+            "tags": ["tool:request", "workspace:tools", "test"],
+            "context": {
+              "tool": "yourtool",
+              "input": {
+                "your_input_field": "test_value"
+              },
+              "requestId": "test-request-123"
+            }
+          }
+        }
+      },
+      
+      "advanced_features": {
+        "calling_other_tools": {
+          "description": "Tools can invoke other tools by creating tool.request.v1 breadcrumbs",
+          "example": "await context.api.createBreadcrumb({\n  schema_name: 'tool.request.v1',\n  title: 'Call Calculator',\n  tags: ['tool:request', 'workspace:tools'],\n  context: {\n    tool: 'calculator',\n    input: { expression: '2 + 2' },\n    requestId: `sub-request-${Date.now()}`\n  }\n});"
+        },
+        "subscribing_to_events": {
+          "description": "Tools can subscribe to breadcrumb events (future feature)",
+          "planned": "subscriptions field in tool definition"
+        },
+        "bootstrap_execution": {
+          "description": "Tools can run automatically on startup",
+          "field": "bootstrap: { mode: 'once', priority: 50 }",
+          "modes": ["once - Run once on startup", "continuous - Run continuously", "disabled - Don't auto-run"]
+        }
+      },
+      
+      "reference_tools": {
+        "description": "Existing tools to study as examples",
+        "simple_tools": [
+          "echo.json - Minimal tool, great starting point",
+          "timer.json - Simple async tool with delays",
+          "random.json - Tool with numeric parameters"
+        ],
+        "api_tools": [
+          "openrouter.json - External API integration with secrets",
+          "openrouter-models-sync.json - Fetches and caches data"
+        ],
+        "rcrt_tools": [
+          "breadcrumb-create.json - Creates breadcrumbs via RCRT API",
+          "breadcrumb-search.json - Searches breadcrumbs with filters"
+        ],
+        "complex_tools": [
+          "workflow.json - Multi-step orchestration",
+          "scheduler.json - Continuous background execution"
+        ]
+      },
+      
+      "best_practices_summary": [
+        "1. Always start with a working tool template (echo.json or timer.json)",
+        "2. Use the correct structure: code.source, not just source",
+        "3. Include all required fields (required_secrets, ui_schema)",
+        "4. Load secrets by ID from config, never hardcode names",
+        "5. Grant minimum necessary permissions",
+        "6. Provide clear examples with explanations",
+        "7. Validate all inputs at the start of execute()",
+        "8. Return output matching your output_schema",
+        "9. Use descriptive error messages",
+        "10. Test thoroughly before deploying"
+      ],
+      
+      "quick_checklist": [
+        "☐ Used correct structure with code.source?",
+        "☐ Tags include 'tool', 'tool:name', 'workspace:tools', 'self-contained'?",
+        "☐ Included required_secrets (even if empty array)?",
+        "☐ Included ui_schema (even if configurable: false)?",
+        "☐ Input schema matches what execute() expects?",
+        "☐ Output schema matches what execute() returns?",
+        "☐ Permissions are minimum needed?",
+        "☐ Limits are appropriate for task?",
+        "☐ Secrets loaded by ID, not by name?",
+        "☐ Exported execute function?",
+        "☐ Examples included with explanations?",
+        "☐ Tested upload and execution?"
+      ]
+    }
+  }
+}
+

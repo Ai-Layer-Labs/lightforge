@@ -4,9 +4,10 @@
  * Initializes the system with essential breadcrumbs on first run
  * 
  * SINGLE SOURCE OF TRUTH:
- * Agents: bootstrap-breadcrumbs/system/*.json
- * Tools: Dynamically discovered by tools-runner
- * Templates: bootstrap-breadcrumbs/templates/*.json
+ * - System: bootstrap-breadcrumbs/system/*.json (agents, configs)
+ * - Tools: bootstrap-breadcrumbs/tools-self-contained/*.json (tool.code.v1)
+ * - Templates: bootstrap-breadcrumbs/templates/*.json
+ * - Knowledge: bootstrap-breadcrumbs/knowledge/*.json (for LLM semantic search)
  */
 
 import fetch from 'node-fetch';
@@ -197,8 +198,47 @@ async function bootstrap() {
       }
     }
 
-    // 5. Create bootstrap marker
-    console.log('\n5️⃣ Creating bootstrap marker...');
+    // 5. Load knowledge base breadcrumbs
+    console.log('\n5️⃣ Loading knowledge base...');
+    const knowledgeDir = path.join(__dirname, 'knowledge');
+    if (fs.existsSync(knowledgeDir)) {
+      const knowledgeFiles = fs.readdirSync(knowledgeDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of knowledgeFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(knowledgeDir, file), 'utf-8'));
+          
+          // Check if knowledge already exists (by title and schema)
+          const existing = await searchBreadcrumbs({
+            schema_name: data.schema_name,
+            tag: 'knowledge'
+          });
+          
+          const existingItem = existing.find(item => item.title === data.title);
+          
+          if (existingItem) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No knowledge directory found (knowledge/)');
+    }
+
+    // 6. Create bootstrap marker
+    console.log('\n6️⃣ Creating bootstrap marker...');
     const markerData = JSON.parse(
       fs.readFileSync(path.join(systemDir, 'bootstrap-marker.json'), 'utf-8')
     );
@@ -209,14 +249,16 @@ async function bootstrap() {
       console.log('   ✅ Bootstrap complete!');
     }
 
-    // 5. Summary
+    // Summary
     console.log('\n📊 Bootstrap Summary:');
     console.log('   • System breadcrumbs (agents, configs)');
+    console.log('   • Self-contained tools (tool.code.v1)');
     console.log('   • Template library');
+    console.log('   • Knowledge base (for LLM semantic search)');
     console.log('   • Bootstrap marker');
     console.log(`   • Version: ${BOOTSTRAP_VERSION}`);
     console.log('');
-    console.log('   ✨ Tools: Dynamically discovered by tools-runner (not pre-loaded)');
+    console.log('   ✨ Tools are dynamically discovered by tools-runner');
     
     console.log('\n🎯 Next Steps:');
     console.log('   1. Start tools-runner → discovers all tools automatically');
@@ -226,8 +268,9 @@ async function bootstrap() {
     console.log('');
     console.log('💡 Adding Components:');
     console.log('   • Agents: Create system/*.json → run: node bootstrap.js');
-    console.log('   • Tools: Create src/my-tool/definition.json → restart tools-runner');
-    console.log('   • Tools auto-register - no bootstrap needed!');
+    console.log('   • Tools: Create tools-self-contained/*.json → run: node bootstrap.js');
+    console.log('   • Knowledge: Create knowledge/*.json → run: node bootstrap.js');
+    console.log('   • Templates: Create templates/*.json → run: node bootstrap.js');
 
   } catch (error) {
     console.error('❌ Bootstrap failed:', error);

@@ -829,6 +829,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
 }) {
   const [config, setConfig] = useState<ToolConfigValue>({});
   const [secrets, setSecrets] = useState<any[]>([]);
+  const [toolBreadcrumb, setToolBreadcrumb] = useState<any>(null); // Full tool.code.v1 breadcrumb
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
   const queryClient = useQueryClient();
   
@@ -855,16 +856,47 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           console.warn('Failed to load secrets:', error);
         }
         
-        // Load tool config
-        const toolName = node.data?.context?.name;
+        // Get tool name (works for both catalog tools and breadcrumb tools)
+        const toolName = node.data?.name || node.data?.context?.name;
         
         if (!toolName) {
           console.log('📝 No tool name found, skipping config load');
           return;
         }
         
-        console.log('🔍 Loading config for tool:', toolName);
+        console.log('🔍 Loading data for tool:', toolName);
         
+        // If node data doesn't have ui_schema (catalog tool), fetch the full tool.code.v1 breadcrumb
+        if (!node.data?.context?.ui_schema) {
+          console.log('🔍 Fetching full tool.code.v1 breadcrumb for:', toolName);
+          try {
+            const toolSearchParams = new URLSearchParams({
+              schema_name: 'tool.code.v1',
+              tag: `tool:${toolName}`
+            });
+            
+            const toolResponse = await authenticatedFetch(`/api/breadcrumbs?${toolSearchParams.toString()}`);
+            
+            if (toolResponse.ok) {
+              const toolBreadcrumbs = await toolResponse.json();
+              if (toolBreadcrumbs.length > 0) {
+                // Get the full breadcrumb to access context with ui_schema
+                const toolBreadcrumbId = toolBreadcrumbs[0].id;
+                const fullToolResponse = await authenticatedFetch(`/api/breadcrumbs/${toolBreadcrumbId}`);
+                
+                if (fullToolResponse.ok) {
+                  const fullToolBreadcrumb = await fullToolResponse.json();
+                  console.log('✅ Loaded full tool breadcrumb with ui_schema');
+                  setToolBreadcrumb(fullToolBreadcrumb);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to load tool.code.v1 breadcrumb:', error);
+          }
+        }
+        
+        // Load tool config
         try {
           const searchParams = new URLSearchParams({
             schema_name: 'tool.config.v1',
@@ -905,20 +937,22 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   }, [node.id, isAuthenticated]);
   
   // Check if tool has ui_schema for dynamic configuration
-  const toolData = node.data;
+  // Use toolBreadcrumb if available (for catalog tools), otherwise use node.data (for breadcrumb tools)
+  const toolData = toolBreadcrumb || node.data;
   const uiSchema = toolData?.context?.ui_schema;
+  const toolName = node.data?.name || node.data?.context?.name;
   
   // If tool has dynamic UI schema, use DynamicConfigForm
   if (uiSchema?.configurable) {
     const handleSaveConfig = async () => {
       setIsSaving(true);
       try {
-        console.log('💾 Saving tool configuration:', { toolName: toolData.context.name, config });
+        console.log('💾 Saving tool configuration:', { toolName, config });
         
         // Search for existing tool config breadcrumb
         const searchParams = new URLSearchParams({
           schema_name: 'tool.config.v1',
-          tag: `tool:${toolData.context.name}`
+          tag: `tool:${toolName}`
         });
         
         const searchResponse = await authenticatedFetch(`/api/breadcrumbs?${searchParams.toString()}`);
@@ -928,11 +962,11 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         
         const existingConfigs = await searchResponse.json();
         const configData = {
-          title: `${toolData.context.name} Configuration`,
+          title: `${toolName} Configuration`,
           schema_name: 'tool.config.v1',
-          tags: ['tool:config', `tool:${toolData.context.name}`, 'workspace:tools'],
+          tags: ['tool:config', `tool:${toolName}`, 'workspace:tools'],
           context: {
-            tool_name: toolData.context.name,
+            tool_name: toolName,
             config: config,
             last_updated: new Date().toISOString()
           }
