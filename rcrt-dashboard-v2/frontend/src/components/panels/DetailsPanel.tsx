@@ -4,7 +4,6 @@ import { useSelectedNodes, useDashboard } from '../../stores/DashboardStore';
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { DynamicConfigForm } from '../forms/DynamicConfigForm';
-import { useModelsFromCatalog } from '../../hooks/useModelsFromCatalog';
 
 export function DetailsPanel() {
   const selectedNodes = useSelectedNodes();
@@ -834,8 +833,6 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   const queryClient = useQueryClient();
   
   // IMPORTANT: All hooks must be called before any early returns!
-  // Fetch models from catalog for OpenRouter (used by legacy tools only, but must be called unconditionally)
-  const { data: modelOptions = [], isLoading: isLoadingModels } = useModelsFromCatalog();
   
   // Load secrets and config (used by both dynamic and legacy forms)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
@@ -1021,80 +1018,10 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
       case 'context_builder':
         return getContextBuilderUIVariables();
         
-      case 'openrouter':
-        return [
-          {
-            key: 'apiKey',
-            label: 'API Key',
-            type: 'secret',
-            secretName: 'OPENROUTER_API_KEY',
-            description: 'OpenRouter API key for authentication',
-            required: true,
-          },
-          {
-            key: 'defaultModel',
-            label: 'Default Model',
-            type: 'select',
-            description: 'Default model when none specified',
-            defaultValue: 'google/gemini-2.5-flash',
-            options: modelOptions,
-          },
-          {
-            key: 'maxTokens',
-            label: 'Max Tokens',
-            type: 'number',
-            description: 'Maximum tokens per response',
-            defaultValue: 4000,
-            validation: { min: 1, max: 32000 },
-          },
-          {
-            key: 'temperature',
-            label: 'Temperature',
-            type: 'number',
-            description: 'Response creativity (0.0 - 2.0)',
-            defaultValue: 0.7,
-            validation: { min: 0, max: 2 },
-          },
-        ];
-        
-      case 'ollama_local':
-        return [
-          {
-            key: 'endpoint',
-            label: 'Ollama Endpoint',
-            type: 'string',
-            description: 'Local Ollama server endpoint',
-            defaultValue: 'http://localhost:11434',
-          },
-          {
-            key: 'defaultModel',
-            label: 'Default Model',
-            type: 'string',
-            description: 'Default Ollama model',
-            defaultValue: 'llama3.1',
-          },
-        ];
-        
-      case 'web_browser':
-        return [
-          {
-            key: 'userAgent',
-            label: 'User Agent',
-            type: 'string',
-            description: 'Browser user agent string',
-            defaultValue: 'RCRT-WebBrowser/1.0',
-          },
-          {
-            key: 'timeout',
-            label: 'Request Timeout (ms)',
-            type: 'number',
-            description: 'HTTP request timeout',
-            defaultValue: 30000,
-            validation: { min: 1000, max: 120000 },
-          },
-        ];
-        
+      // Legacy OpenRouter and Ollama removed - now use tool.code.v1 with dynamic UI
+      
       default:
+        // Generic fallback for any tool without ui_schema
         return [
           {
             key: 'enabled',
@@ -1467,7 +1394,6 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
                    value={config[variable.key] || ''}
                    onChange={(e) => updateConfigValue(variable.key, e.target.value)}
                    className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-green-400 focus:outline-none"
-                   data-tour={variable.key === 'apiKey' && node.data?.id === 'openrouter' ? 'select-secret' : undefined}
                  >
                    <option value="">Select a secret...</option>
                    {secrets.map(secret => (

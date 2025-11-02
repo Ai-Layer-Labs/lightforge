@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import { createClient, RcrtClientEnhanced } from '@rcrt-builder/sdk';
-import { ToolLoader, bootstrapTools, bootstrapContextConfigs, DenoToolRuntime } from '@rcrt-builder/tools';
+import { ToolLoader, bootstrapTools, DenoToolRuntime } from '@rcrt-builder/tools';
 import { jsonrepair } from 'jsonrepair';
 import { EventBridge } from './event-bridge.js';
 
@@ -193,10 +193,7 @@ async function dispatchEventToTool(
   client: RcrtClientEnhanced, 
   workspace: string
 ): Promise<void> {
-  // 🎯 THE RCRT WAY: Check if event matches ANY tool's subscriptions (like agents!)
-  if (eventData.type === 'breadcrumb.updated' || eventData.type === 'breadcrumb.created') {
-    await checkToolSubscriptions(eventData, client, workspace);
-  }
+  // Legacy tool.v1 subscriptions removed - tool.code.v1 uses bootstrap subscriptions field
   
   // Only process tool.request.v1 breadcrumb events with deduplication
   const isToolRequest = eventData.schema_name === 'tool.request.v1' &&
@@ -307,69 +304,25 @@ async function dispatchEventToTool(
         return;
       }
       
-      // Fallback to old system (tool.v1)
-      const underlyingTool = await loader.loadToolByName(toolName);
+      // Legacy tool.v1 removed - only tool.code.v1 supported
+      console.error(`❌ Tool ${toolName} not found as tool.code.v1`);
+      console.error(`❌ Only self-contained Deno tools (tool.code.v1) are supported`);
       
-      if (!underlyingTool) {
-        console.error(`❌ Tool ${toolName} not found in breadcrumbs`);
-        console.error(`❌ Available tools:`, await loader.discoverTools());
-        
-        // Create error response
-        await client.createBreadcrumb({
-          schema_name: 'tool.response.v1',
-          title: `Error: ${toolName}`,
-          tags: [workspace, 'tool:response', 'error'],
-          context: {
-            request_id: breadcrumb.context?.requestId || breadcrumb.id,
-            tool: toolName,
-            status: 'error',
-            error: `Tool ${toolName} not found. Ensure it has a tool.v1 or tool.code.v1 breadcrumb.`,
-            timestamp: new Date().toISOString()
-          }
-        });
-        return;
-      }
-      
-      console.log(`🛠️  Executing tool: ${toolName} (from tool.v1 breadcrumb)`);
-      
-      
-      // Execute tool with proper context (including event bridge AND breadcrumb!)
-      const startTime = Date.now();
-      const result = await underlyingTool.execute(toolInput, {
-        rcrtClient: client,
-        agentId: breadcrumb.created_by || 'tools-runner',
-        workspace: workspace,
-        metadata: { 
-          requestId: breadcrumb.id,
-          breadcrumb: breadcrumb  // Pass full breadcrumb so tool can access config_id!
-        },
-        waitForEvent: (criteria: any, timeout?: number) => globalEventBridge.waitForEvent(criteria, timeout)
-      });
-      
-      const executionTime = Date.now() - startTime;
-      
-      // Create tool.response.v1 breadcrumb
-      const responseRequestId = breadcrumb.context?.requestId || breadcrumb.id;
-      const responseTag = responseRequestId.startsWith('llm-') ? 'request:llm' : `request:${responseRequestId}`;
-      
+      // Create error response
       await client.createBreadcrumb({
         schema_name: 'tool.response.v1',
-        title: `Response: ${toolName}`,
-        tags: [workspace, 'tool:response', responseTag, `request:${responseRequestId}`],
+        title: `Error: ${toolName}`,
+        tags: [workspace, 'tool:response', 'error'],
         context: {
-          request_id: responseRequestId,  // Use requestId from request if available
+          request_id: breadcrumb.context?.requestId || breadcrumb.id,
           tool: toolName,
-          status: 'success',
-          output: result,
-          execution_time_ms: executionTime,
+          status: 'error',
+          error: `Tool ${toolName} not found. Only tool.code.v1 (self-contained Deno tools) are supported. Legacy tool.v1 has been removed.`,
           timestamp: new Date().toISOString()
         }
       });
-      
-      console.log(`✅ Tool ${toolName} executed successfully in ${executionTime}ms`);
-      
-      // 🔧 Mark as completed after successful execution
       processingStatus.set(requestId, 'completed');
+      return;
       
     } catch (error) {
       console.error(`❌ Tool execution failed:`, error);
@@ -419,8 +372,7 @@ const config = {
   deploymentMode: process.env.DEPLOYMENT_MODE || 'local', // 'docker', 'local', 'electron'
 };
 
-// Track tool subscriptions (loaded from tool.v1 breadcrumbs)
-const toolSubscriptions = new Map<string, any[]>();  // toolName -> selectors
+// Legacy tool.v1 subscriptions removed - use tool.code.v1 subscriptions instead
 
 async function main() {
   console.log('🔧 RCRT Tools Runner starting...');
@@ -515,22 +467,11 @@ async function main() {
       return out;
     }
 
-    // Resolve secrets if needed for tools
-    const desiredKeys = [
-      'OPENROUTER_API_KEY',
-      'ANTHROPIC_API_KEY',
-      'OLLAMA_HOST'
-    ];
-
-    await resolveSecrets(desiredKeys);
-
+    // Legacy builtin tools removed - all tools now load their own secrets via tool.config.v1
+    
     // RCRT-Native: Bootstrap tools and create catalog
     console.log('🔧 Bootstrapping RCRT tools...');
     await bootstrapTools(client, config.workspace);
-    
-    // 🎯 THE RCRT WAY: Bootstrap context configurations (same pattern as tools!)
-    console.log('🏗️ Bootstrapping context configurations...');
-    await bootstrapContextConfigs(client, config.workspace);
     
     // Initialize Deno runtime for self-contained tools (Phase 1)
     console.log('🦕 Initializing Deno Tool Runtime...');
@@ -575,8 +516,7 @@ async function main() {
     console.log(`✅ ${tools.length} tools available`);
     console.log('🎯 Available tools:', tools.map((t: any) => t.name).join(', '));
     
-    // Load tool subscriptions (auto-triggering via selectors!)
-    await loadToolSubscriptions(client, config.workspace);
+    // Legacy tool.v1 subscriptions removed - tool.code.v1 uses bootstrap subscriptions field
 
     // Update catalog periodically
     setInterval(async () => {
@@ -630,72 +570,8 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-/**
- * Universal subscription matcher - works for BOTH agents AND tools!
- * Uses the SAME selector logic RCRT already has
- */
-async function checkToolSubscriptions(
-  eventData: any,
-  client: RcrtClientEnhanced,
-  workspace: string
-): Promise<void> {
-  // Check if event matches ANY tool's subscriptions
-  for (const [toolName, selectors] of toolSubscriptions.entries()) {
-    for (const selector of selectors) {
-      if (matchesSelector(eventData, selector)) {
-        console.log(`🔄 Event matches ${toolName} subscription, auto-invoking...`);
-        
-        // Auto-create tool.request.v1 (same as manual invocation!)
-        await client.createBreadcrumb({
-          schema_name: 'tool.request.v1',
-          title: `Auto: ${toolName}`,
-          tags: ['tool:request', workspace, 'auto-trigger'],
-          context: {
-            tool: toolName,
-            input: { trigger_event: eventData },
-            requestId: `auto-${Date.now()}`,
-            requestedBy: 'auto-trigger'
-          }
-        });
-      }
-    }
-  }
-}
-
-/**
- * Load tool subscriptions from tool.v1 breadcrumbs (once on startup)
- */
-async function loadToolSubscriptions(client: RcrtClientEnhanced, workspace: string): Promise<void> {
-  try {
-    console.log('📡 Loading tool subscriptions...');
-    const tools = await client.searchBreadcrumbsWithContext({
-      schema_name: 'tool.v1',
-      tag: workspace,
-      include_context: true
-    });
-    
-    for (const tool of tools) {
-      if (tool.context?.subscriptions?.selectors) {
-        toolSubscriptions.set(tool.context.name, tool.context.subscriptions.selectors);
-        console.log(`  ✅ ${tool.context.name}: ${tool.context.subscriptions.selectors.length} selectors`);
-      }
-    }
-    
-    console.log(`📊 ${toolSubscriptions.size} tools have subscriptions`);
-  } catch (error) {
-    console.error('Failed to load tool subscriptions:', error);
-  }
-}
-
-/**
- * Selector matching (RCRT's existing logic, reused!)
- */
-function matchesSelector(event: any, selector: any): boolean {
-  if (selector.schema_name && event.schema_name !== selector.schema_name) return false;
-  if (selector.any_tags && !selector.any_tags.some((t: string) => event.tags?.includes(t))) return false;
-  if (selector.all_tags && !selector.all_tags.every((t: string) => event.tags?.includes(t))) return false;
-  return true;
-}
+// Legacy tool.v1 subscription system removed
+// tool.code.v1 uses bootstrap.subscriptions field which is handled by the Deno runtime
 
 if (require.main === module) {
   main().catch(console.error);

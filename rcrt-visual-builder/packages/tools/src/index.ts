@@ -109,16 +109,12 @@ import { FileStorageTool, AgentLoaderTool } from './file-tools/index.js';
 // Import workflow orchestrator
 import { workflowOrchestrator } from './workflow-orchestrator.js';
 
-// Import context tools
-import { contextBuilderTool } from './context-tools/index.js';
-
 // Import browser tools
 import { browserContextCaptureTool } from './browser-tools/index.js';
 
 // Export tool loader for RCRT-native mode
 export { ToolLoader } from './tool-loader.js';
 export { bootstrapTools } from './bootstrap-tools.js';
-export { bootstrapContextConfigs } from './context-tools/index.js';
 
 // Export new Deno runtime (Phase 1)
 export { DenoToolRuntime } from './deno-runtime';
@@ -188,8 +184,8 @@ export const builtinTools = {
           summary: 'How to access and use secrets in RCRT agents',
           detailed_explanation: 'Secrets store encrypted credentials. Use getSecret(name, reason) to access them securely.',
           code_examples: [
-            { title: 'Get Secret', code: 'const key = await getSecret("OPENROUTER_API_KEY", "LLM task");' },
-            { title: 'Use with Tool', code: 'await invokeTool("openrouter", { messages: [...] });' }
+            { title: 'Get Secret', code: 'const apiKey = await getSecret("MY_API_KEY", "External API task");' },
+            { title: 'Use with Tool', code: 'await invokeTool("my-tool", { config: {...} });' }
           ],
           next_steps: ['Check tool configurations for secret mappings', 'Use secrets UI on dashboard']
         };
@@ -199,7 +195,7 @@ export const builtinTools = {
           detailed_explanation: 'Tools extend agent capabilities. Use invokeTool(name, input) to invoke them.',
           code_examples: [
             { title: 'Calculator', code: 'await invokeTool("calculator", { expression: "2+2" });' },
-            { title: 'LLM', code: 'await invokeTool("openrouter", { messages: [...] });' }
+            { title: 'Generic Tool', code: 'await invokeTool("my-tool", { input: {...} });' }
           ],
           next_steps: ['Check tool catalog for available tools', 'Monitor tool:response breadcrumbs']
         };
@@ -244,9 +240,6 @@ export const builtinTools = {
 
   // Workflow Orchestrator Tool
   'workflow': workflowOrchestrator,
-  
-  // Context Tools
-  'context-builder': contextBuilderTool,
   
   // Browser Tools
   'browser-context-capture': browserContextCaptureTool

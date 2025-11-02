@@ -94,22 +94,19 @@ impl EventHandler {
     ) -> Result<()> {
         use crate::retrieval::{ContextConfig, SourceConfig, SourceMethod};
         
-        // MVP: Hardcoded simple configuration
+        // THE RCRT WAY: Get ALL breadcrumbs from session (no whitelist!)
+        // Session filter naturally scopes to conversation
+        // Future: Add blacklist for system internals if needed
         let config = ContextConfig {
             consumer_id: "default-chat-assistant".to_string(),
             sources: vec![
                 SourceConfig {
                     method: SourceMethod::Recent {
-                        schema_name: Some("user.message.v1".to_string()),
+                        schema_name: None,  // ✅ Get EVERYTHING in session!
                     },
-                    limit: 10,
+                    limit: 20,  // Increased limit since we're getting all types
                 },
-                SourceConfig {
-                    method: SourceMethod::Recent {
-                        schema_name: Some("agent.response.v1".to_string()),
-                    },
-                    limit: 10,
-                },
+                // Always include tool catalog (not session-specific)
                 SourceConfig {
                     method: SourceMethod::Latest {
                         schema_name: "tool.catalog.v1".to_string(),

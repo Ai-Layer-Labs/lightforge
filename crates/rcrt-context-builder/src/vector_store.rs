@@ -71,12 +71,23 @@ impl VectorStore {
     }
     
     /// Get recent breadcrumbs (by created_at)
+    /// THE RCRT WAY: Blacklist system internals, not whitelist schemas
     pub async fn get_recent(
         &self,
         schema_name: Option<&str>,
         session_filter: Option<&str>,
         limit: usize,
     ) -> Result<Vec<BreadcrumbRow>> {
+        // System schemas to exclude (blacklist approach)
+        // Future: Make this configurable via context.config.v1
+        let blacklist = vec![
+            "system.health.v1",
+            "system.metric.v1",
+            "tool.config.v1",        // Tool settings, not context
+            "secret.v1",             // Never include secrets
+            "system.startup.v1",     // System events, not conversational
+        ];
+        
         let query = match (schema_name, session_filter) {
             (Some(schema), Some(session)) => {
                 sqlx::query_as::<_, BreadcrumbRow>(
@@ -107,11 +118,13 @@ impl VectorStore {
                 .bind(limit as i64)
             }
             (None, Some(session)) => {
+                // THE RCRT WAY: Get everything, exclude system internals
                 sqlx::query_as::<_, BreadcrumbRow>(
                     r#"
                     SELECT id, schema_name, title, tags, context, embedding, created_at, updated_at
                     FROM breadcrumbs
                     WHERE $1 = ANY(tags)
+                      AND schema_name NOT IN ('system.health.v1', 'system.metric.v1', 'tool.config.v1', 'secret.v1', 'system.startup.v1')
                     ORDER BY created_at DESC
                     LIMIT $2
                     "#
@@ -124,6 +137,7 @@ impl VectorStore {
                     r#"
                     SELECT id, schema_name, title, tags, context, embedding, created_at, updated_at
                     FROM breadcrumbs
+                    WHERE schema_name NOT IN ('system.health.v1', 'system.metric.v1', 'tool.config.v1', 'secret.v1', 'system.startup.v1')
                     ORDER BY created_at DESC
                     LIMIT $1
                     "#

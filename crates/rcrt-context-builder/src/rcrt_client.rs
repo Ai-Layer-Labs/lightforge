@@ -37,6 +37,17 @@ pub struct Breadcrumb {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+// Lightweight breadcrumb from list endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BreadcrumbListItem {
+    pub id: Uuid,
+    pub schema_name: String,
+    pub title: Option<String>,
+    pub tags: Vec<String>,
+    pub version: i32,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct TokenRequest {
     pub owner_id: String,
@@ -199,7 +210,7 @@ impl RcrtClient {
         &self,
         schema_name: &str,
         tags: Option<Vec<String>>,
-    ) -> Result<Vec<Breadcrumb>> {
+    ) -> Result<Vec<BreadcrumbListItem>> {
         let token = self.token.read().await.clone();
         
         // API only supports single tag parameter, so we'll use the first one
@@ -233,10 +244,10 @@ impl RcrtClient {
             anyhow::bail!("Search failed: {} - {}", status, body);
         }
         
-        let all_breadcrumbs: Vec<Breadcrumb> = response.json().await?;
+        let all_breadcrumbs: Vec<BreadcrumbListItem> = response.json().await?;
         
         // Filter by schema_name and remaining tags client-side
-        let filtered: Vec<Breadcrumb> = all_breadcrumbs
+        let filtered: Vec<BreadcrumbListItem> = all_breadcrumbs
             .into_iter()
             .filter(|b| {
                 // Must match schema

@@ -47,6 +47,55 @@ The Context Builder is a high-performance Rust service for assembling agent cont
    - Optimistic concurrency control (version checking)
    - Session tagging
 
+## Philosophy: Blacklist over Whitelist
+
+**THE RCRT WAY**: The context-builder operates on a **blacklist approach**, not a whitelist:
+
+- ✅ **Gets ALL breadcrumbs** from a session by default
+- ❌ **Only excludes** system internals (secrets, configs, health checks)
+- 🎯 **Result**: Automatically includes:
+  - User messages
+  - Agent responses
+  - Tool responses
+  - **Knowledge base articles** (if tagged with session)
+  - **Custom breadcrumb types** (future extensions)
+  - **Any tagged content** relevant to the conversation
+
+**Blacklisted Schemas** (system internals only):
+```rust
+// vector_store.rs - SQL exclusion
+WHERE schema_name NOT IN (
+    'system.health.v1',    -- Health check pings
+    'system.metric.v1',    -- Internal metrics
+    'tool.config.v1',      -- Tool settings (not conversational)
+    'secret.v1',           -- Never expose secrets
+    'system.startup.v1'    -- System lifecycle events
+)
+```
+
+**Current Configuration**:
+```rust
+// event_handler.rs
+sources: vec![
+    SourceConfig {
+        method: SourceMethod::Recent {
+            schema_name: None,  // ✅ Get EVERYTHING in session!
+        },
+        limit: 20,
+    },
+    // Plus tool catalog (not session-specific)
+]
+```
+
+**Why This Matters**:
+- ✅ Zero configuration for new breadcrumb types
+- ✅ Knowledge bases "just work"
+- ✅ Maximum flexibility for future features
+- ✅ Natural relevance via session filtering
+- ✅ No hardcoded schemas = no breaking changes
+
+**Future**: The blacklist will be loaded from `context.config.v1` breadcrumbs, making it fully dynamic and RCRT-compliant.
+
 ## Configuration
 
 ### Environment Variables
