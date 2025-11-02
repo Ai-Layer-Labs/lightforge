@@ -191,20 +191,18 @@ impl RcrtClient {
         tags: Option<Vec<String>>,
     ) -> Result<Vec<Breadcrumb>> {
         let token = self.token.read().await.clone();
-        let mut url = format!("{}/api/breadcrumbs", self.base_url);
-        let mut first_param = true;
         
-        if let Some(tag_list) = tags {
-            for tag in tag_list {
-                if first_param {
-                    url.push_str("?");
-                    first_param = false;
-                } else {
-                    url.push_str("&");
-                }
-                url.push_str(&format!("tag={}", tag));
+        // API only supports single tag parameter, so we'll use the first one
+        // and filter the rest client-side
+        let url = if let Some(tag_list) = &tags {
+            if let Some(first_tag) = tag_list.first() {
+                format!("{}/api/breadcrumbs?tag={}", self.base_url, first_tag)
+            } else {
+                format!("{}/api/breadcrumbs", self.base_url)
             }
-        }
+        } else {
+            format!("{}/api/breadcrumbs", self.base_url)
+        };
         
         let response = self.http_client
             .get(&url)
@@ -213,6 +211,12 @@ impl RcrtClient {
             .await?;
         
         let status = response.status();
+        
+        // Handle 404 as empty result (no breadcrumbs found)
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(vec![]);
+        }
+        
         if !status.is_success() {
             let body = response.text().await.unwrap_or_else(|_| "Unable to read response".to_string());
             error!("❌ Search failed: {} - {}", status, body);
@@ -221,10 +225,26 @@ impl RcrtClient {
         
         let all_breadcrumbs: Vec<Breadcrumb> = response.json().await?;
         
-        // Filter by schema_name on client side
+        // Filter by schema_name and remaining tags client-side
         let filtered: Vec<Breadcrumb> = all_breadcrumbs
             .into_iter()
-            .filter(|b| b.schema_name == schema_name)
+            .filter(|b| {
+                // Must match schema
+                if b.schema_name != schema_name {
+                    return false;
+                }
+                
+                // If tags were specified, breadcrumb must have ALL of them
+                if let Some(required_tags) = &tags {
+                    for req_tag in required_tags {
+                        if !b.tags.contains(req_tag) {
+                            return false;
+                        }
+                    }
+                }
+                
+                true
+            })
             .collect();
         
         Ok(filtered)
