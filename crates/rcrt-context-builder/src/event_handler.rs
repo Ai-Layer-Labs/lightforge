@@ -15,7 +15,7 @@ use crate::{
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, error};
+use tracing::{info, warn, error};
 
 pub struct EventHandler {
     rcrt_client: Arc<RcrtClient>,
@@ -94,26 +94,43 @@ impl EventHandler {
     ) -> Result<()> {
         use crate::retrieval::{ContextConfig, SourceConfig, SourceMethod};
         
-        // THE RCRT WAY: Get ALL breadcrumbs from session (no whitelist!)
-        // Session filter naturally scopes to conversation
-        // Future: Add blacklist for system internals if needed
+        // Build sources list
+        let mut sources = vec![
+            SourceConfig {
+                method: SourceMethod::Recent {
+                    schema_name: None,  // ✅ Get EVERYTHING in session!
+                },
+                limit: 20,  // Increased limit since we're getting all types
+            },
+            // Always include tool catalog (not session-specific)
+            SourceConfig {
+                method: SourceMethod::Latest {
+                    schema_name: "tool.catalog.v1".to_string(),
+                },
+                limit: 1,
+            },
+        ];
+        
+        // 🔍 SEMANTIC SEARCH: Get trigger message and search for similar breadcrumbs
+        if let Some(trigger) = trigger_id {
+            if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
+                if let Some(embedding) = trigger_bc.embedding {
+                    info!("🔍 Adding semantic search source (query from trigger: {})", trigger);
+                    sources.push(SourceConfig {
+                        method: SourceMethod::Vector {
+                            query_embedding: embedding,
+                        },
+                        limit: 5,  // Top 5 semantically similar breadcrumbs
+                    });
+                } else {
+                    warn!("⚠️  Trigger breadcrumb {} has no embedding, skipping semantic search", trigger);
+                }
+            }
+        }
+        
         let config = ContextConfig {
             consumer_id: "default-chat-assistant".to_string(),
-            sources: vec![
-                SourceConfig {
-                    method: SourceMethod::Recent {
-                        schema_name: None,  // ✅ Get EVERYTHING in session!
-                    },
-                    limit: 20,  // Increased limit since we're getting all types
-                },
-                // Always include tool catalog (not session-specific)
-                SourceConfig {
-                    method: SourceMethod::Latest {
-                        schema_name: "tool.catalog.v1".to_string(),
-                    },
-                    limit: 1,
-                },
-            ],
+            sources,
         };
         
         // Assemble context
