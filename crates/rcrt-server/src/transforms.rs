@@ -4,8 +4,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use handlebars::Handlebars;
 use jsonpath_lib as jsonpath;
+use sqlx;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +31,9 @@ pub enum TransformRule {
     
     #[serde(rename = "literal")]
     Literal { literal: Value },
+    
+    #[serde(rename = "format")]
+    Format { format: String }, // Simple {field} replacement
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -40,6 +46,72 @@ pub struct LlmHints {
 
 pub struct TransformEngine {
     handlebars: Handlebars<'static>,
+}
+
+/// Cache for schema definitions and their LLM hints
+pub struct SchemaDefinitionCache {
+    definitions: Arc<RwLock<HashMap<String, LlmHints>>>,
+    db: Arc<rcrt_core::db::Db>,
+}
+
+impl SchemaDefinitionCache {
+    pub fn new(db: Arc<rcrt_core::db::Db>) -> Self {
+        Self {
+            definitions: Arc::new(RwLock::new(HashMap::new())),
+            db,
+        }
+    }
+
+    /// Load LLM hints for a schema from database (cached)
+    pub async fn load_schema_hints(&self, schema_name: &str) -> Option<LlmHints> {
+        // Check cache first
+        {
+            let cache = self.definitions.read().await;
+            if let Some(hints) = cache.get(schema_name) {
+                return Some(hints.clone());
+            }
+        }
+        
+        // Load schema definition from database using direct query
+        let tag = format!("defines:{}", schema_name);
+        let result = sqlx::query_as::<_, (Value,)>(
+            r#"SELECT context FROM breadcrumbs 
+               WHERE schema_name = 'schema.def.v1' 
+               AND $1 = ANY(tags)
+               LIMIT 1"#
+        )
+        .bind(&tag)
+        .fetch_optional(&self.db.pool)
+        .await
+        .ok()?;
+        
+        let context = result?.0;
+        
+        // Extract llm_hints from context
+        let hints_value = context.get("llm_hints")?;
+        let hints: LlmHints = serde_json::from_value(hints_value.clone()).ok()?;
+        
+        // Cache and return
+        {
+            let mut cache = self.definitions.write().await;
+            cache.insert(schema_name.to_string(), hints.clone());
+        }
+        
+        Some(hints)
+    }
+
+    /// Refresh cache by clearing it (will reload on next access)
+    pub async fn refresh(&self) {
+        let mut cache = self.definitions.write().await;
+        cache.clear();
+    }
+
+    /// Preload commonly used schemas
+    pub async fn preload(&self, schema_names: &[&str]) {
+        for schema_name in schema_names {
+            let _ = self.load_schema_hints(schema_name).await;
+        }
+    }
 }
 
 impl TransformEngine {
@@ -112,6 +184,9 @@ impl TransformEngine {
                 TransformRule::Literal { literal } => {
                     literal.clone()
                 },
+                TransformRule::Format { format } => {
+                    self.apply_format(context, format)?
+                },
             };
             
             if let Value::Object(ref mut obj) = result {
@@ -153,6 +228,47 @@ impl TransformEngine {
         // JQ implementation would require jq-rs crate
         // For now, return error with helpful message
         Err("JQ transforms not yet implemented. Use 'template' or 'extract' instead.".to_string())
+    }
+
+    fn apply_format(&self, context: &Value, format_str: &str) -> Result<Value, String> {
+        // Simple {field} and {nested.field} replacement
+        let mut result = format_str.to_string();
+        
+        // Find all {field} patterns
+        let mut start = 0;
+        while let Some(open_pos) = result[start..].find('{') {
+            let abs_open = start + open_pos;
+            if let Some(close_pos) = result[abs_open..].find('}') {
+                let abs_close = abs_open + close_pos;
+                let field_path = &result[abs_open + 1..abs_close];
+                
+                // Extract value using JSONPath
+                let json_path = format!("$.{}", field_path);
+                match self.extract_path(context, &json_path) {
+                    Ok(value) => {
+                        let replacement = match value {
+                            Value::String(s) => s,
+                            Value::Number(n) => n.to_string(),
+                            Value::Bool(b) => b.to_string(),
+                            Value::Null => String::new(),
+                            _ => value.to_string(),
+                        };
+                        
+                        result.replace_range(abs_open..=abs_close, &replacement);
+                        start = abs_open + replacement.len();
+                    }
+                    Err(_) => {
+                        // Field not found, leave placeholder or replace with empty
+                        result.replace_range(abs_open..=abs_close, "");
+                        start = abs_open;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        
+        Ok(json!(result))
     }
 
     fn filter_fields(&self, value: &Value, fields: &[String], include: bool) -> Result<Value, String> {
@@ -318,5 +434,29 @@ mod tests {
         assert_eq!(result["existing"], json!("data"));
         assert_eq!(result["items"], json!(["a", "b", "c"]));
         assert_eq!(result["count"], json!(3));
+    }
+
+    #[test]
+    fn test_format_transform() {
+        let engine = TransformEngine::new();
+        let context = json!({
+            "content": "Hello, world!",
+            "timestamp": "2025-11-03T00:44:43Z",
+            "source": "browser-extension"
+        });
+        
+        let hints = LlmHints {
+            transform: Some(HashMap::from([(
+                "formatted".to_string(),
+                TransformRule::Format {
+                    format: "User ({timestamp}): {content}".to_string()
+                }
+            )])),
+            mode: Some(TransformMode::Replace),
+            ..Default::default()
+        };
+        
+        let result = engine.apply_llm_hints(&context, &hints).unwrap();
+        assert_eq!(result["formatted"], json!("User (2025-11-03T00:44:43Z): Hello, world!"));
     }
 }

@@ -586,6 +586,9 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
+        ttl_type: None,
+        ttl_config: None,
+        ttl_source: None,
     };
     
     // Apply automatic TTL based on schema and tags
@@ -649,6 +652,17 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
     let Some(mut view) = state.db.get_breadcrumb_context_for(auth.owner_id, Some(auth.agent_id), id).await.map_err(internal_error)? else {
         return Err((axum::http::StatusCode::NOT_FOUND, "not found".into()));
     };
+    
+    // Track read for usage-based TTL (best effort, don't fail on error)
+    let _ = sqlx::query("
+        UPDATE breadcrumbs 
+        SET read_count = COALESCE(read_count, 0) + 1
+        WHERE id = $1
+        AND ttl_type IN ('usage', 'hybrid')
+    ")
+    .bind(id)
+    .execute(&state.db.pool)
+    .await;
     
     // Apply LLM hints if present
     if let Some(hints_value) = view.context.get("llm_hints") {
@@ -729,6 +743,9 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
+        ttl_type: None,
+        ttl_config: None,
+        ttl_source: None,
     };
     
     tracing::info!("🔧 BreadcrumbUpdate created: context_is_some={}", upd.context.is_some());

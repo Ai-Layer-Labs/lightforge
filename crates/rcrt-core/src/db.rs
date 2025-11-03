@@ -104,7 +104,7 @@ impl Db {
 
     async fn get_breadcrumb_context_conn(&self, conn: &mut PgConnection, id: Uuid) -> Result<Option<BreadcrumbContextView>> {
         let rec = sqlx::query_as::<_, DbBreadcrumb>(
-            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, created_at, updated_at, created_by, updated_by, size_bytes, embedding
+            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, ttl_type, ttl_config, read_count, ttl_source, created_at, updated_at, created_by, updated_by, size_bytes, embedding
             from breadcrumbs where id = $1"#,
         )
         .bind(id)
@@ -126,7 +126,7 @@ impl Db {
         let mut conn = self.pool.acquire().await?;
         set_rls(&mut conn, owner_id, agent_id).await?;
         let rec = sqlx::query_as::<_, DbBreadcrumb>(
-            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, created_at, updated_at, created_by, updated_by, size_bytes, embedding
+            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, ttl_type, ttl_config, read_count, ttl_source, created_at, updated_at, created_by, updated_by, size_bytes, embedding
             from breadcrumbs where id = $1"#,
         )
         .bind(id)
@@ -136,7 +136,8 @@ impl Db {
             id: r.id, owner_id: r.owner_id, title: r.title, context: r.context, tags: r.tags, schema_name: r.schema_name,
             visibility: match r.visibility.as_str() {"public"=>Visibility::Public, "team"=>Visibility::Team, _=>Visibility::Private},
             sensitivity: match r.sensitivity.as_str() {"pii"=>Sensitivity::Pii, "secret"=>Sensitivity::Secret, _=>Sensitivity::Low},
-            version: r.version, checksum: r.checksum, ttl: r.ttl, created_at: r.created_at, updated_at: r.updated_at,
+            version: r.version, checksum: r.checksum, ttl: r.ttl, ttl_type: r.ttl_type, ttl_config: r.ttl_config,
+            read_count: r.read_count, ttl_source: r.ttl_source, created_at: r.created_at, updated_at: r.updated_at,
             created_by: r.created_by, updated_by: r.updated_by, size_bytes: r.size_bytes, embedding: r.embedding
         }))
     }
@@ -425,7 +426,7 @@ impl Db {
         set_rls(&mut conn, owner_id, Some(agent_id)).await?;
         // Fetch current
         let cur = sqlx::query_as::<_, DbBreadcrumb>(
-            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, created_at, updated_at, created_by, updated_by, size_bytes, embedding from breadcrumbs where id = $1"#
+            r#"select id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, ttl_type, ttl_config, read_count, ttl_source, created_at, updated_at, created_by, updated_by, size_bytes, embedding from breadcrumbs where id = $1"#
         )
         .bind(id)
         .fetch_one(&mut *conn)
@@ -450,6 +451,9 @@ impl Db {
         let new_visibility = u.visibility.map(|v| visibility_to_db(&v)).unwrap_or(cur.visibility.as_str());
         let new_sensitivity = u.sensitivity.map(|s| sensitivity_to_db(&s)).unwrap_or(cur.sensitivity.as_str());
         let new_ttl = u.ttl.or(cur.ttl);
+        let new_ttl_type = u.ttl_type.or(cur.ttl_type);
+        let new_ttl_config = u.ttl_config.or(cur.ttl_config);
+        let new_ttl_source = u.ttl_source.or(cur.ttl_source);
         let new_checksum = checksum_json(&new_context);
         let new_size = serde_json::to_vec(&new_context)?.len() as i32;
         let new_version = cur.version + 1;
@@ -462,8 +466,8 @@ impl Db {
         let rec = sqlx::query_as::<_, DbBreadcrumb>(
             r#"update breadcrumbs set title=$2, context=$3, tags=$4, schema_name=$5,
                  visibility=$6::visibility, sensitivity=$7::sensitivity, version=$8, checksum=$9,
-                 ttl=$10, updated_at=now(), updated_by=$11, size_bytes=$12
-               where id=$1 returning id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, created_at, updated_at, created_by, updated_by, size_bytes, embedding"#
+                 ttl=$10, ttl_type=$11, ttl_config=$12, ttl_source=$13, updated_at=now(), updated_by=$14, size_bytes=$15
+               where id=$1 returning id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, ttl_type, ttl_config, read_count, ttl_source, created_at, updated_at, created_by, updated_by, size_bytes, embedding"#
         )
         .bind(id)
         .bind(&new_title)
@@ -475,6 +479,9 @@ impl Db {
         .bind(new_version)
         .bind(&new_checksum)
         .bind(new_ttl)
+        .bind(&new_ttl_type)
+        .bind(&new_ttl_config)
+        .bind(&new_ttl_source)
         .bind(agent_id)
         .bind(new_size)
         .fetch_one(&mut *conn)
@@ -778,6 +785,10 @@ struct DbBreadcrumb {
     version: i32,
     checksum: String,
     ttl: Option<DateTime<Utc>>,
+    ttl_type: Option<String>,
+    ttl_config: Option<JsonValue>,
+    read_count: Option<i32>,
+    ttl_source: Option<String>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     created_by: Option<Uuid>,
@@ -800,6 +811,10 @@ impl From<DbBreadcrumb> for Breadcrumb {
             version: r.version,
             checksum: r.checksum,
             ttl: r.ttl,
+            ttl_type: r.ttl_type,
+            ttl_config: r.ttl_config,
+            read_count: r.read_count,
+            ttl_source: r.ttl_source,
             created_at: r.created_at,
             updated_at: r.updated_at,
             created_by: r.created_by,

@@ -1,0 +1,57 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Browser Page Context Schema Definition",
+  "tags": ["schema:definition", "system:bootstrap", "defines:browser.page.context.v1"],
+  "context": {
+    "defines_schema": "browser.page.context.v1",
+    "schema_version": "1.0.0",
+    "category": "browser",
+    "description": "Browser page state and DOM context",
+    
+    "llm_hints": {
+      "transform": {
+        "formatted": {
+          "type": "format",
+          "format": "Page: {title}\nURL: {url}\nInteractive: {dom.interactiveCount} elements"
+        }
+      },
+      "mode": "replace"
+    },
+    
+    "lifecycle": {
+      "ttl_policy": {
+        "type": "duration",
+        "config": {
+          "hours": 1
+        },
+        "description": "Page context expires after 1 hour",
+        "allow_override": false
+      }
+    },
+    
+    "field_definitions": {
+      "title": {
+        "type": "string",
+        "required": true,
+        "description": "Page title"
+      },
+      "url": {
+        "type": "string",
+        "required": true,
+        "description": "Page URL"
+      },
+      "dom": {
+        "type": "object",
+        "required": false,
+        "description": "DOM structure and interactive elements"
+      },
+      "viewport": {
+        "type": "object",
+        "required": false,
+        "description": "Viewport dimensions",
+        "llm_exclude": true
+      }
+    }
+  }
+}
+

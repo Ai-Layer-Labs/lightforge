@@ -263,74 +263,150 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   /**
    * Format assembled context for LLM
    * THE RCRT WAY: Clear, concise, human-readable
+   * 
+   * Context now comes from context-builder with lightweight breadcrumbs
+   * that have already been transformed by llm_hints on the server side.
    */
   private formatContextForLLM(context: Record<string, any>): string {
     let formatted = '';
     
-    // 1. Current Conversation (if present)
-    if (context.current_conversation && context.current_conversation.length > 0) {
-      formatted += `## Current Conversation\n\n`;
-      context.current_conversation.forEach((msg: any) => {
-        if (!msg.content) return;  // Skip messages with no content
-        const role = msg.role === 'user' ? 'User' : 'Assistant';
-        formatted += `${role}: ${msg.content}\n`;
-      });
-      formatted += '\n';
-    }
-    
-    // 2. Relevant History (if present)
-    if (context.relevant_history && context.relevant_history.length > 0) {
-      formatted += `## Relevant History\n\n`;
-      const validHistory = context.relevant_history.filter((msg: any) => msg.content);
-      if (validHistory.length > 0) {
-        validHistory.forEach((msg: any) => {
-          const role = msg.role === 'user' ? 'User' : 'Assistant';
-          formatted += `${role}: ${msg.content}\n`;
+    // NEW FORMAT: Context contains pre-transformed breadcrumbs
+    // Each breadcrumb has: id, schema_name, created_at, content (already transformed)
+    if (context.breadcrumbs && Array.isArray(context.breadcrumbs)) {
+      // Group breadcrumbs by schema type for better organization
+      const messageBreads: any[] = [];
+      const responseBreads: any[] = [];
+      const toolBreads: any[] = [];
+      const browserBreads: any[] = [];
+      const catalogBreads: any[] = [];
+      const otherBreads: any[] = [];
+      
+      for (const bc of context.breadcrumbs) {
+        if (bc.schema_name?.includes('user.message')) {
+          messageBreads.push(bc);
+        } else if (bc.schema_name?.includes('agent.response')) {
+          responseBreads.push(bc);
+        } else if (bc.schema_name?.includes('tool.')) {
+          toolBreads.push(bc);
+        } else if (bc.schema_name?.includes('browser.')) {
+          browserBreads.push(bc);
+        } else if (bc.schema_name?.includes('tool.catalog')) {
+          catalogBreads.push(bc);
+        } else {
+          otherBreads.push(bc);
+        }
+      }
+      
+      // 1. Conversation (user messages and agent responses interleaved)
+      const conversationItems = [...messageBreads, ...responseBreads]
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      if (conversationItems.length > 0) {
+        formatted += `## Conversation\n\n`;
+        conversationItems.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 2. Tool Information
+      if (catalogBreads.length > 0) {
+        formatted += `## Available Tools\n\n`;
+        catalogBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 3. Tool Results
+      if (toolBreads.length > 0) {
+        formatted += `## Tool Results\n\n`;
+        toolBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 4. Browser Context
+      if (browserBreads.length > 0) {
+        formatted += `## Browser Context\n\n`;
+        browserBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 5. Other breadcrumbs
+      if (otherBreads.length > 0) {
+        formatted += `## Additional Context\n\n`;
+        otherBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
         });
         formatted += '\n';
       }
     }
     
-    // 3. Browser Context (if present)
-    if (context.browser) {
-      formatted += `## Browser\n\n`;
-      formatted += `Page: ${context.browser.title}\n`;
-      formatted += `URL: ${context.browser.url}\n`;
-      if (context.browser.dom?.interactiveCount) {
-        formatted += `Interactive elements: ${context.browser.dom.interactiveCount}\n`;
-      }
-      formatted += '\n';
-    }
-    
-    // 4. Tools (if present)
-    if (context.tool_catalog?.tools) {
-      formatted += `## Available Tools\n\n`;
-      const tools = context.tool_catalog.tools.slice(0, 15);  // Limit to 15
-      tools.forEach((tool: any) => {
-        formatted += `- ${tool.name}: ${tool.category || 'utility'}\n`;
-      });
-      formatted += '\n';
-    }
-    
-    // 5. Other context (fallback - use JSON for unknown structures)
-    for (const [key, value] of Object.entries(context)) {
-      if (['current_conversation', 'relevant_history', 'browser', 'tool_catalog', 'trigger'].includes(key)) {
-        continue;  // Already handled
-      }
-      
-      const title = this.humanizeKey(key);
-      formatted += `## ${title}\n\n`;
-      
-      if (typeof value === 'object' && value !== null) {
-        formatted += '```json\n';
-        formatted += JSON.stringify(value, null, 2);
-        formatted += '\n```\n\n';
-      } else {
-        formatted += String(value) + '\n\n';
-      }
+    // Token estimate for transparency
+    if (context.token_estimate) {
+      formatted += `\n---\nContext size: ~${context.token_estimate} tokens\n`;
     }
     
     return formatted;
+  }
+  
+  /**
+   * Extract content from transformed breadcrumb
+   * Content can be a string (from format transform) or object (from other transforms)
+   */
+  private extractContent(content: any): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    
+    if (typeof content === 'object' && content !== null) {
+      // If it's an object with a single "formatted" key, use that
+      if (content.formatted && typeof content.formatted === 'string') {
+        return content.formatted;
+      }
+      
+      // Otherwise, try to format it nicely
+      const keys = Object.keys(content);
+      if (keys.length === 0) {
+        return '';
+      }
+      
+      // Single key-value: inline format
+      if (keys.length === 1) {
+        const key = keys[0];
+        const val = content[key];
+        if (typeof val === 'string') {
+          return val;
+        }
+        return `${key}: ${JSON.stringify(val)}`;
+      }
+      
+      // Multiple keys: structured format
+      return Object.entries(content)
+        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+        .join('\n');
+    }
+    
+    return String(content);
   }
   
   /**

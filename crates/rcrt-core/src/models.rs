@@ -19,6 +19,9 @@ pub struct BreadcrumbCreate {
     pub visibility: Option<Visibility>,
     pub sensitivity: Option<Sensitivity>,
     pub ttl: Option<DateTime<Utc>>,
+    pub ttl_type: Option<String>,        // 'never', 'datetime', 'duration', 'usage', 'hybrid'
+    pub ttl_config: Option<JsonValue>,   // Duration spec, max_reads, etc
+    pub ttl_source: Option<String>,      // 'manual', 'schema-default', 'auto-applied', 'explicit'
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +33,9 @@ pub struct BreadcrumbUpdate {
     pub visibility: Option<Visibility>,
     pub sensitivity: Option<Sensitivity>,
     pub ttl: Option<DateTime<Utc>>,
+    pub ttl_type: Option<String>,
+    pub ttl_config: Option<JsonValue>,
+    pub ttl_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +51,10 @@ pub struct Breadcrumb {
     pub version: i32,
     pub checksum: String,
     pub ttl: Option<DateTime<Utc>>,
+    pub ttl_type: Option<String>,
+    pub ttl_config: Option<JsonValue>,
+    pub read_count: Option<i32>,
+    pub ttl_source: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
@@ -76,6 +86,10 @@ pub struct BreadcrumbFull {
     pub version: i32,
     pub checksum: String,
     pub ttl: Option<DateTime<Utc>>,
+    pub ttl_type: Option<String>,
+    pub ttl_config: Option<JsonValue>,
+    pub read_count: Option<i32>,
+    pub ttl_source: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,

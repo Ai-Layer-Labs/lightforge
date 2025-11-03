@@ -20,7 +20,7 @@
     "subscriptions": {
       "selectors": [
         {
-          "comment": "Pre-built context from context-builder (ONLY trigger - no fallback!)",
+          "comment": "Pre-built context from context-builder with LLM-optimized formatting. Context is assembled, transformed by schema llm_hints, and ready for LLM consumption.",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"],
           "role": "trigger",
@@ -28,7 +28,7 @@
           "fetch": {"method": "event_data"}
         },
         {
-          "comment": "Current browser page context (fetched when needed)",
+          "comment": "Current browser page context (transformed by llm_hints to show only essential info: title, URL, interactive elements)",
           "schema_name": "browser.page.context.v1",
           "any_tags": ["browser:active-tab"],
           "role": "context",
@@ -36,14 +36,14 @@
           "fetch": {"method": "latest", "limit": 1}
         },
         {
-          "comment": "Available tools catalog",
+          "comment": "Available tools catalog (transformed by llm_hints to exclude source code, show only schemas/descriptions)",
           "schema_name": "tool.catalog.v1",
           "role": "context",
           "key": "tools",
           "fetch": {"method": "latest", "limit": 1}
         },
         {
-          "comment": "Recent conversation history",
+          "comment": "Recent conversation history (transformed by llm_hints to format as 'User (timestamp): message')",
           "schema_name": "user.message.v1",
           "any_tags": ["extension:chat"],
           "role": "context",

@@ -19,6 +19,19 @@ impl ContextPublisher {
         ContextPublisher { rcrt_client }
     }
     
+    /// Extract LLM-optimized content from a breadcrumb using server-side llm_hints
+    async fn extract_llm_content(&self, breadcrumb_id: Uuid) -> Result<serde_json::Value> {
+        // Fetch breadcrumb context from server (applies llm_hints automatically)
+        match self.rcrt_client.get_breadcrumb(breadcrumb_id).await {
+            Ok(bc) => Ok(bc.context),
+            Err(e) => {
+                tracing::warn!("Failed to fetch LLM content for {}: {}", breadcrumb_id, e);
+                // Fallback to empty object
+                Ok(serde_json::json!({}))
+            }
+        }
+    }
+    
     pub async fn publish_context(
         &self,
         consumer_id: &str,
@@ -26,24 +39,32 @@ impl ContextPublisher {
         trigger_id: Option<Uuid>,
         context: &AssembledContext,
     ) -> Result<()> {
-        // Format breadcrumbs for context
-        let formatted_breadcrumbs: Vec<serde_json::Value> = context.breadcrumbs
-            .iter()
-            .map(|bc| serde_json::json!({
+        // Extract lightweight LLM-optimized content from each breadcrumb
+        // The server applies llm_hints transforms automatically
+        let mut formatted_breadcrumbs = Vec::new();
+        
+        for bc in &context.breadcrumbs {
+            let llm_content = self.extract_llm_content(bc.id).await?;
+            
+            // Build lightweight breadcrumb with transformed content
+            formatted_breadcrumbs.push(serde_json::json!({
                 "id": bc.id,
                 "schema_name": bc.schema_name,
-                "tags": bc.tags,
-                "context": bc.context,
                 "created_at": bc.created_at,
-            }))
-            .collect();
+                "content": llm_content,  // Transformed by llm_hints
+            }));
+        }
+        
+        // Recalculate token estimate based on actual formatted content
+        let formatted_json = serde_json::to_string(&formatted_breadcrumbs)?;
+        let token_estimate = formatted_json.len() / 3; // ~3 chars per token
         
         // Build context payload
         let context_payload = serde_json::json!({
             "consumer_id": consumer_id,
             "trigger_event_id": trigger_id,
             "assembled_at": chrono::Utc::now().to_rfc3339(),
-            "token_estimate": context.token_estimate,
+            "token_estimate": token_estimate,
             "sources_assembled": context.sources_count,
             "breadcrumbs": formatted_breadcrumbs,
         });
@@ -75,6 +96,9 @@ impl ContextPublisher {
                 context_payload,
             ).await?;
         }
+        
+        tracing::info!("✅ Published context with {} breadcrumbs (~{} tokens)", 
+            formatted_breadcrumbs.len(), token_estimate);
         
         Ok(())
     }

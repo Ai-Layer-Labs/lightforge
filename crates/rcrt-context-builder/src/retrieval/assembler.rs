@@ -82,9 +82,10 @@ impl ContextAssembler {
         // Sort by created_at (most recent first)
         all_breadcrumbs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         
-        // Estimate token count (rough: 4 chars per token)
+        // Estimate token count (rough: 3 chars per token, accounting for lightweight formatting)
+        // Note: Actual token count will be recalculated in publisher after llm_hints transformations
         let token_estimate = all_breadcrumbs.iter()
-            .map(|bc| bc.context.to_string().len() / 4)
+            .map(|bc| bc.context.to_string().len() / 3)
             .sum();
         
         Ok(AssembledContext {

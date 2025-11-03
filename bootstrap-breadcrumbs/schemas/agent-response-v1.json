@@ -1,0 +1,60 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Agent Response Schema Definition",
+  "tags": ["schema:definition", "system:bootstrap", "defines:agent.response.v1"],
+  "context": {
+    "defines_schema": "agent.response.v1",
+    "schema_version": "1.0.0",
+    "category": "agents",
+    "description": "Agent chat responses and messages",
+    
+    "llm_hints": {
+      "transform": {
+        "formatted": {
+          "type": "format",
+          "format": "Assistant: {message}"
+        }
+      },
+      "mode": "replace"
+    },
+    
+    "lifecycle": {
+      "ttl_policy": {
+        "type": "duration",
+        "config": {
+          "days": 30
+        },
+        "description": "Agent responses expire after 30 days",
+        "allow_override": true
+      }
+    },
+    
+    "field_definitions": {
+      "message": {
+        "type": "string",
+        "required": true,
+        "description": "The agent's response message",
+        "embedding_target": true
+      },
+      "tool_requests": {
+        "type": "array",
+        "required": false,
+        "description": "Tools the agent wants to invoke",
+        "llm_exclude": true
+      },
+      "created_breadcrumbs": {
+        "type": "array",
+        "required": false,
+        "description": "Breadcrumbs created by agent",
+        "llm_exclude": true
+      },
+      "metadata": {
+        "type": "object",
+        "required": false,
+        "description": "Additional metadata",
+        "llm_exclude": true
+      }
+    }
+  }
+}
+
