@@ -2,6 +2,52 @@
 
 ## Recent Major Milestones (September-October 2025)
 
+### November 3, 2025 - Enhanced TTL System & LLM Context Optimization (v2.3.0)
+**Major Features: Flexible TTL Policies + 60% Context Reduction**
+
+#### Enhanced TTL System
+- **Multiple TTL Types**: 
+  - `never` - Permanent data (no expiration)
+  - `datetime` - Expire at specific date/time
+  - `duration` - Expire after time period (e.g., "5 minutes", "7 days")
+  - `usage` - Expire after N reads (e.g., run once, run 5 times)
+  - `hybrid` - Combine datetime and usage limits
+- **Schema-Level Defaults**: Define TTL policies in `schema.def.v1` breadcrumbs
+- **Automatic Application**: TTL policies auto-applied based on schema definitions
+- **Read Tracking**: Automatic increment of `read_count` for usage-based TTL
+- **Enhanced Hygiene**: Background cleanup handles all TTL types automatically
+
+#### LLM Context Optimization
+- **Schema-Based Transforms**: Default `llm_hints` defined in `schema.def.v1`
+- **Format Transform**: New simple `{field}` replacement syntax for human-readable output
+- **Context Builder Integration**: Pre-transformed content fetched from RCRT server
+- **Lightweight Delivery**: Send minimal, LLM-optimized context to agents
+- **60-70% Token Reduction**: Removed verbose JSON, full breadcrumb objects, tool source code
+
+#### New Features
+- `schema.def.v1` breadcrumb type for defining schema structures
+- `SchemaDefinitionCache` in transforms.rs for efficient schema lookup
+- Database migration `0007_ttl_enhancements.sql` adds TTL columns
+- Schema definitions for 7 core types (user.message, tool.code, agent.response, etc.)
+- Updated agent-executor to handle lightweight breadcrumb format
+
+#### Database Changes
+- New columns: `ttl_type`, `ttl_config`, `read_count`, `ttl_source`
+- Indexes on TTL fields for faster cleanup queries
+- Backward compatible (all fields optional)
+
+#### Documentation
+- **MIGRATION_GUIDE.md**: How to handle database migrations
+- **OpenAPI Updated**: All TTL fields documented in API spec
+- **Setup Script Enhanced**: Warns about existing database volumes
+
+#### Breaking Changes
+- None! All changes are backward compatible
+- Existing breadcrumbs work without TTL fields
+- Old context format still supported
+
+## Recent Major Milestones (September-October 2025)
+
 ### October 30, 2025 - Dynamic Tool Configuration System (v2.2.0)
 **Major Feature: Universal Dynamic Configuration UI**
 

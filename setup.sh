@@ -112,6 +112,18 @@ echo "🧹 Cleaning up..."
 rm -rf rcrt-visual-builder/apps/builder/node_modules || true
 rm -rf rcrt-visual-builder/node_modules || true
 
+# Ensure database volume is clean for fresh migrations
+echo "🔧 Checking database state..."
+if docker volume ls | grep -q "thinkos-1_db_data"; then
+    echo "⚠️  Existing database volume found. For a truly fresh install, run:"
+    echo "   docker compose down -v  # Remove containers AND volumes"
+    echo "   Then re-run this setup script"
+    echo ""
+    echo "   Continuing with existing database (migrations will apply if not already run)..."
+else
+    echo "✅ No existing database volume - fresh install"
+fi
+
 # Build the browser extension first (if node/npm available)
 if command -v npm >/dev/null 2>&1; then
     echo "🧩 Building browser extension..."
