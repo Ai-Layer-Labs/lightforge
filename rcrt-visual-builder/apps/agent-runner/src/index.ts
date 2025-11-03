@@ -127,7 +127,7 @@ export class ModernAgentRegistry {
               const eventData = JSON.parse(line.slice(6));
               
               // Feed ALL events to EventBridge (for waitForEvent)
-              if (eventData.type === 'breadcrumb.updated' && eventData.breadcrumb_id) {
+              if ((eventData.type === 'breadcrumb.created' || eventData.type === 'breadcrumb.updated') && eventData.breadcrumb_id) {
                 try {
                   const breadcrumb = await this.client.getBreadcrumb(eventData.breadcrumb_id);
                   this.eventBridge.handleEvent(eventData, breadcrumb);

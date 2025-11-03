@@ -62,8 +62,8 @@
       "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
       "get": {
         "summary": "Get full breadcrumb (untransformed)",
-        "description": "✅ USE THIS ENDPOINT: Returns complete, untransformed breadcrumb data with all operational metadata. NO llm_hints transformations applied - you get the raw data as stored. Required for: SDK (getBreadcrumb), Dashboard UI, Tools, Scripts, Extensions, Bootstrap processes, and any component that needs to read/process the actual breadcrumb content. Use /breadcrumbs/{id} (without /full) ONLY if you specifically need LLM-optimized transformed views. Requires ACL 'read_full' or curator role.",
-        "responses": { "200": { "description": "Complete untransformed breadcrumb with all fields", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbFull" } } } }, "403": { "description": "Forbidden" }, "404": { "description": "Not found" } }
+        "description": "✅ USE THIS ENDPOINT: Returns complete, untransformed breadcrumb data with all operational metadata. NO llm_hints transformations applied - you get the raw data as stored. Required for: SDK (getBreadcrumb), Dashboard UI, Tools, Scripts, Extensions, Bootstrap processes, and any component that needs to read/process the actual breadcrumb content. Use /breadcrumbs/{id} (without /full) ONLY if you specifically need LLM-optimized transformed views. Uses same access control as regular endpoint (visibility and ACL checks).",
+        "responses": { "200": { "description": "Complete untransformed breadcrumb with all fields", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbFull" } } } }, "404": { "description": "Not found" } }
       }
     },
     "/breadcrumbs/{id}/history": {

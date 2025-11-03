@@ -91,7 +91,7 @@ class RCRTEventStream {
     }
 
     // Handle tool responses (OpenRouter, etc.)
-    if (eventData.type === 'breadcrumb.updated' && 
+    if ((eventData.type === 'breadcrumb.created' || eventData.type === 'breadcrumb.updated') && 
         eventData.schema_name === 'tool.response.v1') {
       
       this.handleToolResponse(eventData);

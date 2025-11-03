@@ -214,7 +214,7 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
     if (!subscribeUpdates) return;
     const cleanup = rcrtClient.startEventStream(
       (event) => {
-        if (event.breadcrumb_id === breadcrumb.id && event.type === 'breadcrumb.updated') {
+        if (event.breadcrumb_id === breadcrumb.id && (event.type === 'breadcrumb.created' || event.type === 'breadcrumb.updated')) {
           rcrtClient.getBreadcrumb(breadcrumb.id).then((updated) => {
             if (isInstance) {
               const newProps = (updated as UIInstanceV1).context.props;
