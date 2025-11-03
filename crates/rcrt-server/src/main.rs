@@ -704,9 +704,10 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
     Ok(Json(view))
 }
 
-async fn get_breadcrumb_full(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path(Uuid>) -> Result<Json<BreadcrumbFull>, (StatusCode, String)> {
-    // Access control handled by get_breadcrumb_full_for (checks visibility and ACLs)
-    // No additional permission required - /full vs regular is about transformation, not permissions
+async fn get_breadcrumb_full(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<BreadcrumbFull>, (StatusCode, String)> {
+    // Require ACL read_full or curator role
+    let allowed = auth.roles.iter().any(|r| r == "curator") || state.db.has_acl_action(auth.owner_id, auth.agent_id, id, "read_full").await.map_err(internal_error)?;
+    if !allowed { return Err((StatusCode::FORBIDDEN, "forbidden".into())); }
     let Some(full) = state.db.get_breadcrumb_full_for(auth.owner_id, Some(auth.agent_id), id).await.map_err(internal_error)? else {
         return Err((StatusCode::NOT_FOUND, "not found".into()));
     };

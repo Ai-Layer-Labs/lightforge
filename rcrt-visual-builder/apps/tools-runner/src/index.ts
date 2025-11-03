@@ -112,7 +112,7 @@ async function startCentralizedSSEDispatcher(
                 }
                 
                 // Feed event to bridge BEFORE dispatching
-                if (eventData.type === 'breadcrumb.created' || eventData.type === 'breadcrumb.updated') {
+                if (eventData.type === 'breadcrumb.updated') {
                   try {
                     const breadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
                     globalEventBridge.handleEvent(eventData, breadcrumb);

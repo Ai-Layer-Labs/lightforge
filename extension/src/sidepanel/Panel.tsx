@@ -103,7 +103,7 @@ export default function Panel() {
           console.log('📡 SSE Event received:', event);
           
           // Handle different event types
-          if (event.breadcrumb_id && (event.type === 'breadcrumb.created' || event.type === 'breadcrumb.updated')) {
+          if (event.breadcrumb_id && event.type === 'breadcrumb.updated') {
             try {
               const breadcrumb = await rcrtClient.getBreadcrumb(event.breadcrumb_id);
               

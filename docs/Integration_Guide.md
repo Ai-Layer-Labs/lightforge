@@ -194,7 +194,7 @@ const es = new EventSource(`${BASE}/events/stream`, { headers: { Accept: 'text/e
 es.onmessage = async (m) => {
   try {
     const evt = JSON.parse(m.data);
-    if (evt.type === 'breadcrumb.created' || evt.type === 'breadcrumb.updated') {
+    if (evt.type === 'breadcrumb.updated') {
       const id = evt.breadcrumb_id;
       // Read full breadcrumb data (untransformed)
       const ctx = await fetch(`${BASE}/breadcrumbs/${id}/full`).then((r) => r.json());

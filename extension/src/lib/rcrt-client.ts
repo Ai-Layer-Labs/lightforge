@@ -300,7 +300,7 @@ export class RCRTExtensionClient {
         tags: ['agent:response'],
         custom: (event) => {
           // Additional filtering can be done here based on conversation_id
-          return (event.type === 'breadcrumb.created' || event.type === 'breadcrumb.updated') && 
+          return event.type === 'breadcrumb.updated' && 
                  (event.tags?.includes('agent:response') || 
                   event.schema_name === 'agent.response.v1');
         }
@@ -343,7 +343,7 @@ export class RCRTExtensionClient {
     onBreadcrumb: (breadcrumb: any) => void
   ): Promise<() => void> {
     return this.connectToSSE(filters, async (event) => {
-      if (event.breadcrumb_id && (event.type === 'breadcrumb.created' || event.type === 'breadcrumb.updated')) {
+      if (event.breadcrumb_id && event.type === 'breadcrumb.updated') {
         try {
           const breadcrumb = await this.getBreadcrumb(event.breadcrumb_id);
           onBreadcrumb(breadcrumb);
