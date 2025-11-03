@@ -202,7 +202,7 @@ export function AgentConfigPanel() {
       
       // Update breadcrumb
       const response = await fetch(
-        `${RCRT_BASE_URL}/breadcrumbs/${selectedAgent.id}/full`,
+        `${RCRT_BASE_URL}/breadcrumbs/${selectedAgent.id}`,
         {
           method: 'PATCH',
           headers: {

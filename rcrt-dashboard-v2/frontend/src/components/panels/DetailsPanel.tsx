@@ -339,7 +339,7 @@ function EditAgentDefinitionForm({ node, fullBreadcrumb, onSave, isSaving, setIs
         }
       };
 
-      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`, {
+      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -729,7 +729,7 @@ function EditBreadcrumbForm({ node, fullBreadcrumb, onSave, isSaving, setIsSavin
 
       console.log('✏️ Updating breadcrumb:', node.id, updates);
 
-      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`, {
+      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -984,7 +984,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           }
           const fullConfig = await fullResponse.json();
           
-          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}/full`, {
+          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`, {
             method: 'PATCH',
             headers: {
               'If-Match': String(fullConfig.version)
@@ -1253,7 +1253,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         
         console.log('🏗️ Saving context config:', updatedContext);
         
-        const response = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}/full`, {
+        const response = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -1297,7 +1297,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           let response;
           if (existing) {
             // Update existing
-            response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}/full`, {
+            response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}`, {
               method: 'PATCH',
               headers: { 
                 'Content-Type': 'application/json',

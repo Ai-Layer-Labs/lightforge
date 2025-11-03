@@ -33,7 +33,7 @@ export function ContextBuilderConfig({ breadcrumbId, onSave }: ContextConfigProp
   
   async function saveConfig() {
     try {
-      const response = await fetch(`/api/rcrt/breadcrumbs/${breadcrumbId}/full`, {
+      const response = await fetch(`/api/rcrt/breadcrumbs/${breadcrumbId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ context: config })

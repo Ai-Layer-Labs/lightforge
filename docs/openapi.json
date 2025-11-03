@@ -3,7 +3,7 @@
   "info": {
     "title": "RCRT API",
     "version": "0.1.0",
-    "description": "Right Context Right Time (RCRT) service. Provides minimal context packets (breadcrumbs), subscriptions, event fanout (NATS/SSE/webhooks), ACL/RLS, vector search, and secrets handling. Unless otherwise stated, endpoints require agent JWT (or dev AUTH_MODE=disabled)."
+    "description": "Right Context Right Time (RCRT) service. Provides minimal context packets (breadcrumbs), subscriptions, event fanout (NATS/SSE/webhooks), ACL/RLS, vector search, and secrets handling. Unless otherwise stated, endpoints require agent JWT (or dev AUTH_MODE=disabled).\n\n## 🔑 CRITICAL: Breadcrumb Endpoint Usage\n\n### READ Operations (GET)\n\n**GET /breadcrumbs/{id}/full** ✅ USE THIS\n- Returns: Complete, untransformed breadcrumb data\n- Use for: SDK, Dashboard, Tools, Scripts, Extensions, Bootstrap\n- Transformations: NONE - raw data as stored\n- Required for: Reading actual breadcrumb content\n\n**GET /breadcrumbs/{id}** ⚠️ INTERNAL ONLY\n- Returns: LLM-optimized, transformed/summarized view\n- Use for: ONLY context-builder when assembling LLM context\n- Transformations: Applies llm_hints from schema definitions\n- Do NOT use in: SDK, Dashboard, Tools, Scripts\n\n### WRITE Operations (PATCH/DELETE)\n\n**PATCH /breadcrumbs/{id}** ✅ CORRECT\n**DELETE /breadcrumbs/{id}** ✅ CORRECT\n- Endpoint: Use base path WITHOUT /full\n- /full endpoint: Read-only (GET only)\n- Pattern: GET /full to read current state, then PATCH /id to update\n\n### Quick Reference\n```\n✅ GET    /breadcrumbs/{id}/full  → Read raw data\n⚠️  GET    /breadcrumbs/{id}       → LLM-optimized (internal)\n✅ PATCH  /breadcrumbs/{id}        → Update breadcrumb\n✅ DELETE /breadcrumbs/{id}        → Delete breadcrumb\n❌ PATCH  /breadcrumbs/{id}/full   → 405 Method Not Allowed\n❌ DELETE /breadcrumbs/{id}/full   → 405 Method Not Allowed\n```"
   },
   "servers": [{ "url": "/" }],
   "paths": {
@@ -47,14 +47,14 @@
       },
       "patch": {
         "summary": "Update breadcrumb",
-        "description": "Partial update of breadcrumb fields. Include If-Match header with current version (e.g., \"5\") to ensure optimistic concurrency. Appends an entry to history and emits events.",
+        "description": "Partial update of breadcrumb fields. Include If-Match header with current version (e.g., \"5\") to ensure optimistic concurrency. Appends an entry to history and emits events. ⚠️ NOTE: Use /breadcrumbs/{id} NOT /breadcrumbs/{id}/full - PATCH is not supported on /full endpoint.",
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbUpdate" } } } },
         "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "412": { "description": "Version mismatch" } }
       },
       "delete": {
         "summary": "Delete breadcrumb",
-        "description": "Hard-delete the breadcrumb (soft-delete optional in future). Emits no further events.",
+        "description": "Hard-delete the breadcrumb (soft-delete optional in future). Emits no further events. ⚠️ NOTE: Use /breadcrumbs/{id} NOT /breadcrumbs/{id}/full - DELETE is not supported on /full endpoint.",
         "responses": { "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
       }
     },

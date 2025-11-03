@@ -124,7 +124,7 @@ export function use3DConfig() {
       if (existingId) {
         // Update existing breadcrumb with version control
         console.log(`🔄 Attempting PATCH with If-Match: ${existingVersion}`);
-        response = await authenticatedFetch(`/api/breadcrumbs/${existingId}/full`, {
+        response = await authenticatedFetch(`/api/breadcrumbs/${existingId}`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ export function use3DConfig() {
         
         // Delete duplicates
         for (const breadcrumb of toDelete) {
-          await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}/full`, {
+          await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}`, {
             method: 'DELETE'
           });
         }
