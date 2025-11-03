@@ -9,6 +9,8 @@ use pgvector::Vector;
 use sqlx::PgPool;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct BreadcrumbRow {
@@ -26,11 +28,81 @@ pub struct BreadcrumbRow {
 
 pub struct VectorStore {
     pool: PgPool,
+    blacklist_cache: Arc<RwLock<Vec<String>>>,
 }
 
 impl VectorStore {
     pub fn new(pool: PgPool) -> Self {
-        VectorStore { pool }
+        VectorStore { 
+            pool,
+            blacklist_cache: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+    
+    /// Load blacklist from context.blacklist.v1 breadcrumb
+    /// NO FALLBACKS - fails fast if configuration is missing
+    pub async fn load_blacklist(&self) -> Result<()> {
+        // Query for the blacklist configuration
+        let result = sqlx::query_as::<_, BreadcrumbRow>(
+            r#"
+            SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
+            FROM breadcrumbs
+            WHERE schema_name = 'context.blacklist.v1'
+            ORDER BY updated_at DESC
+            LIMIT 1
+            "#
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        
+        let blacklist_bc = result.ok_or_else(|| {
+            anyhow::anyhow!(
+                "❌ FATAL: context.blacklist.v1 breadcrumb not found!\n\
+                 \n\
+                 The context blacklist configuration is required for the system to function.\n\
+                 \n\
+                 To fix this:\n\
+                 1. Ensure bootstrap-breadcrumbs/system/context-blacklist.json exists\n\
+                 2. Run bootstrap: cd bootstrap-breadcrumbs && node bootstrap.js\n\
+                 3. Or manually create via API: POST /breadcrumbs\n\
+                 \n\
+                 The system cannot proceed without this configuration."
+            )
+        })?;
+        
+        // Extract excluded_schemas from context
+        let excluded_schemas = blacklist_bc.context
+            .get("excluded_schemas")
+            .ok_or_else(|| anyhow::anyhow!("context.blacklist.v1 missing 'excluded_schemas' field"))?;
+        
+        let arr = excluded_schemas
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("context.blacklist.v1 'excluded_schemas' is not an array"))?;
+        
+        let mut blacklist = Vec::new();
+        for item in arr {
+            if let Some(schema_name) = item.get("schema_name").and_then(|v| v.as_str()) {
+                blacklist.push(schema_name.to_string());
+            }
+        }
+        
+        if blacklist.is_empty() {
+            anyhow::bail!("context.blacklist.v1 has no excluded schemas - configuration error");
+        }
+        
+        // Update cache
+        let mut cache = self.blacklist_cache.write().await;
+        *cache = blacklist.clone();
+        
+        tracing::info!("✅ Loaded context blacklist: {} schemas excluded", blacklist.len());
+        tracing::debug!("Blacklisted schemas: {:?}", blacklist);
+        
+        Ok(())
+    }
+    
+    /// Get current blacklist (from cache)
+    async fn get_blacklist(&self) -> Vec<String> {
+        self.blacklist_cache.read().await.clone()
     }
     
     /// Find similar breadcrumbs using pgvector cosine similarity
@@ -80,15 +152,8 @@ impl VectorStore {
         session_filter: Option<&str>,
         limit: usize,
     ) -> Result<Vec<BreadcrumbRow>> {
-        // System schemas to exclude (blacklist approach)
-        // Future: Make this configurable via context.config.v1
-        let blacklist = vec![
-            "system.health.v1",
-            "system.metric.v1",
-            "tool.config.v1",        // Tool settings, not context
-            "secret.v1",             // Never include secrets
-            "system.startup.v1",     // System events, not conversational
-        ];
+        // Load blacklist from cache (configured via context.blacklist.v1)
+        let blacklist = self.get_blacklist().await;
         
         let query = match (schema_name, session_filter) {
             (Some(schema), Some(session)) => {

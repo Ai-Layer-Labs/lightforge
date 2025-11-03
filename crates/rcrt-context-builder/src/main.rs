@@ -74,6 +74,17 @@ async fn main() -> Result<()> {
     // Initialize vector store
     let vector_store = Arc::new(VectorStore::new(db_pool.clone()));
     info!("✅ Vector store initialized");
+    
+    // Load context blacklist from database
+    // NO FALLBACKS - system must have proper configuration
+    info!("📋 Loading context blacklist configuration...");
+    vector_store.load_blacklist().await.map_err(|e| {
+        error!("❌ FATAL: Failed to load context blacklist");
+        error!("{}", e);
+        error!("\nThe system cannot start without proper configuration.");
+        error!("See error message above for fix instructions.");
+        e
+    })?;
 
     // Initialize session graph cache
     let graph_cache = Arc::new(SessionGraphCache::new(config.cache_size_mb));

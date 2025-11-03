@@ -1,0 +1,54 @@
+{
+  "schema_name": "context.blacklist.v1",
+  "title": "Context Assembly Blacklist",
+  "tags": ["context:config", "system:bootstrap", "system:internal"],
+  "context": {
+    "version": "1.0.0",
+    "last_updated": "2025-11-03T00:00:00Z",
+    "description": "Schemas excluded from context assembly to prevent metadata leakage",
+    
+    "excluded_schemas": [
+      {
+        "schema_name": "system.health.v1",
+        "reason": "Health check responses - internal system monitoring, not conversational context"
+      },
+      {
+        "schema_name": "system.metric.v1",
+        "reason": "Performance metrics - internal telemetry, not relevant to user queries"
+      },
+      {
+        "schema_name": "tool.config.v1",
+        "reason": "Tool configuration settings - internal setup, not context for LLM"
+      },
+      {
+        "schema_name": "secret.v1",
+        "reason": "Secrets and credentials - NEVER include in any context for security"
+      },
+      {
+        "schema_name": "system.startup.v1",
+        "reason": "System initialization events - internal lifecycle, not conversational"
+      },
+      {
+        "schema_name": "schema.def.v1",
+        "reason": "Schema definitions - metadata about schemas, not actual content"
+      },
+      {
+        "schema_name": "context.blacklist.v1",
+        "reason": "This blacklist itself - configuration metadata, not content"
+      },
+      {
+        "schema_name": "system.hygiene.v1",
+        "reason": "Hygiene runner statistics - internal housekeeping metrics"
+      }
+    ],
+    
+    "notes": [
+      "This blacklist prevents metadata from appearing in assembled context",
+      "Add schemas here if they're system internals, not user-facing content",
+      "Update via: POST /breadcrumbs (creates new version) or PATCH /breadcrumbs/{id}",
+      "Context-builder loads this at startup and caches in memory",
+      "Restart context-builder after updates to pick up changes"
+    ]
+  }
+}
+

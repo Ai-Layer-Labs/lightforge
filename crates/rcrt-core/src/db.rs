@@ -61,9 +61,9 @@ impl Db {
 
         let rec = sqlx::query_as::<_, DbBreadcrumb>(
             r#"insert into breadcrumbs
-            (owner_id, title, context, tags, schema_name, visibility, sensitivity, version, checksum, ttl, created_by, updated_by, size_bytes, created_at, updated_at, embedding)
-            values ($1,$2,$3,$4,$5,$6::visibility,$7::sensitivity,1,$8,$9,$10,$10,$11, now(), now(), $12)
-            returning id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, created_at, updated_at, created_by, updated_by, size_bytes, embedding
+            (owner_id, title, context, tags, schema_name, visibility, sensitivity, version, checksum, ttl, ttl_type, ttl_config, ttl_source, created_by, updated_by, size_bytes, created_at, updated_at, embedding)
+            values ($1,$2,$3,$4,$5,$6::visibility,$7::sensitivity,1,$8,$9,$10,$11,$12,$13,$13,$14, now(), now(), $15)
+            returning id, owner_id, title, context, tags, schema_name, visibility::text as visibility, sensitivity::text as sensitivity, version, checksum, ttl, ttl_type, ttl_config, read_count, ttl_source, created_at, updated_at, created_by, updated_by, size_bytes, embedding
             "#,
         )
         .bind(owner_id)
@@ -75,6 +75,9 @@ impl Db {
         .bind(sensitivity_to_db(&sensitivity))
         .bind(checksum)
         .bind(req.ttl)
+        .bind(req.ttl_type)
+        .bind(req.ttl_config)
+        .bind(req.ttl_source)
         .bind(created_by)
         .bind(size_bytes)
         .bind(embedding.map(Vector::from))

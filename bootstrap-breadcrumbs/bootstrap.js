@@ -8,6 +8,7 @@
  * - Tools: bootstrap-breadcrumbs/tools-self-contained/*.json (tool.code.v1)
  * - Templates: bootstrap-breadcrumbs/templates/*.json
  * - Knowledge: bootstrap-breadcrumbs/knowledge/*.json (for LLM semantic search)
+ * - Schemas: bootstrap-breadcrumbs/schemas/*.json (llm_hints for context optimization)
  */
 
 import fetch from 'node-fetch';
@@ -237,8 +238,51 @@ async function bootstrap() {
       console.log('   ℹ️  No knowledge directory found (knowledge/)');
     }
 
-    // 6. Create bootstrap marker
-    console.log('\n6️⃣ Creating bootstrap marker...');
+    // 6. Load schema definitions (llm_hints for context optimization)
+    console.log('\n6️⃣ Loading schema definitions...');
+    const schemasDir = path.join(__dirname, 'schemas');
+    if (fs.existsSync(schemasDir)) {
+      const schemaFiles = fs.readdirSync(schemasDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of schemaFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(schemasDir, file), 'utf-8'));
+          
+          // Check if schema definition already exists
+          const definesSchema = data.context?.defines_schema;
+          if (!definesSchema) {
+            console.log(`   ⚠️  ${file} missing defines_schema field, skipping`);
+            continue;
+          }
+          
+          const existing = await searchBreadcrumbs({
+            schema_name: 'schema.def.v1',
+            tag: `defines:${definesSchema}`
+          });
+          
+          if (existing.length > 0) {
+            console.log(`   ⏭️  ${data.title} already exists (defines ${definesSchema})`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (defines ${definesSchema})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No schemas directory found (schemas/)');
+    }
+
+    // 7. Create bootstrap marker
+    console.log('\n7️⃣ Creating bootstrap marker...');
     const markerData = JSON.parse(
       fs.readFileSync(path.join(systemDir, 'bootstrap-marker.json'), 'utf-8')
     );
@@ -255,6 +299,7 @@ async function bootstrap() {
     console.log('   • Self-contained tools (tool.code.v1)');
     console.log('   • Template library');
     console.log('   • Knowledge base (for LLM semantic search)');
+    console.log('   • Schema definitions (llm_hints for context optimization)');
     console.log('   • Bootstrap marker');
     console.log(`   • Version: ${BOOTSTRAP_VERSION}`);
     console.log('');
@@ -271,6 +316,7 @@ async function bootstrap() {
     console.log('   • Tools: Create tools-self-contained/*.json → run: node bootstrap.js');
     console.log('   • Knowledge: Create knowledge/*.json → run: node bootstrap.js');
     console.log('   • Templates: Create templates/*.json → run: node bootstrap.js');
+    console.log('   • Schemas: Create schemas/*.json → run: node bootstrap.js');
 
   } catch (error) {
     console.error('❌ Bootstrap failed:', error);
