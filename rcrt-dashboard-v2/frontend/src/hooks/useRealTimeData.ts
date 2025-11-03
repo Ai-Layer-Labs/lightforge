@@ -97,7 +97,7 @@ export function useRealTimeData() {
       console.log('🛠️ Found tool catalog breadcrumb:', toolCatalog.id);
       
       // Get full context to see the tools list
-      const response = await authenticatedFetch(`/api/breadcrumbs/${toolCatalog.id}`);
+      const response = await authenticatedFetch(`/api/breadcrumbs/${toolCatalog.id}/full`);
       if (!response.ok) {
         throw new Error(`Failed to load tool catalog: ${response.statusText}`);
       }
@@ -294,7 +294,7 @@ export function useRealTimeData() {
     // Load full context for these breadcrumbs in parallel
     const fullContextPromises = importantBreadcrumbs.map(async (breadcrumb) => {
       try {
-        const response = await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}`);
+        const response = await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}/full`);
         if (response.ok) {
           const fullData = await response.json();
           // Create new enhanced breadcrumb object

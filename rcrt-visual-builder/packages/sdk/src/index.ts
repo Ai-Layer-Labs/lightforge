@@ -256,7 +256,9 @@ export class RcrtClientEnhanced {
   }
 
   async getBreadcrumb(id: string): Promise<Breadcrumb> {
-    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}`);
+    // Use /full endpoint to get complete, untransformed data
+    // The llm_hints transformation should only happen at context-builder level
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/full`);
 
     if (!response.ok) {
       const error = await response.text();

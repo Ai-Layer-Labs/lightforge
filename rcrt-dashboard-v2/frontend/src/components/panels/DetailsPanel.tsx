@@ -24,7 +24,7 @@ export function DetailsPanel() {
       
       console.log('📋 Loading full breadcrumb context for:', node.id);
       
-      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}`);
+      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`);
       if (!response.ok) {
         throw new Error(`Failed to load breadcrumb details: ${response.statusText}`);
       }
@@ -339,7 +339,7 @@ function EditAgentDefinitionForm({ node, fullBreadcrumb, onSave, isSaving, setIs
         }
       };
 
-      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
+      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -452,7 +452,7 @@ function DeleteButton({ node, isDeleting, setIsDeleting, onDelete }: {
         case 'agent-definition':
         case 'chat':
           // Agent definitions are breadcrumbs, so use breadcrumb endpoint
-          endpoint = `/api/breadcrumbs/${node.id}`;
+          endpoint = `/api/breadcrumbs/${node.id}/full`;
           queryKey = 'breadcrumbs';
           break;
         case 'agent':
@@ -729,7 +729,7 @@ function EditBreadcrumbForm({ node, fullBreadcrumb, onSave, isSaving, setIsSavin
 
       console.log('✏️ Updating breadcrumb:', node.id, updates);
 
-      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
+      const response = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -882,7 +882,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
               if (toolBreadcrumbs.length > 0) {
                 // Get the full breadcrumb to access context with ui_schema
                 const toolBreadcrumbId = toolBreadcrumbs[0].id;
-                const fullToolResponse = await authenticatedFetch(`/api/breadcrumbs/${toolBreadcrumbId}`);
+                const fullToolResponse = await authenticatedFetch(`/api/breadcrumbs/${toolBreadcrumbId}/full`);
                 
                 if (fullToolResponse.ok) {
                   const fullToolBreadcrumb = await fullToolResponse.json();
@@ -978,13 +978,13 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           console.log('🔄 Updating existing tool config:', existingConfig.id);
           
           // Load full breadcrumb to get current version for optimistic concurrency
-          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`);
+          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}/full`);
           if (!fullResponse.ok) {
             throw new Error('Failed to load existing config for version check');
           }
           const fullConfig = await fullResponse.json();
           
-          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`, {
+          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}/full`, {
             method: 'PATCH',
             headers: {
               'If-Match': String(fullConfig.version)
@@ -1180,7 +1180,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         }
         
         // Load full context to get current version
-        const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}`);
+        const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}/full`);
         if (!detailResponse.ok) {
           throw new Error('Failed to load config breadcrumb details');
         }
@@ -1253,7 +1253,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         
         console.log('🏗️ Saving context config:', updatedContext);
         
-        const response = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}`, {
+        const response = await authenticatedFetch(`/api/breadcrumbs/${contextConfigBreadcrumb.id}/full`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -1297,7 +1297,7 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           let response;
           if (existing) {
             // Update existing
-            response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}`, {
+            response = await authenticatedFetch(`/api/breadcrumbs/${existing.id}/full`, {
               method: 'PATCH',
               headers: { 
                 'Content-Type': 'application/json',

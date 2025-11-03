@@ -53,7 +53,7 @@
                     log(`\n🔧 Analyzing config: ${config.title}`);
                     
                     // Get full context
-                    const fullConfig = await fetch(`/api/breadcrumbs/${config.id}`).then(r => r.json());
+                    const fullConfig = await fetch(`/api/breadcrumbs/${config.id}/full`).then(r => r.json());
                     log(`   Context: ${JSON.stringify(fullConfig.context)}`);
                     
                     if (fullConfig.context?.secret_id) {

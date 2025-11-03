@@ -136,7 +136,7 @@ export function useModelsFromCatalog() {
         // If context is missing, fetch the full breadcrumb
         if (!catalog.context || !catalog.context.models) {
           console.log('[useModelsFromCatalog] Context missing, fetching full breadcrumb...');
-          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${catalog.id}`);
+          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${catalog.id}/full`);
           if (fullResponse.ok) {
             const fullCatalog = await fullResponse.json();
             console.log('[useModelsFromCatalog] Full breadcrumb:', fullCatalog);

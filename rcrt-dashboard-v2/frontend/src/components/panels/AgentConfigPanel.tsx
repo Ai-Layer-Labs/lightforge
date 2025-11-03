@@ -136,7 +136,7 @@ export function AgentConfigPanel() {
       const fullAgents = await Promise.all(
         agentList.map(async (agent: any) => {
           const detailResponse = await fetch(
-            `${RCRT_BASE_URL}/breadcrumbs/${agent.id}`,
+            `${RCRT_BASE_URL}/breadcrumbs/${agent.id}/full`,
             {
               headers: { 'Authorization': `Bearer ${token}` }
             }
@@ -160,7 +160,7 @@ export function AgentConfigPanel() {
         const fullConfigs = await Promise.all(
           configList.map(async (cfg: any) => {
             const detailResponse = await fetch(
-              `${RCRT_BASE_URL}/breadcrumbs/${cfg.id}`,
+              `${RCRT_BASE_URL}/breadcrumbs/${cfg.id}/full`,
               {
                 headers: { 'Authorization': `Bearer ${token}` }
               }
@@ -202,7 +202,7 @@ export function AgentConfigPanel() {
       
       // Update breadcrumb
       const response = await fetch(
-        `${RCRT_BASE_URL}/breadcrumbs/${selectedAgent.id}`,
+        `${RCRT_BASE_URL}/breadcrumbs/${selectedAgent.id}/full`,
         {
           method: 'PATCH',
           headers: {

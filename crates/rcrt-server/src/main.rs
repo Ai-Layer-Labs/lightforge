@@ -43,6 +43,7 @@ struct AppState {
     #[cfg(feature = "nats")]
     nats_conn: Option<nats::Connection>,
     hygiene_stats: Arc<Mutex<hygiene::HygieneStats>>,
+    schema_cache: Arc<transforms::SchemaDefinitionCache>,
 }
 
 #[tokio::main]
@@ -84,6 +85,11 @@ async fn main() -> Result<()> {
     // Create shared hygiene stats
     let hygiene_stats = Arc::new(Mutex::new(hygiene::HygieneStats::default()));
     
+    // Initialize schema definition cache for llm_hints
+    tracing::info!("Initializing schema definition cache...");
+    let schema_cache = Arc::new(transforms::SchemaDefinitionCache::new(Arc::new(db.clone())));
+    tracing::info!("Schema cache ready");
+    
     #[cfg(feature = "nats")]
     let state = AppState { 
         db, 
@@ -91,7 +97,8 @@ async fn main() -> Result<()> {
         jwt_encoding_key, 
         jwt_validation, 
         nats_conn,
-        hygiene_stats: hygiene_stats.clone()
+        hygiene_stats: hygiene_stats.clone(),
+        schema_cache: schema_cache.clone()
     };
     #[cfg(not(feature = "nats"))]
     let state = AppState { 
@@ -99,7 +106,8 @@ async fn main() -> Result<()> {
         jwt_decoding_key, 
         jwt_encoding_key, 
         jwt_validation,
-        hygiene_stats: hygiene_stats.clone()
+        hygiene_stats: hygiene_stats.clone(),
+        schema_cache: schema_cache.clone()
     };
 
     // Start hygiene runner for automatic cleanup
@@ -664,30 +672,31 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
     .execute(&state.db.pool)
     .await;
     
-    // Apply LLM hints if present
-    if let Some(hints_value) = view.context.get("llm_hints") {
-        // Clone the value to avoid borrow issues
-        let hints_value = hints_value.clone();
-        
-        // Try to parse llm_hints
-        match serde_json::from_value::<transforms::LlmHints>(hints_value) {
-            Ok(hints) => {
-                // Apply transforms
-                let engine = transforms::TransformEngine::new();
-                match engine.apply_llm_hints(&view.context, &hints) {
-                    Ok(transformed) => {
-                        tracing::debug!("Applied llm_hints transform for breadcrumb {}", id);
-                        view.context = transformed;
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to apply llm_hints for breadcrumb {}: {}", id, e);
-                        // Continue with original context on error
-                    }
-                }
+    // Try to get llm_hints from schema definition first, then fall back to instance hints
+    let hints_to_apply = if let Some(schema_name) = &view.schema_name {
+        // Load hints from schema definition cache
+        state.schema_cache.load_schema_hints(schema_name).await
+    } else {
+        None
+    };
+    
+    // If no schema hints, check if breadcrumb has instance-level hints
+    let final_hints = hints_to_apply.or_else(|| {
+        view.context.get("llm_hints")
+            .and_then(|v| serde_json::from_value::<transforms::LlmHints>(v.clone()).ok())
+    });
+    
+    // Apply hints if we found any
+    if let Some(hints) = final_hints {
+        let engine = transforms::TransformEngine::new();
+        match engine.apply_llm_hints(&view.context, &hints) {
+            Ok(transformed) => {
+                tracing::debug!("Applied llm_hints transform for breadcrumb {} (schema: {:?})", id, view.schema_name);
+                view.context = transformed;
             }
             Err(e) => {
-                tracing::debug!("Could not parse llm_hints for breadcrumb {}: {}", id, e);
-                // Continue with original context if hints are malformed
+                tracing::warn!("Failed to apply llm_hints for breadcrumb {}: {}", id, e);
+                // Continue with original context on error
             }
         }
     }

@@ -12,7 +12,7 @@ async function main(){
     body: JSON.stringify({ owner_id: OWNER_ID, agent_id: AGENT_ID })
   });
   const { token } = await tokenResp.json();
-  const resp = await fetch(`http://localhost:8081/breadcrumbs/${TOOL_ID}`, {
+  const resp = await fetch(`http://localhost:8081/breadcrumbs/${TOOL_ID}/full`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const json = await resp.json();

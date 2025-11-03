@@ -112,6 +112,9 @@ impl VectorStore {
         limit: usize,
         session_filter: Option<&str>,
     ) -> Result<Vec<BreadcrumbRow>> {
+        // Load blacklist from cache (configured via context.blacklist.v1)
+        let blacklist = self.get_blacklist().await;
+        
         let query = if let Some(session) = session_filter {
             sqlx::query_as::<_, BreadcrumbRow>(
                 r#"
@@ -119,6 +122,7 @@ impl VectorStore {
                 FROM breadcrumbs
                 WHERE embedding IS NOT NULL
                   AND $2 = ANY(tags)
+                  AND schema_name != ALL($4)
                 ORDER BY embedding <=> $1
                 LIMIT $3
                 "#
@@ -126,18 +130,21 @@ impl VectorStore {
             .bind(query_embedding)
             .bind(session)
             .bind(limit as i64)
+            .bind(&blacklist)
         } else {
             sqlx::query_as::<_, BreadcrumbRow>(
                 r#"
                 SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
                 FROM breadcrumbs
                 WHERE embedding IS NOT NULL
+                  AND schema_name != ALL($3)
                 ORDER BY embedding <=> $1
                 LIMIT $2
                 "#
             )
             .bind(query_embedding)
             .bind(limit as i64)
+            .bind(&blacklist)
         };
         
         let results = query.fetch_all(&self.pool).await?;
@@ -163,6 +170,7 @@ impl VectorStore {
                     FROM breadcrumbs
                     WHERE schema_name = $1
                       AND $2 = ANY(tags)
+                      AND schema_name != ALL($4)
                     ORDER BY created_at DESC
                     LIMIT $3
                     "#
@@ -170,6 +178,7 @@ impl VectorStore {
                 .bind(schema)
                 .bind(session)
                 .bind(limit as i64)
+                .bind(&blacklist)
             }
             (Some(schema), None) => {
                 sqlx::query_as::<_, BreadcrumbRow>(
@@ -177,39 +186,43 @@ impl VectorStore {
                     SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
                     FROM breadcrumbs
                     WHERE schema_name = $1
+                      AND schema_name != ALL($3)
                     ORDER BY created_at DESC
                     LIMIT $2
                     "#
                 )
                 .bind(schema)
                 .bind(limit as i64)
+                .bind(&blacklist)
             }
             (None, Some(session)) => {
-                // THE RCRT WAY: Get everything, exclude system internals
+                // THE RCRT WAY: Get everything, exclude system internals via dynamic blacklist
                 sqlx::query_as::<_, BreadcrumbRow>(
                     r#"
                     SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
                     FROM breadcrumbs
                     WHERE $1 = ANY(tags)
-                      AND schema_name NOT IN ('system.health.v1', 'system.metric.v1', 'tool.config.v1', 'secret.v1', 'system.startup.v1')
+                      AND schema_name != ALL($3)
                     ORDER BY created_at DESC
                     LIMIT $2
                     "#
                 )
                 .bind(session)
                 .bind(limit as i64)
+                .bind(&blacklist)
             }
             (None, None) => {
                 sqlx::query_as::<_, BreadcrumbRow>(
                     r#"
                     SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
                     FROM breadcrumbs
-                    WHERE schema_name NOT IN ('system.health.v1', 'system.metric.v1', 'tool.config.v1', 'secret.v1', 'system.startup.v1')
+                    WHERE schema_name != ALL($2)
                     ORDER BY created_at DESC
                     LIMIT $1
                     "#
                 )
                 .bind(limit as i64)
+                .bind(&blacklist)
             }
         };
         
@@ -301,6 +314,8 @@ impl VectorStore {
         limit: usize,
         session_filter: Option<&str>,
     ) -> Result<Vec<BreadcrumbRow>> {
+        // Load blacklist from cache (configured via context.blacklist.v1)
+        let blacklist = self.get_blacklist().await;
         let keyword_count = query_keywords.len() as f32;
         
         let sql = if let Some(session) = session_filter {
@@ -325,6 +340,7 @@ impl VectorStore {
                     END as keyword_score
                 FROM breadcrumbs
                 WHERE $4 = ANY(tags)
+                  AND schema_name != ALL($6)
             )
             SELECT 
                 id, schema_name, title, tags, context, embedding,
@@ -355,6 +371,7 @@ impl VectorStore {
                         ELSE 0.0
                     END as keyword_score
                 FROM breadcrumbs
+                WHERE schema_name != ALL($5)
             )
             SELECT 
                 id, schema_name, title, tags, context, embedding,
@@ -373,12 +390,14 @@ impl VectorStore {
                 .bind(keyword_count)
                 .bind(session)
                 .bind(limit as i64)
+                .bind(&blacklist)
         } else {
             sqlx::query_as::<_, BreadcrumbRow>(sql)
                 .bind(query_embedding)
                 .bind(query_keywords)
                 .bind(keyword_count)
                 .bind(limit as i64)
+                .bind(&blacklist)
         };
         
         let results = query.fetch_all(&self.pool).await?;

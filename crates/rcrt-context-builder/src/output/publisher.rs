@@ -22,14 +22,9 @@ impl ContextPublisher {
     /// Extract LLM-optimized content from a breadcrumb using server-side llm_hints
     async fn extract_llm_content(&self, breadcrumb_id: Uuid) -> Result<serde_json::Value> {
         // Fetch breadcrumb context from server (applies llm_hints automatically)
-        match self.rcrt_client.get_breadcrumb(breadcrumb_id).await {
-            Ok(bc) => Ok(bc.context),
-            Err(e) => {
-                tracing::warn!("Failed to fetch LLM content for {}: {}", breadcrumb_id, e);
-                // Fallback to empty object
-                Ok(serde_json::json!({}))
-            }
-        }
+        let bc = self.rcrt_client.get_breadcrumb(breadcrumb_id).await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch LLM content for {}: {}", breadcrumb_id, e))?;
+        Ok(bc.context)
     }
     
     pub async fn publish_context(

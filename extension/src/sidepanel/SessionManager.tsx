@@ -65,7 +65,7 @@ export function SessionManager({ onSessionSelected, onNewSession }: SessionManag
       const fullSessions = await Promise.all(
         breadcrumbs.map(async (bc: any) => {
           const detailResponse = await fetch(
-            `${RCRT_BASE_URL}/breadcrumbs/${bc.id}`,
+            `${RCRT_BASE_URL}/breadcrumbs/${bc.id}/full`,
             {
               headers: { 'Authorization': `Bearer ${token}` }
             }

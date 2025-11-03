@@ -196,11 +196,10 @@ es.onmessage = async (m) => {
     const evt = JSON.parse(m.data);
     if (evt.type === 'breadcrumb.updated') {
       const id = evt.breadcrumb_id;
-      // Read minimal context view for LLM prompt material
-      const ctx = await fetch(`${BASE}/breadcrumbs/${id}`).then((r) => r.json());
+      // Read full breadcrumb data (untransformed)
+      const ctx = await fetch(`${BASE}/breadcrumbs/${id}/full`).then((r) => r.json());
       console.log('Calendar received update:', ctx.title, ctx.context);
-      // Optionally fetch full view if privileged is needed:
-      // const full = await fetch(`${BASE}/breadcrumbs/${id}/full`).then(r => r.json());
+      // Note: Use /breadcrumbs/${id} (without /full) only if you want LLM-optimized transformed view
       // update calendar system here...
     }
   } catch (e) {
@@ -288,7 +287,7 @@ let lastUser = null;
 es.onmessage = async (m) => {
   const evt = JSON.parse(m.data);
   if (evt.type !== 'breadcrumb.updated') return;
-  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}`).then(r=>r.json());
+  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}/full`).then(r=>r.json());
   const tags = bc.tags || [];
   if (tags.includes('user_message')) {
     lastUser = bc;
@@ -313,7 +312,7 @@ const es = new EventSource(`${BASE}/events/stream`, { headers: { Accept: 'text/e
 es.onmessage = async (m) => {
   const evt = JSON.parse(m.data);
   if (evt.type !== 'breadcrumb.updated') return;
-  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}`).then(r=>r.json());
+  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}/full`).then(r=>r.json());
   if ((bc.tags||[]).includes('research_task')) {
     const findings = `Findings for: ${bc.context.query}`;
     await fetch(`${BASE}/breadcrumbs`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ title:'Research result', context:{ findings }, tags:['research_done'] })});
@@ -330,7 +329,7 @@ const es = new EventSource(`${BASE}/events/stream`, { headers: { Accept: 'text/e
 es.onmessage = async (m) => {
   const evt = JSON.parse(m.data);
   if (evt.type !== 'breadcrumb.updated') return;
-  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}`).then(r=>r.json());
+  const bc = await fetch(`${BASE}/breadcrumbs/${evt.breadcrumb_id}/full`).then(r=>r.json());
   if ((bc.tags||[]).includes('synthesis_task')) {
     const answer = bc.context.findings ? `Answer: ${bc.context.findings}` : 'Answer: synthesized';
     await fetch(`${BASE}/breadcrumbs`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ title:'Synthesis result', context:{ answer }, tags:['synthesis_done'] })});

@@ -422,9 +422,28 @@ export class AgentExecutorUniversal extends UniversalExecutor {
    */
   private async createLLMRequest(trigger: any, context: Record<string, any>): Promise<void> {
     // Extract user message from trigger
-    const userMessage = trigger.context?.message || 
-                       trigger.context?.content || 
-                       JSON.stringify(trigger.context);
+    // If trigger is agent.context.v1, extract the actual user message from breadcrumbs
+    let userMessage = trigger.context?.message || trigger.context?.content;
+    
+    if (!userMessage && trigger.schema_name === 'agent.context.v1') {
+      // Find the trigger_event_id breadcrumb (the actual user message that triggered this)
+      const triggerEventId = trigger.context?.trigger_event_id;
+      if (triggerEventId && context.breadcrumbs) {
+        const userMsgBreadcrumb = context.breadcrumbs.find((bc: any) => bc.id === triggerEventId);
+        if (userMsgBreadcrumb) {
+          // Try to extract formatted content first, then raw content
+          userMessage = userMsgBreadcrumb.content?.formatted || 
+                       userMsgBreadcrumb.content?.content ||
+                       userMsgBreadcrumb.content?.message ||
+                       JSON.stringify(userMsgBreadcrumb.content);
+        }
+      }
+    }
+    
+    // Final fallback if we still don't have a message
+    if (!userMessage) {
+      userMessage = JSON.stringify(trigger.context);
+    }
     
     // Format context for LLM
     const contextFormatted = this.formatContextForLLM(context);

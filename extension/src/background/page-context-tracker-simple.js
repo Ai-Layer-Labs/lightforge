@@ -321,7 +321,7 @@ class SimplePageContextTracker {
         // Concurrent update - refetch and retry
         console.warn('⚠️ Version conflict, refetching breadcrumb...');
         try {
-          const current = await rcrtApi('GET', `/breadcrumbs/${this.state.breadcrumbId}`);
+          const current = await rcrtApi('GET', `/breadcrumbs/${this.state.breadcrumbId}/full`);
           this.state.currentVersion = current.version;
           await this.persistState();
           console.log(`🔄 Retrying with version ${this.state.currentVersion}`);

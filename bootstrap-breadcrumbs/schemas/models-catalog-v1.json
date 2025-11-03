@@ -1,0 +1,35 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "OpenRouter Models Catalog Schema Definition",
+  "tags": ["schema:definition", "system:bootstrap", "defines:models.catalog.v1"],
+  "context": {
+    "defines_schema": "models.catalog.v1",
+    "description": "OpenRouter models catalog - huge list of available LLM models with pricing and parameters",
+    
+    "llm_hints": {
+      "transform": {
+        "summary": {
+          "type": "template",
+          "template": "📊 OpenRouter Models Catalog: {{context.total_models}} models available (updated {{context.last_updated}}). Use the openrouter tool to access these models."
+        }
+      },
+      "mode": "replace"
+    },
+    
+    "lifecycle": {
+      "ttl_policy": {
+        "type": "duration",
+        "config": {"duration": "24 hours"},
+        "description": "Models catalog refreshes daily"
+      }
+    },
+    
+    "notes": [
+      "This catalog is synced from OpenRouter's public API",
+      "The full models list is HUGE (hundreds of models with full details)",
+      "LLM hints transform it to just a summary",
+      "The actual models are accessed via the openrouter tool, not from context"
+    ]
+  }
+}
+

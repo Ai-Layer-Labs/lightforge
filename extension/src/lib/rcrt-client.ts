@@ -185,7 +185,7 @@ export class RCRTExtensionClient {
         return new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
             type: 'RCRT_API_CALL',
-            endpoint: `/breadcrumbs/${id}`,
+            endpoint: `/breadcrumbs/${id}/full`,
             method: 'GET',
             token: this.token
           }, (response) => {
@@ -201,7 +201,7 @@ export class RCRTExtensionClient {
       }
       
       // Fallback to direct fetch
-      const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {
+      const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}/full`, {
         headers: {
           'Authorization': `Bearer ${this.token}`
         }

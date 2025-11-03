@@ -36,7 +36,7 @@ export function use3DConfig() {
           console.log('✅ Found 3D config breadcrumb:', configBreadcrumb.id);
           
           // Get full context
-          const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}`);
+          const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}/full`);
           if (detailResponse.ok) {
             const detail = await detailResponse.json();
             if (detail.context?.config) {
@@ -124,7 +124,7 @@ export function use3DConfig() {
       if (existingId) {
         // Update existing breadcrumb with version control
         console.log(`🔄 Attempting PATCH with If-Match: ${existingVersion}`);
-        response = await authenticatedFetch(`/api/breadcrumbs/${existingId}`, {
+        response = await authenticatedFetch(`/api/breadcrumbs/${existingId}/full`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ export function use3DConfig() {
         
         // Delete duplicates
         for (const breadcrumb of toDelete) {
-          await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}`, {
+          await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}/full`, {
             method: 'DELETE'
           });
         }

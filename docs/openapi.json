@@ -41,9 +41,9 @@
     "/breadcrumbs/{id}": {
       "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
       "get": {
-        "summary": "Get breadcrumb context",
-        "description": "Fetch minimal context-view (redacted) of a breadcrumb for LLM usage. Access controlled by visibility/ACL.",
-        "responses": { "200": { "description": "Context", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbContext" } } } }, "404": { "description": "Not found" } }
+        "summary": "Get breadcrumb context (LLM-optimized)",
+        "description": "⚠️ INTERNAL USE ONLY: Applies llm_hints transformations to optimize context for LLM consumption. Returns transformed/summarized view based on schema definition. DO NOT USE in SDK, Dashboard, Tools, or Scripts - use /breadcrumbs/{id}/full instead. This endpoint is specifically designed for context-builder when assembling agent context. Access controlled by visibility/ACL.",
+        "responses": { "200": { "description": "Transformed context (llm_hints applied)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbContext" } } } }, "404": { "description": "Not found" } }
       },
       "patch": {
         "summary": "Update breadcrumb",
@@ -61,9 +61,9 @@
     "/breadcrumbs/{id}/full": {
       "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
       "get": {
-        "summary": "Get full breadcrumb",
-        "description": "Fetch full-view of a breadcrumb including operational metadata. Requires ACL 'read_full' or curator role.",
-        "responses": { "200": { "description": "Full", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbFull" } } } }, "403": { "description": "Forbidden" }, "404": { "description": "Not found" } }
+        "summary": "Get full breadcrumb (untransformed)",
+        "description": "✅ USE THIS ENDPOINT: Returns complete, untransformed breadcrumb data with all operational metadata. NO llm_hints transformations applied - you get the raw data as stored. Required for: SDK (getBreadcrumb), Dashboard UI, Tools, Scripts, Extensions, Bootstrap processes, and any component that needs to read/process the actual breadcrumb content. Use /breadcrumbs/{id} (without /full) ONLY if you specifically need LLM-optimized transformed views. Requires ACL 'read_full' or curator role.",
+        "responses": { "200": { "description": "Complete untransformed breadcrumb with all fields", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BreadcrumbFull" } } } }, "403": { "description": "Forbidden" }, "404": { "description": "Not found" } }
       }
     },
     "/breadcrumbs/{id}/history": {

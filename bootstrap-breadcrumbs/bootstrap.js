@@ -82,7 +82,7 @@ async function bootstrap() {
     });
 
     if (existingMarkers.length > 0) {
-      const markerResp = await api('GET', `/breadcrumbs/${existingMarkers[0].id}`);
+      const markerResp = await api('GET', `/breadcrumbs/${existingMarkers[0].id}/full`);
       if (!markerResp.ok) {
         console.log('⚠️  Could not read bootstrap marker - continuing');
       } else {
