@@ -76,7 +76,6 @@ PROJECT_PREFIX=${PROJECT_PREFIX}
 RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
 DB_HOST=${PROJECT_PREFIX}db
 DB_URL=postgresql://postgres:postgres@\${DB_HOST}/rcrt
-NATS_URL=nats://${PROJECT_PREFIX}nats:4222
 
 # External URLs (for browser/extension access)
 RCRT_EXTERNAL_URL=http://localhost:8081
@@ -161,7 +160,6 @@ services:
     container_name: ${PROJECT_PREFIX}rcrt
     environment:
       - DB_URL=postgresql://postgres:postgres@${PROJECT_PREFIX}db/rcrt
-      - NATS_URL=nats://${PROJECT_PREFIX}nats:4222
     depends_on:
       - ${PROJECT_PREFIX}db
       - ${PROJECT_PREFIX}nats
@@ -195,13 +193,29 @@ EOF
     echo "✅ Custom override created"
 fi
 
-# Start services
-echo "🚀 Starting services with prefix: ${PROJECT_PREFIX:-none}"
-docker compose up -d db nats rcrt context-builder dashboard tools-runner
+# Start services in proper order for NATS JetStream
+echo "🚀 Starting core infrastructure with prefix: ${PROJECT_PREFIX:-none}"
+echo "   Step 1: Database and NATS..."
+docker compose up -d db nats
 
-# Wait for core services to be ready
-echo "⏳ Waiting for core services..."
-sleep 15
+echo "⏳ Waiting for DB and NATS to be healthy..."
+sleep 5
+
+echo "   Step 2: RCRT (creates JetStream streams)..."
+docker compose up -d rcrt
+
+echo "⏳ Waiting for RCRT to initialize JetStream..."
+sleep 10
+
+echo "   Step 3: Context Builder (consumes from JetStream)..."
+docker compose up -d context-builder
+
+echo "   Step 4: Dashboard and Tools Runner..."
+docker compose up -d dashboard tools-runner
+
+# Wait for services to stabilize
+echo "⏳ Waiting for all services to be ready..."
+sleep 10
 
 # Try to start builder (may fail due to node_modules issues)
 echo "🔨 Starting builder (optional)..."

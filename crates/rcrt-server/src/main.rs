@@ -33,6 +33,7 @@ use tokenizers::Tokenizer;
 
 static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
 
+
 #[derive(Clone)]
 struct AppState {
     db: Db,
@@ -75,7 +76,9 @@ async fn main() -> Result<()> {
     #[cfg(feature = "nats")]
     let nats_conn = {
         let nats_url = std::env::var("NATS_URL").expect("NATS_URL not set");
-        Some(nats::connect(&nats_url).expect("failed to connect to NATS"))
+        let conn = nats::connect(&nats_url).expect("failed to connect to NATS");
+        tracing::info!("✅ Connected to NATS at {}", nats_url);
+        Some(conn)
     };
 
     // Create shared hygiene stats

@@ -28,6 +28,11 @@ pub struct SourceConfig {
 #[derive(Debug, Clone)]
 pub enum SourceMethod {
     Vector { query_embedding: Vector },
+    VectorGlobal { query_embedding: Vector },  // Search without session filter
+    HybridGlobal { 
+        query_embedding: Vector, 
+        query_keywords: Vec<String>,
+    },  // NEW: Hybrid search (vector + entity keywords)
     Recent { schema_name: Option<String> },
     Latest { schema_name: String },
     Tagged { tag: String },
@@ -101,6 +106,30 @@ impl ContextAssembler {
                     query_embedding,
                     source.limit,
                     session_id,
+                ).await?;
+                
+                Ok(rows.into_iter().map(breadcrumb_row_to_node).collect())
+            }
+            
+            SourceMethod::VectorGlobal { query_embedding } => {
+                // Global search: NO session filter (finds knowledge, docs, etc.)
+                let rows = self.vector_store.find_similar(
+                    query_embedding,
+                    source.limit,
+                    None,  // ← No session filter!
+                ).await?;
+                
+                Ok(rows.into_iter().map(breadcrumb_row_to_node).collect())
+            }
+            
+            SourceMethod::HybridGlobal { query_embedding, query_keywords } => {
+                // Hybrid search: combines vector similarity with entity keyword matching
+                // Global search (no session filter) for knowledge discovery
+                let rows = self.vector_store.find_similar_hybrid(
+                    query_embedding,
+                    query_keywords,
+                    source.limit,
+                    None,  // Global: no session filter
                 ).await?;
                 
                 Ok(rows.into_iter().map(breadcrumb_row_to_node).collect())

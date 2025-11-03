@@ -12,8 +12,9 @@
  */
 
 use anyhow::Result;
-use tracing::info;
+use tracing::{info, error};
 use std::sync::Arc;
+use std::env;
 
 mod config;
 mod rcrt_client;
@@ -22,12 +23,15 @@ mod graph;
 mod retrieval;
 mod event_handler;
 mod output;
+mod entity_extractor;  // Entity extraction (regex-based)
+mod entity_worker;     // SSE-based worker for entity extraction
 
 use config::Config;
 use rcrt_client::RcrtClient;
 use vector_store::VectorStore;
 use graph::SessionGraphCache;
 use event_handler::EventHandler;
+use entity_extractor::EntityExtractor;  // NEW
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -81,22 +85,76 @@ async fn main() -> Result<()> {
     );
     info!("✅ RCRT client connected");
 
-    // Initialize event handler
+    // Initialize entity extractor (regex-based)
+    let model_path = env::var("GLINER_MODEL_PATH")
+        .unwrap_or_else(|_| "/app/models/gliner_small.onnx".to_string());
+    let tokenizer_path = env::var("GLINER_TOKENIZER_PATH")
+        .unwrap_or_else(|_| "/app/models/tokenizer.json".to_string());
+    
+    let entity_extractor = Arc::new(EntityExtractor::new(&model_path, &tokenizer_path)?);
+    info!("✅ Entity extractor initialized");
+
+    // Run startup backfill for existing breadcrumbs without entities
+    info!("🔄 Running startup backfill...");
+    if let Err(e) = entity_worker::startup_backfill(
+        vector_store.clone(),
+        entity_extractor.clone(),
+        &db_pool,
+    ).await {
+        error!("⚠️  Startup backfill failed: {}. Continuing anyway.", e);
+    } else {
+        info!("✅ Startup backfill complete");
+    }
+
+    // Initialize event handler (for context assembly from user messages)
     let event_handler = EventHandler::new(
         rcrt_client.clone(),
         vector_store.clone(),
         graph_cache.clone(),
+        entity_extractor.clone(),
         config.clone(),
     );
     info!("✅ Event handler initialized");
 
-    // Start SSE event stream
-    info!("📡 Starting SSE event stream...");
-    event_handler.start().await?;
+    // Start entity extraction worker (SSE)
+    let entity_worker = entity_worker::EntityWorker::new(
+        rcrt_client.clone(),
+        vector_store.clone(),
+        entity_extractor.clone(),
+    );
+    
+    info!("🔧 Starting entity extraction worker...");
+    let entity_worker_handle = tokio::spawn(async move {
+        if let Err(e) = entity_worker.start().await {
+            error!("❌ Entity worker failed: {}", e);
+        }
+    });
 
-    // Keep running
+    // Start SSE event stream (for context assembly triggers)
+    info!("📡 Starting SSE event stream for context assembly...");
+    let event_handler_handle = tokio::spawn(async move {
+        if let Err(e) = event_handler.start().await {
+            error!("❌ Event handler failed: {}", e);
+        }
+    });
+
+    // Keep running until shutdown signal
     info!("💚 Context Builder is running");
-    tokio::signal::ctrl_c().await?;
+    info!("   - Entity extraction: SSE stream");
+    info!("   - Context assembly: SSE stream");
+    
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            info!("🛑 Received shutdown signal...");
+        }
+        _ = entity_worker_handle => {
+            error!("❌ Entity worker stopped unexpectedly");
+        }
+        _ = event_handler_handle => {
+            error!("❌ Event handler stopped unexpectedly");
+        }
+    }
+    
     info!("🛑 Shutting down...");
 
     Ok(())

@@ -73,7 +73,10 @@ if let Some(trigger) = trigger_id {
 
 1. **Recent** (limit: 20) - All recent breadcrumbs in session (conversation history)
 2. **Latest** (limit: 1) - Most recent `tool.catalog.v1` (available tools)
-3. **Vector** (limit: 5) - Top 5 semantically similar breadcrumbs 🆕
+3. **VectorGlobal** (limit: 20) - Top 20 semantically similar breadcrumbs **globally** 🆕
+   - **No session filter** - finds knowledge, documentation, guides
+   - **Increased limit** - ensures knowledge breadcrumbs rank high enough to be included
+   - Critical for discovering `knowledge.v1` breadcrumbs
 
 ### Blacklist Approach
 
@@ -157,12 +160,75 @@ docker compose exec -T db psql -U postgres -d rcrt -c "
 "
 ```
 
+## Critical Fix: Session Filter Problem
+
+### Initial Issue (Found During Testing)
+
+**Problem**: Semantic search was running but only finding ~500 tokens instead of ~5000 tokens.
+
+**Root Cause**: The `Vector` source method filtered by session tag:
+```rust
+WHERE embedding IS NOT NULL
+  AND $session_tag = ANY(tags)  // ← Filtered out global knowledge!
+```
+
+Knowledge breadcrumbs have tags like:
+```json
+["knowledge", "documentation", "tools", "workspace:system"]
+```
+
+**No `session:XXX` tag!** They're global, not session-specific.
+
+### Solution: VectorGlobal Source
+
+Added new `SourceMethod::VectorGlobal` that searches **without session filter**:
+
+```rust
+pub enum SourceMethod {
+    Vector { query_embedding: Vector },           // Session-scoped
+    VectorGlobal { query_embedding: Vector },     // Global (no session filter) ← NEW!
+    Recent { schema_name: Option<String> },
+    Latest { schema_name: String },
+    Tagged { tag: String },
+    Causal { seed_ids: Vec<Uuid> },
+}
+```
+
+Now the event handler uses `VectorGlobal` for semantic search to find knowledge breadcrumbs.
+
+### Second Issue: Limit Too Low
+
+**Problem**: Knowledge breadcrumbs still not appearing even with `VectorGlobal`.
+
+**Investigation**: Tested semantic similarity in PostgreSQL:
+```sql
+SELECT schema_name, title, 
+  embedding <=> (SELECT embedding FROM breadcrumbs WHERE id = 'query_id') as distance
+FROM breadcrumbs 
+WHERE embedding IS NOT NULL
+ORDER BY distance
+LIMIT 15;
+```
+
+**Result**: Knowledge breadcrumb ranked **14th** (distance 0.705), but code used `limit: 5`!
+
+Top 5 results were:
+1. Previous user message (0.077)
+2. Agent catalog (0.356)
+3. Agent response (0.382)
+4. Agent context (0.520)
+5. Agent response (0.565)
+
+Knowledge at #14 never made it into context.
+
+**Solution**: Increased limit from 5 → 20 to ensure important knowledge breadcrumbs are included even when they're not the absolute closest match.
+
 ## Files Modified
 
 ### Rust Context-Builder
-- `crates/rcrt-context-builder/src/event_handler.rs` - Added semantic search source
+- `crates/rcrt-context-builder/src/event_handler.rs` - Changed to use `VectorGlobal` for semantic search
+- `crates/rcrt-context-builder/src/retrieval/assembler.rs` - Added `VectorGlobal` source method
 - `crates/rcrt-context-builder/src/vector_store.rs` - Already had `find_similar` implemented
-- `crates/rcrt-context-builder/src/retrieval/assembler.rs` - Already handled Vector sources
 
 ### No Frontend Changes
 - Semantic search is transparent to the frontend

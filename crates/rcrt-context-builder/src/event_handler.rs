@@ -11,6 +11,7 @@ use crate::{
     graph::SessionGraphCache,
     retrieval::ContextAssembler,
     output::ContextPublisher,
+    entity_extractor::EntityExtractor,  // NEW
 };
 use anyhow::Result;
 use std::sync::Arc;
@@ -23,6 +24,7 @@ pub struct EventHandler {
     graph_cache: Arc<SessionGraphCache>,
     assembler: ContextAssembler,
     publisher: ContextPublisher,
+    entity_extractor: Arc<EntityExtractor>,  // NEW: GLiNER for hybrid search
     config: Config,
 }
 
@@ -31,6 +33,7 @@ impl EventHandler {
         rcrt_client: Arc<RcrtClient>,
         vector_store: Arc<VectorStore>,
         graph_cache: Arc<SessionGraphCache>,
+        entity_extractor: Arc<EntityExtractor>,  // NEW
         config: Config,
     ) -> Self {
         let assembler = ContextAssembler::new(vector_store.clone());
@@ -42,6 +45,7 @@ impl EventHandler {
             graph_cache,
             assembler,
             publisher,
+            entity_extractor,  // NEW
             config,
         }
     }
@@ -111,19 +115,29 @@ impl EventHandler {
             },
         ];
         
-        // 🔍 SEMANTIC SEARCH: Get trigger message and search for similar breadcrumbs
+        // 🔍 HYBRID SEARCH: Extract entities from query and search with vector + keywords
         if let Some(trigger) = trigger_id {
             if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
+                // Extract query text from trigger breadcrumb
+                let query_text = trigger_bc.context
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                
+                // Extract entities from query using GLiNER
+                let query_entities = self.entity_extractor.extract(query_text)?;
+                
                 if let Some(embedding) = trigger_bc.embedding {
-                    info!("🔍 Adding semantic search source (query from trigger: {})", trigger);
+                    info!("🔍 Hybrid search with keywords: {:?}", query_entities.keywords);
                     sources.push(SourceConfig {
-                        method: SourceMethod::Vector {
+                        method: SourceMethod::HybridGlobal {
                             query_embedding: embedding,
+                            query_keywords: query_entities.keywords,
                         },
-                        limit: 5,  // Top 5 semantically similar breadcrumbs
+                        limit: 10,  // Can use lower limit with better accuracy!
                     });
                 } else {
-                    warn!("⚠️  Trigger breadcrumb {} has no embedding, skipping semantic search", trigger);
+                    warn!("⚠️  Trigger breadcrumb {} has no embedding, skipping hybrid search", trigger);
                 }
             }
         }
@@ -144,6 +158,10 @@ impl EventHandler {
             context.breadcrumbs.len(),
             context.token_estimate
         );
+        
+        // NOTE: Entity extraction is now handled by dedicated NATS JetStream worker
+        // (see entity_worker.rs). This ensures all breadcrumbs get entities automatically
+        // via durable work queue, with retries and horizontal scalability.
         
         // Publish context breadcrumb
         self.publisher.publish_context(
