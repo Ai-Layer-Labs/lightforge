@@ -221,8 +221,8 @@
               "default_value": "gpt-4",
               "options_source": {
                 "type": "breadcrumb-search",
-                "schema_name": "models.catalog.v1",
-                "tag": "models:list",
+                "schema_name": "openrouter.models.catalog.v1",
+                "tag": "openrouter:models",
                 "value_path": "$.context.models[*].id",
                 "label_path": "$.context.models[*].name"
               }

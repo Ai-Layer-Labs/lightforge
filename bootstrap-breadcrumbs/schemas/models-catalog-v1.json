@@ -1,9 +1,9 @@
 {
   "schema_name": "schema.def.v1",
   "title": "OpenRouter Models Catalog Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:models.catalog.v1"],
+  "tags": ["schema:definition", "system:bootstrap", "defines:openrouter.models.catalog.v1"],
   "context": {
-    "defines_schema": "models.catalog.v1",
+    "defines_schema": "openrouter.models.catalog.v1",
     "description": "OpenRouter models catalog - huge list of available LLM models with pricing and parameters",
     
     "llm_hints": {

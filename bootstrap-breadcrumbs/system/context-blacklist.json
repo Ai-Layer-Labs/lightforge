@@ -81,7 +81,7 @@
         "reason": "Tool responses - handled via agent subscriptions, don't duplicate in context assembly"
       },
       {
-        "schema_name": "models.catalog.v1",
+        "schema_name": "openrouter.models.catalog.v1",
         "reason": "OpenRouter models catalog - massive dataset not relevant for agent context"
       }
     ],
