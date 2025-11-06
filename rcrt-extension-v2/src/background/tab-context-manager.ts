@@ -125,6 +125,9 @@ export class TabContextManager {
   private async createInitialBreadcrumb(tabId: number) {
     const tab = await chrome.tabs.get(tabId);
     
+    // 5 minute TTL for browser context (ephemeral)
+    const ttl = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    
     return await this.client.createBreadcrumb({
       schema_name: 'browser.tab.context.v1',
       title: `Browser Tab: ${tab.title || 'Loading...'}`,
@@ -133,6 +136,7 @@ export class TabContextManager {
         `browser:tab:${tabId}`,
         'extension:rcrt-v2'
       ],
+      ttl: ttl,
       context: {
         url: tab.url || 'about:blank',
         domain: new URL(tab.url || 'about:blank').hostname,
@@ -338,6 +342,9 @@ export class TabContextManager {
       tags.push('browser:active-tab');
     }
 
+    // 5 minute TTL for browser context (ephemeral)
+    const ttl = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
     try {
       await this.client.updateBreadcrumb(
         state.breadcrumbId,
@@ -345,6 +352,7 @@ export class TabContextManager {
         {
           title: `Browser Tab: ${tabContext.title.slice(0, 50)}`,
           tags,
+          ttl: ttl,
           context: {
             ...tabContext,
             tab_id: tabId,

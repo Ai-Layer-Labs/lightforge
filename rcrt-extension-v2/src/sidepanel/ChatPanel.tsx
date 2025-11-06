@@ -43,31 +43,53 @@ export function ChatPanel({ client, sessionId: initialSessionId, onSessionIdChan
 
     const unsubscribe = client.subscribeToSSE(
       {
-        schema_name: 'agent.response.v1',
-        any_tags: [`session:${sessionId}`, 'chat:output', 'extension:chat']
+        any_tags: ['agent:response']
       },
-      (event) => {
-        // Defensive check for SSE events
-        if (!event || !event.breadcrumb) {
+      async (event) => {
+        // THE EXISTING EXTENSION WAY: Fetch full breadcrumb from event
+        if (!event || !event.breadcrumb_id || event.type !== 'breadcrumb.updated') {
           return;
         }
 
-        const response = event.breadcrumb;
-        
-        // Extract message from various possible fields
-        const content = response.context.message || 
-                       response.context.content || 
-                       response.context.text || 
-                       response.context.response_text || '';
-        
-        if (content) {
-          setMessages(prev => [...prev, {
-            id: response.id,
-            role: 'assistant',
-            content,
-            timestamp: new Date(response.created_at).getTime()
-          }]);
-          setSending(false);
+        try {
+          // Fetch full breadcrumb
+          const breadcrumb = await client.getBreadcrumb(event.breadcrumb_id, true);
+          
+          // Check if it's an agent response
+          if (breadcrumb.tags?.includes('agent:response') || breadcrumb.schema_name === 'agent.response.v1') {
+            console.log('🤖 Agent response received:', breadcrumb);
+            
+            // Check if this response is for our session (context.session_id, NOT tags!)
+            const responseSessionId = breadcrumb.context?.session_id;
+            
+            if (sessionId && responseSessionId && responseSessionId !== sessionId) {
+              console.log(`⏭️ Response for different session (${responseSessionId}), skipping`);
+              return;
+            }
+            
+            // Extract message from context
+            const messageContent = breadcrumb.context?.message || 
+                                  breadcrumb.context?.response_text ||
+                                  breadcrumb.context?.content ||
+                                  breadcrumb.context?.text;
+            
+            if (!messageContent) {
+              console.log('⏭️ Response has no message (probably tool invocation), skipping');
+              return;
+            }
+            
+            console.log('✅ Message extracted:', messageContent);
+            
+            setMessages(prev => [...prev, {
+              id: breadcrumb.id,
+              role: 'assistant',
+              content: messageContent,
+              timestamp: new Date(breadcrumb.created_at).getTime()
+            }]);
+            setSending(false);
+          }
+        } catch (error) {
+          console.error('[ChatPanel] Failed to fetch agent response:', error);
         }
       }
     );
