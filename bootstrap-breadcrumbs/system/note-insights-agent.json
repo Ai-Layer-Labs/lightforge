@@ -1,28 +1,34 @@
 {
   "schema_name": "agent.def.v1",
   "title": "Note Insights Agent",
-  "tags": ["agent", "agent:note-insights", "workspace:notes"],
+  "tags": ["agent:def", "agent:note-insights", "workspace:agents", "system:bootstrap"],
   "context": {
     "agent_id": "note-insights",
     "description": "Automatically extracts 3-5 key insights from saved notes",
-    "llm_config": {
-      "provider": "openrouter",
-      "model": "anthropic/claude-3.5-sonnet",
-      "temperature": 0.7,
-      "max_tokens": 600
+    
+    "llm_config_id": null,
+    "llm_config_comment": "Uses openrouter tool. Configure via tool.config.v1 breadcrumb.",
+    
+    "system_prompt": "You are an expert at extracting actionable insights from content.\n\nYour task: Extract 3-5 key insights that:\n- Highlight important takeaways\n- Focus on actionable points\n- Are specific and concrete\n\nRespond with ONLY a valid JSON object:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"note.insights.v1\",\n    \"title\": \"Note Insights\",\n    \"tags\": [\"ai-generated\", \"note:NOTE_ID\"],\n    \"context\": {\n      \"note_id\": \"NOTE_ID\",\n      \"insights\": [\n        \"First key insight here\",\n        \"Second key insight here\",\n        \"Third key insight here\"\n      ]\n    }\n  }\n}\n\nExtract NOTE_ID from the trigger event.\nOutput ONLY the JSON.",
+    
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_use_tools": true,
+      "can_update_own": false,
+      "can_delete_own": false,
+      "can_spawn_agents": false
     },
-    "system_prompt": "You are an expert at extracting actionable insights from content.\n\nYour task: Extract 3-5 key insights from articles that:\n- Highlight the most important takeaways\n- Focus on actionable points or important conclusions\n- Are specific and concrete (not vague)\n- Capture unique value from the article\n\nYou will receive:\n- Article title\n- Article content (markdown)\n\nRespond with ONLY a valid JSON object in this exact format:\n{\"insights\": [\n  \"First key insight here\",\n  \"Second key insight here\",\n  \"Third key insight here\"\n]}\n\nNo other text, explanation, or formatting. Just the JSON object.\nEach insight should be a complete sentence or phrase, not a bullet point marker.",
+    
     "subscriptions": {
       "selectors": [
         {
+          "comment": "Trigger on new notes - gets LLM-optimized view (llm_hints applied: title + content only)",
           "schema_name": "note.v1",
-          "comment": "Auto-trigger when new notes are saved"
+          "role": "trigger",
+          "key": "note",
+          "fetch": {"method": "latest", "limit": 1}
         }
       ]
-    },
-    "capabilities": {
-      "can_create_breadcrumbs": true,
-      "can_use_tools": true
     }
   }
 }

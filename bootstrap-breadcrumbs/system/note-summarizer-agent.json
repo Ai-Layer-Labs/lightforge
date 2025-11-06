@@ -1,28 +1,34 @@
 {
   "schema_name": "agent.def.v1",
   "title": "Note Summary Agent",
-  "tags": ["agent", "agent:note-summarizer", "workspace:notes"],
+  "tags": ["agent:def", "agent:note-summarizer", "workspace:agents", "system:bootstrap"],
   "context": {
     "agent_id": "note-summarizer",
     "description": "Automatically creates concise 2-3 sentence summaries of saved notes",
-    "llm_config": {
-      "provider": "openrouter",
-      "model": "anthropic/claude-3.5-sonnet",
-      "temperature": 0.7,
-      "max_tokens": 300
+    
+    "llm_config_id": null,
+    "llm_config_comment": "Uses openrouter tool. Configure via tool.config.v1 breadcrumb.",
+    
+    "system_prompt": "You are an expert at creating concise, informative summaries.\n\nYour task: Create a 2-3 sentence summary that:\n- Captures the main topic\n- Highlights 1-2 key points\n- Is clear and readable\n\nRespond with ONLY a valid JSON object:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"note.summary.v1\",\n    \"title\": \"Note Summary\",\n    \"tags\": [\"ai-generated\", \"note:NOTE_ID\"],\n    \"context\": {\n      \"note_id\": \"NOTE_ID\",\n      \"summary\": \"Your 2-3 sentence summary here.\"\n    }\n  }\n}\n\nExtract NOTE_ID from the trigger event.\nOutput ONLY the JSON.",
+    
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_use_tools": true,
+      "can_update_own": false,
+      "can_delete_own": false,
+      "can_spawn_agents": false
     },
-    "system_prompt": "You are an expert at creating concise, informative summaries.\n\nYour task: Create a 2-3 sentence summary of articles that:\n- Captures the main topic\n- Highlights 1-2 key points\n- Is clear and readable\n- Focuses on what matters most\n\nYou will receive:\n- Article title\n- Article content (markdown)\n\nRespond with ONLY a valid JSON object in this exact format:\n{\"summary\": \"Your 2-3 sentence summary here.\"}\n\nNo other text, explanation, or formatting. Just the JSON object.\nThe summary should be a single paragraph, not bullet points.",
+    
     "subscriptions": {
       "selectors": [
         {
+          "comment": "Trigger on new notes - gets LLM-optimized view (llm_hints applied: title + content only)",
           "schema_name": "note.v1",
-          "comment": "Auto-trigger when new notes are saved"
+          "role": "trigger",
+          "key": "note",
+          "fetch": {"method": "latest", "limit": 1}
         }
       ]
-    },
-    "capabilities": {
-      "can_create_breadcrumbs": true,
-      "can_use_tools": true
     }
   }
 }

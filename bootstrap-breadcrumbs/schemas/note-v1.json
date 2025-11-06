@@ -1,0 +1,47 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Note Schema Definition",
+  "tags": ["system:schema", "schema:note.v1", "system:bootstrap"],
+  "context": {
+    "target_schema": "note.v1",
+    "description": "Saved web pages with content, metadata, and links",
+    "version": "1.0.0",
+    
+    "llm_hints": {
+      "mode": "transform",
+      "comment": "Transform note breadcrumbs for LLM consumption - show only title and content, exclude links/metadata",
+      "template": "# {{title}}\n\nSource: {{context.url}}\nDomain: {{context.domain}}\nSaved: {{context.captured_at}}\n\n## Content\n\n{{context.content}}",
+      "exclude": [
+        "context.links",
+        "context.headings",
+        "context.images",
+        "context.og_image",
+        "version",
+        "checksum",
+        "created_by",
+        "updated_by",
+        "owner_id"
+      ]
+    },
+    
+    "required_fields": ["title", "context.content", "context.url", "context.domain"],
+    
+    "examples": [
+      {
+        "description": "Saved article from browser extension",
+        "breadcrumb": {
+          "schema_name": "note.v1",
+          "title": "PostgreSQL Vector Search Tutorial",
+          "tags": ["note", "saved-page", "domain:postgres.org"],
+          "context": {
+            "content": "# Vector Search with pgvector\n\npgvector is an extension...",
+            "url": "https://postgres.org/docs/pgvector",
+            "domain": "postgres.org",
+            "captured_at": "2025-11-07T10:00:00Z"
+          }
+        }
+      }
+    ]
+  }
+}
+

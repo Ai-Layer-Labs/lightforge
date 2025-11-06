@@ -5,10 +5,11 @@ import { FilterPanel } from './FilterPanel';
 import { CreatePanel } from './CreatePanel';
 import { DetailsPanel } from './DetailsPanel';
 import { AgentConfigPanel } from './AgentConfigPanel';
+import { SettingsPanel } from './SettingsPanel';
 
 export function LeftPanel() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details' | 'agents'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details' | 'agents' | 'settings'>('filters');
   const [panelWidth, setPanelWidth] = useState(350);
   const [isResizing, setIsResizing] = useState(false);
   
@@ -82,11 +83,18 @@ export function LeftPanel() {
         priority: 3  // Always available
       },
       { 
+        id: 'settings', 
+        label: 'Settings', 
+        icon: '⚙️', 
+        count: null,
+        priority: 4  // Always available
+      },
+      { 
         id: 'details', 
         label: 'Details', 
         icon: '📋', 
         count: selectedNodes.length,
-        priority: selectedNodes.length > 0 ? 1 : 4,  // Highest priority when something selected
+        priority: selectedNodes.length > 0 ? 1 : 5,  // Highest priority when something selected
         hidden: selectedNodes.length === 0  // Hide when nothing selected
       },
     ];
@@ -186,6 +194,7 @@ export function LeftPanel() {
               {activeTab === 'filters' && <FilterPanel />}
               {activeTab === 'create' && <CreatePanel />}
               {activeTab === 'agents' && <AgentConfigPanel />}
+              {activeTab === 'settings' && <SettingsPanel />}
               {activeTab === 'details' && <DetailsPanel />}
             </motion.div>
           )}
