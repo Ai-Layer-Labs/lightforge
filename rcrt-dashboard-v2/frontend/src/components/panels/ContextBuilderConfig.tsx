@@ -21,7 +21,7 @@ export function ContextBuilderConfig({ breadcrumbId, onSave }: ContextConfigProp
   
   async function loadConfig() {
     try {
-      const response = await fetch(`/api/rcrt/breadcrumbs/${breadcrumbId}`);
+      const response = await fetch(`/api/rcrt/breadcrumbs/${breadcrumbId}/full`);
       const data = await response.json();
       setConfig(data.context);
       setLoading(false);

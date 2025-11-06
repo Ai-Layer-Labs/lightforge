@@ -121,41 +121,14 @@ export class AgentExecutorUniversal extends UniversalExecutor {
             }
           }
           
-          // Return - tool responses will trigger agent again
-          return { action: 'tools_requested', count: breadcrumbDef.context.tool_requests.length };
+          // Return async=true to prevent respond() from creating duplicate
+          return { action: 'tools_requested', count: breadcrumbDef.context.tool_requests.length, async: true };
         }
         
-        // Otherwise, create the response breadcrumb directly
-        console.log(`📤 Creating agent response breadcrumb...`);
-        
-        // Extract session from trigger to tag response
-        const sessionId = trigger.context?.session_id;
-        const sessionTag = trigger.tags?.find((t: string) => t.startsWith('session:'));
-        
-        // Add session to response tags and context
-        const tags = breadcrumbDef.tags || ['agent:response', 'chat:output'];
-        if (sessionTag) {
-          tags.push(sessionTag);
-          console.log(`🏷️  Tagging response with ${sessionTag}`);
-        }
-        
-        const contextWithSession = {
-          ...breadcrumbDef.context,
-          session_id: sessionId  // Include session for routing
-        };
-        
-        try {
-          const result = await this.rcrtClient.createBreadcrumb({
-            ...breadcrumbDef,
-            tags: tags,
-            context: contextWithSession
-          });
-          console.log(`✅ Agent response created: ${result.id}`);
-          return { action: 'breadcrumb_created', id: result.id };
-        } catch (error) {
-          console.error(`❌ Failed to create agent response:`, error);
-          return { action: 'create_failed', error };
-        }
+        // Otherwise, return breadcrumb definition for respond() to handle
+        // This ensures SINGLE creation point and consistent session tag handling
+        console.log(`📤 Returning breadcrumb for response creation...`);
+        return { action: 'create', breadcrumb: breadcrumbDef };
       }
         
         return parsed;
@@ -205,8 +178,8 @@ export class AgentExecutorUniversal extends UniversalExecutor {
         }
         
         if (!shouldReturnToLLM) {
-          // Send result directly to user
-          console.log(`📤 [${this.agentDef.agent_id}] Tool result sent directly to user (no LLM)`);
+          // Send result directly to user - return breadcrumb for respond() to handle
+          console.log(`📤 [${this.agentDef.agent_id}] Tool result will be sent directly to user (no LLM)`);
           
           // Format simple response with tool result
           const resultText = typeof llmOutput === 'object' 
@@ -215,21 +188,22 @@ export class AgentExecutorUniversal extends UniversalExecutor {
           
           const message = `✅ ${toolName}: ${resultText}`;
           
-          await this.rcrtClient.createBreadcrumb({
-            schema_name: 'agent.response.v1',
-            title: 'Tool Result',
-            tags: ['agent:response', 'chat:output'],
-            context: {
-              message: message,
-              tool_result: {
-                tool: toolName,
-                output: llmOutput
+          // Return breadcrumb definition for respond() to create
+          return {
+            action: 'create',
+            breadcrumb: {
+              schema_name: 'agent.response.v1',
+              title: 'Tool Result',
+              tags: ['agent:response', 'chat:output'],
+              context: {
+                message: message,
+                tool_result: {
+                  tool: toolName,
+                  output: llmOutput
+                }
               }
             }
-          });
-          
-          console.log(`✅ Direct response created (skipped LLM)`);
-          return { action: 'direct_response', tool: toolName };
+          };
         } else {
           // Send back to LLM for reasoning
           console.log(`🔄 [${this.agentDef.agent_id}] Sending tool result back to LLM for reasoning`);
@@ -289,74 +263,150 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   /**
    * Format assembled context for LLM
    * THE RCRT WAY: Clear, concise, human-readable
+   * 
+   * Context now comes from context-builder with lightweight breadcrumbs
+   * that have already been transformed by llm_hints on the server side.
    */
   private formatContextForLLM(context: Record<string, any>): string {
     let formatted = '';
     
-    // 1. Current Conversation (if present)
-    if (context.current_conversation && context.current_conversation.length > 0) {
-      formatted += `## Current Conversation\n\n`;
-      context.current_conversation.forEach((msg: any) => {
-        if (!msg.content) return;  // Skip messages with no content
-        const role = msg.role === 'user' ? 'User' : 'Assistant';
-        formatted += `${role}: ${msg.content}\n`;
-      });
-      formatted += '\n';
-    }
-    
-    // 2. Relevant History (if present)
-    if (context.relevant_history && context.relevant_history.length > 0) {
-      formatted += `## Relevant History\n\n`;
-      const validHistory = context.relevant_history.filter((msg: any) => msg.content);
-      if (validHistory.length > 0) {
-        validHistory.forEach((msg: any) => {
-          const role = msg.role === 'user' ? 'User' : 'Assistant';
-          formatted += `${role}: ${msg.content}\n`;
+    // NEW FORMAT: Context contains pre-transformed breadcrumbs
+    // Each breadcrumb has: id, schema_name, created_at, content (already transformed)
+    if (context.breadcrumbs && Array.isArray(context.breadcrumbs)) {
+      // Group breadcrumbs by schema type for better organization
+      const messageBreads: any[] = [];
+      const responseBreads: any[] = [];
+      const toolBreads: any[] = [];
+      const browserBreads: any[] = [];
+      const catalogBreads: any[] = [];
+      const otherBreads: any[] = [];
+      
+      for (const bc of context.breadcrumbs) {
+        if (bc.schema_name?.includes('user.message')) {
+          messageBreads.push(bc);
+        } else if (bc.schema_name?.includes('agent.response')) {
+          responseBreads.push(bc);
+        } else if (bc.schema_name?.includes('tool.')) {
+          toolBreads.push(bc);
+        } else if (bc.schema_name?.includes('browser.')) {
+          browserBreads.push(bc);
+        } else if (bc.schema_name?.includes('tool.catalog')) {
+          catalogBreads.push(bc);
+        } else {
+          otherBreads.push(bc);
+        }
+      }
+      
+      // 1. Conversation (user messages and agent responses interleaved)
+      const conversationItems = [...messageBreads, ...responseBreads]
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      if (conversationItems.length > 0) {
+        formatted += `## Conversation\n\n`;
+        conversationItems.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 2. Tool Information
+      if (catalogBreads.length > 0) {
+        formatted += `## Available Tools\n\n`;
+        catalogBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 3. Tool Results
+      if (toolBreads.length > 0) {
+        formatted += `## Tool Results\n\n`;
+        toolBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 4. Browser Context
+      if (browserBreads.length > 0) {
+        formatted += `## Browser Context\n\n`;
+        browserBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
+        });
+        formatted += '\n';
+      }
+      
+      // 5. Other breadcrumbs
+      if (otherBreads.length > 0) {
+        formatted += `## Additional Context\n\n`;
+        otherBreads.forEach((bc) => {
+          const content = this.extractContent(bc.content);
+          if (content) {
+            formatted += `${content}\n`;
+          }
         });
         formatted += '\n';
       }
     }
     
-    // 3. Browser Context (if present)
-    if (context.browser) {
-      formatted += `## Browser\n\n`;
-      formatted += `Page: ${context.browser.title}\n`;
-      formatted += `URL: ${context.browser.url}\n`;
-      if (context.browser.dom?.interactiveCount) {
-        formatted += `Interactive elements: ${context.browser.dom.interactiveCount}\n`;
-      }
-      formatted += '\n';
-    }
-    
-    // 4. Tools (if present)
-    if (context.tool_catalog?.tools) {
-      formatted += `## Available Tools\n\n`;
-      const tools = context.tool_catalog.tools.slice(0, 15);  // Limit to 15
-      tools.forEach((tool: any) => {
-        formatted += `- ${tool.name}: ${tool.category || 'utility'}\n`;
-      });
-      formatted += '\n';
-    }
-    
-    // 5. Other context (fallback - use JSON for unknown structures)
-    for (const [key, value] of Object.entries(context)) {
-      if (['current_conversation', 'relevant_history', 'browser', 'tool_catalog', 'trigger'].includes(key)) {
-        continue;  // Already handled
-      }
-      
-      const title = this.humanizeKey(key);
-      formatted += `## ${title}\n\n`;
-      
-      if (typeof value === 'object' && value !== null) {
-        formatted += '```json\n';
-        formatted += JSON.stringify(value, null, 2);
-        formatted += '\n```\n\n';
-      } else {
-        formatted += String(value) + '\n\n';
-      }
+    // Token estimate for transparency
+    if (context.token_estimate) {
+      formatted += `\n---\nContext size: ~${context.token_estimate} tokens\n`;
     }
     
     return formatted;
+  }
+  
+  /**
+   * Extract content from transformed breadcrumb
+   * Content can be a string (from format transform) or object (from other transforms)
+   */
+  private extractContent(content: any): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    
+    if (typeof content === 'object' && content !== null) {
+      // If it's an object with a single "formatted" key, use that
+      if (content.formatted && typeof content.formatted === 'string') {
+        return content.formatted;
+      }
+      
+      // Otherwise, try to format it nicely
+      const keys = Object.keys(content);
+      if (keys.length === 0) {
+        return '';
+      }
+      
+      // Single key-value: inline format
+      if (keys.length === 1) {
+        const key = keys[0];
+        const val = content[key];
+        if (typeof val === 'string') {
+          return val;
+        }
+        return `${key}: ${JSON.stringify(val)}`;
+      }
+      
+      // Multiple keys: structured format
+      return Object.entries(content)
+        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+        .join('\n');
+    }
+    
+    return String(content);
   }
   
   /**
@@ -372,9 +422,28 @@ export class AgentExecutorUniversal extends UniversalExecutor {
    */
   private async createLLMRequest(trigger: any, context: Record<string, any>): Promise<void> {
     // Extract user message from trigger
-    const userMessage = trigger.context?.message || 
-                       trigger.context?.content || 
-                       JSON.stringify(trigger.context);
+    // If trigger is agent.context.v1, extract the actual user message from breadcrumbs
+    let userMessage = trigger.context?.message || trigger.context?.content;
+    
+    if (!userMessage && trigger.schema_name === 'agent.context.v1') {
+      // Find the trigger_event_id breadcrumb (the actual user message that triggered this)
+      const triggerEventId = trigger.context?.trigger_event_id;
+      if (triggerEventId && context.breadcrumbs) {
+        const userMsgBreadcrumb = context.breadcrumbs.find((bc: any) => bc.id === triggerEventId);
+        if (userMsgBreadcrumb) {
+          // Try to extract formatted content first, then raw content
+          userMessage = userMsgBreadcrumb.content?.formatted || 
+                       userMsgBreadcrumb.content?.content ||
+                       userMsgBreadcrumb.content?.message ||
+                       JSON.stringify(userMsgBreadcrumb.content);
+        }
+      }
+    }
+    
+    // Final fallback if we still don't have a message
+    if (!userMessage) {
+      userMessage = JSON.stringify(trigger.context);
+    }
     
     // Format context for LLM
     const contextFormatted = this.formatContextForLLM(context);
@@ -460,6 +529,7 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   /**
    * Create agent response breadcrumb
    * THE RCRT WAY: Inherit session tags from trigger to keep conversations isolated
+   * SINGLE SOURCE OF TRUTH: All agent.response.v1 breadcrumbs created here
    */
   protected async respond(trigger: any, result: any): Promise<void> {
     // If async action, don't create response (waiting for continuation)
@@ -485,14 +555,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
     
     console.log(`🔍 [${this.agentDef.agent_id}] Original context keys:`, Object.keys(originalContext));
     
+    // STANDARDIZED SCHEMA: Use consistent field names
     const context = {
       ...originalContext,  // Preserve message and any other LLM fields
       creator: {
         type: 'agent',
-        agent_id: this.agentDef.agent_id
+        agent_id: this.agentDef.agent_id  // Standardized: agent_id not agentId
       },
-      trigger_id: trigger.id,
-      session_id: sessionTag ? sessionTag.replace('session:', '') : undefined
+      trigger_event_id: trigger.id,  // Standardized: trigger_event_id not trigger_id
+      timestamp: new Date().toISOString()  // Always include timestamp
     };
     
     console.log(`🔍 [${this.agentDef.agent_id}] Final context keys:`, Object.keys(context));

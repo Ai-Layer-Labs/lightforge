@@ -1,0 +1,45 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+)
+
+func getIcon() []byte {
+	// Try to load ICO file from installation directory
+	iconPath := filepath.Join(basePath, "icon.ico")
+	if data, err := os.ReadFile(iconPath); err == nil {
+		return data
+	}
+	
+	// Fallback: Try extension icons directory
+	extIconPath := filepath.Join(basePath, "extension", "icons", "favicon.ico")
+	if data, err := os.ReadFile(extIconPath); err == nil {
+		return data
+	}
+	
+	// PNG fallback
+	pngPath := filepath.Join(basePath, "extension", "icons", "think-os-agent.png")
+	if data, err := os.ReadFile(pngPath); err == nil {
+		return data
+	}
+	
+	// Final fallback: embedded minimal icon
+	return getEmbeddedIcon()
+}
+
+func getEmbeddedIcon() []byte {
+	// Minimal 16x16 icon data (ICO format)
+	// This is a placeholder - actual icon loaded from file
+	return []byte{
+		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10,
+		0x00, 0x00, 0x01, 0x00, 0x20, 0x00, 0x68, 0x04,
+		0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x28, 0x00,
+		0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x20, 0x00,
+		0x00, 0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+}
+

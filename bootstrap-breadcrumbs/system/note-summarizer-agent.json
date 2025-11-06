@@ -1,0 +1,29 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Note Summary Agent",
+  "tags": ["agent", "agent:note-summarizer", "workspace:notes"],
+  "context": {
+    "agent_id": "note-summarizer",
+    "description": "Automatically creates concise 2-3 sentence summaries of saved notes",
+    "llm_config": {
+      "provider": "openrouter",
+      "model": "anthropic/claude-3.5-sonnet",
+      "temperature": 0.7,
+      "max_tokens": 300
+    },
+    "system_prompt": "You are an expert at creating concise, informative summaries.\n\nYour task: Create a 2-3 sentence summary of articles that:\n- Captures the main topic\n- Highlights 1-2 key points\n- Is clear and readable\n- Focuses on what matters most\n\nYou will receive:\n- Article title\n- Article content (markdown)\n\nRespond with ONLY a valid JSON object in this exact format:\n{\"summary\": \"Your 2-3 sentence summary here.\"}\n\nNo other text, explanation, or formatting. Just the JSON object.\nThe summary should be a single paragraph, not bullet points.",
+    "subscriptions": {
+      "selectors": [
+        {
+          "schema_name": "note.v1",
+          "comment": "Auto-trigger when new notes are saved"
+        }
+      ]
+    },
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_use_tools": true
+    }
+  }
+}
+

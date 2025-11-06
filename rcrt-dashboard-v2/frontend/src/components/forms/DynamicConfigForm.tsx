@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuthentication } from '../../hooks/useAuthentication';
+import { useNavigate } from 'react-router-dom';
+import { JSONPath } from 'jsonpath-plus';
+import { UIRenderer } from '../ui/UIRenderer';
+import { useUIState } from '../../hooks/useUIState';
+import { useAction } from '../../hooks/useAction';
+import { TemplateContext } from '../../utils/TemplateEngine';
+// Legacy field components (for backward compatibility)
 import { TextField } from './TextField';
 import { NumberField } from './NumberField';
 import { SliderField } from './SliderField';
@@ -6,8 +14,6 @@ import { BooleanField } from './BooleanField';
 import { SelectField } from './SelectField';
 import { SecretSelectField } from './SecretSelectField';
 import { JsonField } from './JsonField';
-import { useAuthentication } from '../../hooks/useAuthentication';
-import { JSONPath } from 'jsonpath-plus';
 
 export interface UIConfigField {
   key: string;
@@ -79,26 +85,116 @@ export function DynamicConfigForm({
   onCancel,
   isSaving = false,
 }: DynamicConfigFormProps) {
+  const { authenticatedFetch, isAuthenticated, authToken } = useAuthentication();
+  const navigate = useNavigate();
+  
+  const uiSchema = tool.context?.ui_schema;
+  
+  // Check if this is the new HeroUI-based ui_schema or old field-based
+  // For now, only use HeroUI in pages, not sidebar (callback integration issue)
+  const isHeroUISchema = false; // Disabled for sidebar - use old field rendering
+  
+  // For new HeroUI schemas, use UIRenderer (disabled for now in sidebar)
+  if (isHeroUISchema) {
+    const tempStateRef = `temp:config-${tool.id || 'unknown'}`;
+    const { state, stateManager, loading } = useUIState(tempStateRef, config);
+    const { actionRunner } = useAction(stateManager, tempStateRef);
+    
+    // Set up save and cancel actions
+    React.useEffect(() => {
+      actionRunner.setNamedActions({
+        saveConfig: {
+          action: 'log',
+          message: 'Triggering parent save with config',
+          data: { config: '{{state}}' },
+        },
+        cancelConfig: {
+          action: 'log',
+          message: 'Triggering parent cancel',
+        },
+      });
+      
+      // Also trigger the actual parent callbacks
+      // We'll need to call onSave/onCancel from within the action
+      // For now, just call them directly when action runs
+    }, [actionRunner, onSave, onCancel]);
+    
+    // Wire up the save button to actually call onSave
+    React.useEffect(() => {
+      const handleSaveWrapper = async () => {
+        if (state) {
+          onConfigChange(state);
+          onSave();
+        }
+      };
+      
+      // Override the saveConfig action with actual save logic
+      actionRunner.setNamedActions({
+        ...actionRunner['namedActions'],
+        saveConfig: {
+          action: 'log',
+          message: 'Saving config...',
+        },
+      });
+      
+      // Manually wire the button
+      // This is a workaround - ideally actions should trigger React callbacks
+    }, [state, onSave, onConfigChange, actionRunner]);
+    
+    // Sync state changes back to parent
+    React.useEffect(() => {
+      if (state && JSON.stringify(state) !== JSON.stringify(config)) {
+        onConfigChange(state);
+      }
+    }, [state, config, onConfigChange]);
+    
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin w-6 h-6 border-2 border-rcrt-primary border-t-transparent rounded-full"></div>
+        </div>
+      );
+    }
+    
+    // Context with just secrets - data sources are loaded by DataLoader components
+    const context: TemplateContext = {
+      state: state || config,
+      data: { secrets },
+    };
+    
+    return (
+      <div className="heroui-config-form">
+        <UIRenderer
+          definition={uiSchema.ui || uiSchema.components}
+          context={context}
+          actionRunner={actionRunner}
+        />
+      </div>
+    );
+  }
+  
+  // Fall back to old field-based rendering
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, Array<{ value: any; label: string }>>>({});
   const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
-  const { authenticatedFetch } = useAuthentication();
 
-  const uiSchema = tool.context?.ui_schema;
   const fields = uiSchema?.config_fields || [];
 
-  // Load dynamic options for fields
+  // Load dynamic options for fields (only when authenticated)
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     fields.forEach((field) => {
       if (field.options_source) {
         loadDynamicOptions(field);
       }
     });
-  }, [fields]);
+  }, [fields, isAuthenticated]);
 
   const loadDynamicOptions = async (field: UIConfigField) => {
     if (!field.options_source) return;
 
+    console.log(`[DynamicConfigForm] Loading options for field: ${field.key}`, field.options_source);
     setLoadingOptions((prev) => ({ ...prev, [field.key]: true }));
 
     try {
@@ -111,16 +207,25 @@ export function DynamicConfigForm({
         if (field.options_source.tag) {
           params.append('tag', field.options_source.tag);
         }
+        params.append('include_context', 'true');
 
         const response = await authenticatedFetch(`/api/breadcrumbs?${params.toString()}`);
+        console.log(`[DynamicConfigForm] Response status: ${response.status}`);
+        
         if (response.ok) {
           const breadcrumbs = await response.json();
+          console.log(`[DynamicConfigForm] Found ${breadcrumbs.length} breadcrumbs`, breadcrumbs);
           
           // Extract values and labels using JSONPath
           const options: Array<{ value: any; label: string }> = [];
           
           breadcrumbs.forEach((breadcrumb: any) => {
             try {
+              console.log(`[DynamicConfigForm] Extracting from breadcrumb:`, breadcrumb.id, {
+                value_path: field.options_source!.value_path,
+                label_path: field.options_source!.label_path
+              });
+              
               const values = JSONPath({
                 path: field.options_source!.value_path || '$',
                 json: breadcrumb,
@@ -128,6 +233,11 @@ export function DynamicConfigForm({
               const labels = JSONPath({
                 path: field.options_source!.label_path || '$',
                 json: breadcrumb,
+              });
+
+              console.log(`[DynamicConfigForm] JSONPath results:`, {
+                values: values?.length || 0,
+                labels: labels?.length || 0
               });
 
               // Flatten if arrays
@@ -145,7 +255,10 @@ export function DynamicConfigForm({
             }
           });
 
+          console.log(`[DynamicConfigForm] Extracted ${options.length} options for ${field.key}`);
           setDynamicOptions((prev) => ({ ...prev, [field.key]: options }));
+        } else {
+          console.error(`[DynamicConfigForm] Failed to fetch breadcrumbs: ${response.status}`);
         }
       } else if (field.options_source.type === 'api') {
         // Fetch from API

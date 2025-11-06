@@ -1,0 +1,150 @@
+# docker-compose.yml for RCRT Desktop
+# Uses pre-built images (no build context needed)
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: rcrt
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2
+    command: ["-js"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  rcrt:
+    image: thinkos-1-rcrt
+    depends_on:
+      db:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      DB_URL: postgres://postgres:postgres@db:5432/rcrt
+      NATS_URL: nats://nats:4222
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AUTH_MODE: jwt
+      AGENT_ID: 00000000-0000-0000-0000-0000000000aa
+      JWT_PUBLIC_KEY_PEM: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuz8kjDEWaFNKNU0E2u//
+        u7ggsvTz78ol5+OnUPitLecBSJAACFE1mTk7jXNir6MOF8OEdFWMv8Qm8DQoSb+5
+        dwRDcQJgxIsf3nIvRWoltUaDoONsCzUlfMEikPkc/ukEBydsHi5+lyhJ7qinZZmj
+        t4fwc2t+NMIByw2OlVioEl3hblZC7PkC53z3WMJjnOJ6lTdcdA/yn45jEZ6BhKcV
+        wIJBfDW3fjWovi8DY0DnhS7Bgs0bupXw1zykoNmPEh9wPMCRSPqoQASRnOVOixJS
+        e06617Jc8Oaw+NCzGAqTNuDkh8NK1aZuz2FC856xKOmelaxhF/SAppS5G9QIp2Ll
+        SQIDAQAB
+        -----END PUBLIC KEY-----
+      JWT_PRIVATE_KEY_PEM: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7PySMMRZoU0o1
+        TQTa7/+7uCCy9PPvyiXn46dQ+K0t5wFIkAAIUTWZOTuNc2Kvow4Xw4R0VYy/xCbw
+        NChJv7l3BENxAmDEix/eci9FaiW1RoOg42wLNSV8wSKQ+Rz+6QQHJ2weLn6XKEnu
+        qKdlmaO3h/Bza340wgHLDY6VWKgSXeFuVkLs+QLnfPdYwmOc4nqVN1x0D/KfjmMR
+        noGEpxXAgkF8Nbd+Nai+LwNjQOeFLsGCzRu6lfDXPKSg2Y8SH3A8wJFI+qhABJGc
+        5U6LElJ7TrrXslzw5rD40LMYCpM24OSHw0rVpm7PYULznrEo6Z6VrGEX9ICmlLkb
+        1AinYuVJAgMBAAECggEADN2WzkclKf/nDmh/V+e7o5NQM9ue0zAJkLhUq7yacZf4
+        v5qdVfT2gNOs4tg1xKmoczuM401pgVeh8Uk0J3UT8jiJxb8LFRYWF3uzAcr8UktJ
+        Cgn2R4LcU4kVre5f7qfmDfPIev5o1kv/YHWYIuP+msKtY9DT+B4Ib4I79MkFq1VH
+        4R3/IjWfmF39AAilb4pQB1dhimEDduv9+1vvL6CSUDbkB7rbFVxlZ9RGzK3FINJD
+        /FkFVIr3fexsqZEacVF9RbOw6yZbHuio2EM6lWG1wiFrNygHl7dueBWfPo3OwYlt
+        8V8sjAMT937lbSXydXLaWsTCtyx6oFsyVuPUh/MZzQKBgQDnTeHt4lwFPVCs40qD
+        MgmnCEnjH9fDlr+LwWH2uH4QIs3hzWBazhcchGopKUTL1EWkH2/+SimVpM3E97pN
+        BEC2s+dGvvqMCujnjZoJRVCfQrFwcN+h4W3crGfqGn8GQiNHK5qabdvnnQ7FOBaG
+        8yGhphmY5uIm6gIZbKLfVgkozwKBgQDPPQ65p+8Jt7orh9nq+yYrEFgE9/nFLnlm
+        RhCfSe2sQimzRoSzfLLioFihGAMrLYFt980hN1P3FrHPkoI8LK/nHkFZnRY1t+9H
+        Fis3I4QCQMp3rd96xsIZg34kdCIhmg2FGI50/E6mqM63CStK7wp1QQjG8deig+cC
+        CBjrP79mZwKBgQDUx1CPBSyhpUYRxQVGq0E15uoRhbl2s7aBWeREknNlZJ8AmW2K
+        Gwwnr6f5NX2UBDIMSN89jfuzLWgdScaYEtF1QQoAiq7xJRgb6qdI3/rKhw+z4CHZ
+        SQdHeVIeiUFRAIZzcilG5sjkyBZOVspiWkcV7Tae8cYZBivoN4ec7AiBAQKBgGfr
+        BxpDwpLN5XX0nmq9W4tWm7yKGF4vCsMlOSqW6K5rUvvJzbsvOYh4vViycMxS+kcJ
+        bnxMgTcy0yDyJ4pDIkWznzNvmPaA8GRmEm+IyKZUlPJkZt7rEeO3Uya2cXMGC+eE
+        w9KXvlzF4zpXR7VAnq7jWKJiHS4qFEmpg81bXv/bAoGAXG8+R1kRf+fNnjpn1b0M
+        4tKl9P8DdkjE1SySmiebCM5fzGf1hSXNoqTcku8AaGVcZ1Ki1w95eHFcamTv9n/J
+        reZunf6v6DaCIMUZMeJ8saPaCcfAfLlBAbBBJHpG2Lb1oGLB0RdEMxdq8cq4YXxp
+        GJZMoNkOthSa7zrmSwJr2q4=
+        -----END PRIVATE KEY-----
+      LOCAL_KEK_BASE64: ${LOCAL_KEK_BASE64}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_REFERER: ${OPENROUTER_REFERER:-}
+      OPENROUTER_SITE_TITLE: ${OPENROUTER_SITE_TITLE:-}
+      EMBED_MODEL: /app/models/model.onnx
+      EMBED_TOKENIZER: /app/models/tokenizer.json
+      HYGIENE_ENABLED: "true"
+    ports:
+      - "8081:8080"
+
+  agent-runner:
+    image: thinkos-1-agent-runner
+    depends_on:
+      rcrt:
+        condition: service_started
+    environment:
+      RCRT_BASE_URL: http://rcrt:8080
+      WORKSPACE: workspace:agents
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AGENT_ID: 00000000-0000-0000-0000-000000000AAA
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      DEPLOYMENT_MODE: docker
+    restart: unless-stopped
+
+  tools-runner:
+    image: thinkos-1-tools-runner
+    depends_on:
+      - rcrt
+    environment:
+      RCRT_BASE_URL: http://rcrt:8080
+      RCRT_AUTH_MODE: jwt
+      TOKEN_ENDPOINT: http://rcrt:8080/auth/token
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AGENT_ID: 00000000-0000-0000-0000-0000000000bb
+      WORKSPACE: workspace:tools
+      ENABLE_LANGCHAIN_TOOLS: "true"
+      ENABLE_BUILTIN_TOOLS: "true"
+      ENABLE_TOOL_UI: "false"
+      DEPLOYMENT_MODE: docker
+
+  context-builder:
+    image: thinkos-1-context-builder
+    depends_on:
+      db:
+        condition: service_healthy
+      rcrt:
+        condition: service_started
+    environment:
+      RCRT_API_URL: http://rcrt:8080
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/rcrt
+      OWNER_ID: 00000000-0000-0000-0000-000000000001
+      AGENT_ID: 00000000-0000-0000-0000-0000000000cb
+      CACHE_SIZE_MB: "1024"
+      MAX_SESSIONS: "100"
+      MAX_DB_CONNECTIONS: "10"
+      RUST_LOG: rcrt_context_builder=info
+    restart: unless-stopped
+
+  dashboard:
+    image: thinkos-1-dashboard
+    depends_on:
+      - rcrt
+    environment:
+      RCRT_URL: http://rcrt:8080
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/index.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+

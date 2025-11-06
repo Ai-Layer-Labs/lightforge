@@ -36,7 +36,7 @@ export function use3DConfig() {
           console.log('✅ Found 3D config breadcrumb:', configBreadcrumb.id);
           
           // Get full context
-          const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}`);
+          const detailResponse = await authenticatedFetch(`/api/breadcrumbs/${configBreadcrumb.id}/full`);
           if (detailResponse.ok) {
             const detail = await detailResponse.json();
             if (detail.context?.config) {

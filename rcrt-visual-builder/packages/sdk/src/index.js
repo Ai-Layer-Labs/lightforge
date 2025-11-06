@@ -46,7 +46,9 @@ export class RcrtClientEnhanced {
         return response.json();
     }
     async getBreadcrumb(id, view = 'context') {
-        const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}?view=${view}`, {
+        // Use /full endpoint to get complete, untransformed data
+        // The llm_hints transformation should only happen at context-builder level
+        const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}/full`, {
             headers: this.defaultHeaders,
         });
         if (!response.ok) {
@@ -56,7 +58,8 @@ export class RcrtClientEnhanced {
         return response.json();
     }
     async getBreadcrumbFull(id) {
-        return this.getBreadcrumb(id, 'full');
+        // Now just an alias since getBreadcrumb uses /full by default
+        return this.getBreadcrumb(id);
     }
     async updateBreadcrumb(id, version, updates) {
         const response = await fetch(`${this.baseUrl}/breadcrumbs/${id}`, {

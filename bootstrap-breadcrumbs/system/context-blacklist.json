@@ -1,0 +1,98 @@
+{
+  "schema_name": "context.blacklist.v1",
+  "title": "Context Assembly Blacklist",
+  "tags": ["context:config", "system:bootstrap", "system:internal"],
+  "context": {
+    "version": "1.2.0",
+    "last_updated": "2025-11-03T10:10:00Z",
+    "description": "Schemas excluded from context assembly to prevent metadata leakage",
+    
+    "excluded_schemas": [
+      {
+        "schema_name": "system.health.v1",
+        "reason": "Health check responses - internal system monitoring, not conversational context"
+      },
+      {
+        "schema_name": "system.metric.v1",
+        "reason": "Performance metrics - internal telemetry, not relevant to user queries"
+      },
+      {
+        "schema_name": "tool.config.v1",
+        "reason": "Tool configuration settings - internal setup, not context for LLM"
+      },
+      {
+        "schema_name": "secret.v1",
+        "reason": "Secrets and credentials - NEVER include in any context for security"
+      },
+      {
+        "schema_name": "system.startup.v1",
+        "reason": "System initialization events - internal lifecycle, not conversational"
+      },
+      {
+        "schema_name": "schema.def.v1",
+        "reason": "Schema definitions - metadata about schemas, not actual content"
+      },
+      {
+        "schema_name": "context.blacklist.v1",
+        "reason": "This blacklist itself - configuration metadata, not content"
+      },
+      {
+        "schema_name": "system.hygiene.v1",
+        "reason": "Hygiene runner statistics - internal housekeeping metrics"
+      },
+      {
+        "schema_name": "agent.def.v1",
+        "reason": "Agent definitions - internal configuration, not conversational context"
+      },
+      {
+        "schema_name": "agent.catalog.v1",
+        "reason": "Agent catalog - internal system metadata, not user content"
+      },
+      {
+        "schema_name": "agent.context.v1",
+        "reason": "Assembled context breadcrumbs - prevents recursive context inclusion"
+      },
+      {
+        "schema_name": "tool.code.v1",
+        "reason": "Tool source code - implementation details, not relevant for LLM context"
+      },
+      {
+        "schema_name": "tool.catalog.v1",
+        "reason": "Tool catalog - already provided to agent via subscriptions, don't duplicate"
+      },
+      {
+        "schema_name": "template.v1",
+        "reason": "Template definitions - system metadata, not user content"
+      },
+      {
+        "schema_name": "guide.template.v1",
+        "reason": "Guide templates - system documentation, not conversational context"
+      },
+      {
+        "schema_name": "system.bootstrap.v1",
+        "reason": "Bootstrap marker - internal system state, not relevant to queries"
+      },
+      {
+        "schema_name": "tool.request.v1",
+        "reason": "Tool requests - internal system communication, not user context"
+      },
+      {
+        "schema_name": "tool.response.v1",
+        "reason": "Tool responses - handled via agent subscriptions, don't duplicate in context assembly"
+      },
+      {
+        "schema_name": "openrouter.models.catalog.v1",
+        "reason": "OpenRouter models catalog - massive dataset not relevant for agent context"
+      }
+    ],
+    
+    "notes": [
+      "This blacklist prevents metadata from appearing in assembled context",
+      "Add schemas here if they're system internals, not user-facing content",
+      "Update via: POST /breadcrumbs (creates new version) or PATCH /breadcrumbs/{id}",
+      "Context-builder loads this at startup and caches in memory",
+      "Restart context-builder after updates to pick up changes"
+    ]
+  }
+}
+

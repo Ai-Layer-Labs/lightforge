@@ -1,0 +1,109 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "UI State Schema Definition",
+  "tags": ["schema", "schema:ui.state.v1", "system:schema"],
+  "context": {
+    "schema_name": "ui.state.v1",
+    "version": "1.0.0",
+    "description": "Ephemeral UI state stored in breadcrumbs with automatic TTL cleanup",
+    "purpose": "Store UI state that persists across refreshes but expires after a duration",
+    "structure": {
+      "title": {
+        "type": "string",
+        "required": true,
+        "description": "Human-readable state description"
+      },
+      "tags": {
+        "type": "array",
+        "required": true,
+        "description": "Must include 'state', 'state:{name}', and 'ephemeral'",
+        "example": ["state", "state:quick-start-wizard", "ephemeral"]
+      },
+      "ttl_type": {
+        "type": "string",
+        "required": true,
+        "enum": ["duration"],
+        "description": "Always use duration for ephemeral state"
+      },
+      "ttl_config": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "duration": {
+            "type": "string",
+            "description": "Duration string like '1h', '30m', '2h'",
+            "example": "2h"
+          }
+        }
+      },
+      "context": {
+        "type": "object",
+        "required": true,
+        "description": "Arbitrary state data - structure defined by page using it",
+        "example": {
+          "currentStep": 1,
+          "formData": {
+            "secretName": "",
+            "apiKey": ""
+          },
+          "selections": []
+        }
+      }
+    },
+    "lifecycle": {
+      "creation": "Created by ui.page.v1 or manually",
+      "updates": "Updated via setState actions or direct PATCH",
+      "cleanup": "Automatically deleted after TTL expires",
+      "versioning": "Supports optimistic concurrency with If-Match"
+    },
+    "examples": [
+      {
+        "description": "Wizard state with multi-step form data",
+        "breadcrumb": {
+          "schema_name": "ui.state.v1",
+          "title": "Quick Start Wizard State",
+          "tags": ["state", "state:quick-start-wizard", "ephemeral"],
+          "ttl_type": "duration",
+          "ttl_config": { "duration": "2h" },
+          "context": {
+            "currentStep": 1,
+            "selectedProvider": null,
+            "formData": {
+              "secretName": "",
+              "apiKey": ""
+            },
+            "createdSecretId": null,
+            "createdConfigId": null,
+            "selectedAgents": []
+          }
+        }
+      },
+      {
+        "description": "Simple form state",
+        "breadcrumb": {
+          "schema_name": "ui.state.v1",
+          "title": "Settings Form State",
+          "tags": ["state", "state:settings-form", "ephemeral"],
+          "ttl_type": "duration",
+          "ttl_config": { "duration": "1h" },
+          "context": {
+            "theme": "dark",
+            "language": "en",
+            "notifications": true
+          }
+        }
+      }
+    ],
+    "llm_hints": {
+      "summary": "UI state schema - ephemeral state for interactive pages",
+      "when_to_use": "When pages need to track temporary state like form data, wizard progress, selections",
+      "key_concepts": [
+        "Always ephemeral with TTL",
+        "Referenced by tag from ui.page.v1",
+        "Updated via setState actions",
+        "Auto-cleanup prevents clutter"
+      ]
+    }
+  }
+}
+

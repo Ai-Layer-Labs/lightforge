@@ -74,7 +74,7 @@ export class ApiClient {
      * @param {string} id - Breadcrumb ID
      */
     async loadBreadcrumbDetails(id) {
-        return await this.request(`/api/breadcrumbs/${id}`);
+        return await this.request(`/api/breadcrumbs/${id}/full`);
     }
     
     /**
@@ -136,7 +136,7 @@ export class ApiClient {
         const agentDefinitions = [];
         for (const breadcrumb of agentDefBreadcrumbs) {
             try {
-                const fullContext = await this.request(`/api/breadcrumbs/${breadcrumb.id}`);
+                const fullContext = await this.request(`/api/breadcrumbs/${breadcrumb.id}/full`);
                 agentDefinitions.push(fullContext);
             } catch (error) {
                 console.warn(`Failed to load context for agent definition ${breadcrumb.id}:`, error);

@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "RCRT Browser Extension v2",
+  "version": "2.0.0",
+  "description": "Enterprise-grade note taking and AI assistant powered by RCRT with semantic search, multi-tab context, and real-time collaboration",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "sidePanel",
+    "contextMenus",
+    "alarms",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_title": "RCRT Assistant"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://localhost:8081 http://127.0.0.1:8081 ws://localhost:8081 ws://127.0.0.1:8081;"
+  }
+}
+

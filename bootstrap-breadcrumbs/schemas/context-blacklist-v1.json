@@ -1,0 +1,61 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Context Blacklist Schema Definition",
+  "tags": ["schema:definition", "system:bootstrap", "system:internal", "defines:context.blacklist.v1"],
+  "context": {
+    "defines_schema": "context.blacklist.v1",
+    "schema_version": "1.0.0",
+    "category": "system",
+    "description": "Defines which schemas should be excluded from context assembly",
+    
+    "llm_hints": {
+      "transform": {
+        "summary": {
+          "type": "format",
+          "format": "Context blacklist: {excluded_schemas.length} schemas excluded from context assembly"
+        }
+      },
+      "mode": "replace"
+    },
+    
+    "lifecycle": {
+      "ttl_policy": {
+        "type": "never",
+        "description": "Blacklist configuration is permanent system metadata",
+        "allow_override": false
+      }
+    },
+    
+    "field_definitions": {
+      "excluded_schemas": {
+        "type": "array",
+        "required": true,
+        "description": "List of schema names to exclude from context assembly",
+        "items": {
+          "type": "object",
+          "properties": {
+            "schema_name": {
+              "type": "string",
+              "description": "Schema to exclude (e.g., 'schema.def.v1')"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why this schema is blacklisted"
+            }
+          }
+        }
+      },
+      "version": {
+        "type": "string",
+        "required": true,
+        "description": "Blacklist configuration version"
+      },
+      "last_updated": {
+        "type": "datetime",
+        "required": true,
+        "description": "When blacklist was last modified"
+      }
+    }
+  }
+}
+

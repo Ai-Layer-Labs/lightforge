@@ -1,0 +1,129 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "UI Component Schema Definition",
+  "tags": ["schema", "schema:ui.component.v1", "system:schema"],
+  "context": {
+    "schema_name": "ui.component.v1",
+    "version": "1.0.0",
+    "description": "Defines reusable UI components with props schema for composition",
+    "purpose": "Create component libraries that can be referenced and reused across pages",
+    "structure": {
+      "title": {
+        "type": "string",
+        "required": true,
+        "description": "Component name"
+      },
+      "tags": {
+        "type": "array",
+        "required": true,
+        "description": "Must include 'ui:component' and 'ui:{name}'",
+        "example": ["ui:component", "ui:provider-card", "workspace:ui"]
+      },
+      "context": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "props_schema": {
+            "type": "object",
+            "description": "JSON schema for component props",
+            "example": {
+              "provider": {
+                "type": "object",
+                "required": true
+              },
+              "onSelect": {
+                "type": "string",
+                "description": "Action name to call on selection"
+              }
+            }
+          },
+          "ui": {
+            "type": "object",
+            "required": true,
+            "description": "HeroUI component tree with {{props.x}} references",
+            "example": {
+              "Card": {
+                "children": "{{props.provider.name}}"
+              }
+            }
+          },
+          "actions": {
+            "type": "object",
+            "description": "Actions available within this component",
+            "example": {
+              "handleClick": {
+                "action": "sequence",
+                "steps": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "usage": {
+      "description": "Components can be referenced by tag in pages",
+      "example": {
+        "ProviderCard": {
+          "component_ref": "ui:provider-card",
+          "props": {
+            "provider": "{{item}}",
+            "onSelect": "selectProvider"
+          }
+        }
+      }
+    },
+    "examples": [
+      {
+        "description": "Reusable provider card component",
+        "breadcrumb": {
+          "schema_name": "ui.component.v1",
+          "title": "Provider Card Component",
+          "tags": ["ui:component", "ui:provider-card"],
+          "context": {
+            "props_schema": {
+              "provider": "object",
+              "onSelect": "string"
+            },
+            "ui": {
+              "Card": {
+                "isPressable": true,
+                "className": "hover:scale-105 transition-transform",
+                "onPress": {
+                  "action": "{{props.onSelect}}",
+                  "args": { "providerId": "{{props.provider.id}}" }
+                },
+                "children": [
+                  {
+                    "CardHeader": {
+                      "children": [
+                        { "div": { "className": "text-4xl", "children": "{{props.provider.icon}}" } }
+                      ]
+                    }
+                  },
+                  {
+                    "CardBody": {
+                      "children": [
+                        { "h3": { "children": "{{props.provider.name}}" } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "llm_hints": {
+      "summary": "UI component schema - reusable components with props",
+      "when_to_use": "When creating reusable UI patterns across multiple pages",
+      "key_concepts": [
+        "Props passed via {{props.x}} syntax",
+        "Actions can reference props",
+        "Composable in ui.page.v1 pages",
+        "DRY principle for UI"
+      ]
+    }
+  }
+}
+

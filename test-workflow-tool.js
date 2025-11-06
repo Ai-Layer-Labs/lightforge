@@ -56,7 +56,7 @@ async function getToolCatalog(token) {
   
   // Get full catalog details
   const catalogResponse = await fetch(
-    `${CONFIG.rcrtBaseUrl}/breadcrumbs/${catalogs[0].id}`,
+    `${CONFIG.rcrtBaseUrl}/breadcrumbs/${catalogs[0].id}/full`,
     {
       headers: { 'Authorization': `Bearer ${token}` }
     }
@@ -172,7 +172,7 @@ async function waitForResponse(token, requestId) {
       if (breadcrumbs.length > 0) {
         // Get full breadcrumb details
         const fullResponse = await fetch(
-          `${CONFIG.rcrtBaseUrl}/breadcrumbs/${breadcrumbs[0].id}`,
+          `${CONFIG.rcrtBaseUrl}/breadcrumbs/${breadcrumbs[0].id}/full`,
           {
             headers: { 'Authorization': `Bearer ${token}` }
           }

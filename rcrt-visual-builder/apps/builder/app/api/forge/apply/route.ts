@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
           break;
         }
         case 'update_instance': {
-          const respGet = await fetch(`${base}/breadcrumbs/${act.id}`, { headers: incomingAuth ? { authorization: incomingAuth } : undefined, signal: timeout() });
+          const respGet = await fetch(`${base}/breadcrumbs/${act.id}/full`, { headers: incomingAuth ? { authorization: incomingAuth } : undefined, signal: timeout() });
           if (!respGet.ok) throw new Error(await respGet.text());
           const cur = await respGet.json();
           const resp = await fetch(`${base}/breadcrumbs/${act.id}`, {

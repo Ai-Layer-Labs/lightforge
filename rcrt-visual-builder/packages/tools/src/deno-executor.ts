@@ -3,6 +3,7 @@
  * Executes a single tool in sandboxed Deno environment
  */
 
+import { spawn } from 'child_process';
 import { ProcessManager, ProcessOptions } from './utils/process-manager';
 import { ContextSerializer, ToolExecutionContext } from './context-serializer';
 
@@ -198,38 +199,54 @@ const input = ${JSON.stringify(input)};
    * Check if Deno is available
    */
   async checkDeno(): Promise<boolean> {
-    try {
-      const process = Bun.spawn([this.denoPath, '--version'], {
-        stdout: 'pipe',
-        stderr: 'pipe'
-      });
-      
-      const exitCode = await process.exited;
-      return exitCode === 0;
-    } catch {
-      return false;
-    }
+    return new Promise((resolve) => {
+      try {
+        const process = spawn(this.denoPath, ['--version'], {
+          stdio: 'pipe'
+        });
+        
+        process.on('exit', (code) => {
+          resolve(code === 0);
+        });
+        
+        process.on('error', () => {
+          resolve(false);
+        });
+      } catch {
+        resolve(false);
+      }
+    });
   }
   
   /**
    * Get Deno version
    */
   async getDenoVersion(): Promise<string | null> {
-    try {
-      const process = Bun.spawn([this.denoPath, '--version'], {
-        stdout: 'pipe',
-        stderr: 'pipe'
-      });
-      
-      await process.exited;
-      const output = await new Response(process.stdout).text();
-      
-      // Extract version from output
-      const match = output.match(/deno\s+(\d+\.\d+\.\d+)/);
-      return match ? match[1] : null;
-    } catch {
-      return null;
-    }
+    return new Promise((resolve) => {
+      try {
+        const process = spawn(this.denoPath, ['--version'], {
+          stdio: 'pipe'
+        });
+        
+        let output = '';
+        
+        process.stdout?.on('data', (data) => {
+          output += data.toString();
+        });
+        
+        process.on('exit', () => {
+          // Extract version from output
+          const match = output.match(/deno\s+(\d+\.\d+\.\d+)/);
+          resolve(match ? match[1] : null);
+        });
+        
+        process.on('error', () => {
+          resolve(null);
+        });
+      } catch {
+        resolve(null);
+      }
+    });
   }
 }
 

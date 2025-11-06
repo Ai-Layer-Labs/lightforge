@@ -8,7 +8,6 @@ import { LeftPanel } from './panels/LeftPanel';
 import { Canvas2D } from './canvas/Canvas2D';
 import { Canvas3D } from './canvas/Canvas3D';
 import { LoadingOverlay } from './ui/LoadingOverlay';
-import { Onboarding } from './Onboarding';
 
 export function Dashboard() {
   const { loadConfiguration, switchView } = useDashboard();
@@ -80,17 +79,17 @@ export function Dashboard() {
   }
 
   return (
-    <div className="dashboard-container w-full h-full flex flex-col bg-gradient-rcrt">
+    <div className="dashboard-container" style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #0f0f0f, #1a1a2e)' }}>
       {/* Header */}
       <Header />
       
       {/* Main Content */}
-      <div className="main-content flex-1 flex overflow-hidden">
+      <div className="main-content" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left Panel */}
         <LeftPanel />
         
         {/* Canvas Area */}
-        <div className="canvas-area flex-1 relative overflow-hidden">
+        <div className="canvas-area" style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
           <AnimatePresence mode="wait">
             {currentView === '2d' ? (
               <motion.div
@@ -99,7 +98,7 @@ export function Dashboard() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.05 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="w-full h-full"
+                className="w-full h-full absolute inset-0"
               >
                 <Canvas2D />
               </motion.div>
@@ -110,7 +109,7 @@ export function Dashboard() {
                 animate={{ opacity: 1, rotateY: 0 }}
                 exit={{ opacity: 0, rotateY: 10 }}
                 transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="w-full h-full"
+                className="w-full h-full absolute inset-0"
               >
                 <Canvas3D />
               </motion.div>
@@ -140,13 +139,6 @@ export function Dashboard() {
       <AnimatePresence>
         {loading.initialLoad && <LoadingOverlay />}
       </AnimatePresence>
-      
-      {/* Onboarding Flow - only shows when needed */}
-      {!loading.initialLoad && isAuthenticated && (
-        <Onboarding onComplete={() => {
-          console.log('✅ Onboarding completed!');
-        }} />
-      )}
     </div>
   );
 }

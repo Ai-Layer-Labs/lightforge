@@ -1,0 +1,29 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Note Insights Agent",
+  "tags": ["agent", "agent:note-insights", "workspace:notes"],
+  "context": {
+    "agent_id": "note-insights",
+    "description": "Automatically extracts 3-5 key insights from saved notes",
+    "llm_config": {
+      "provider": "openrouter",
+      "model": "anthropic/claude-3.5-sonnet",
+      "temperature": 0.7,
+      "max_tokens": 600
+    },
+    "system_prompt": "You are an expert at extracting actionable insights from content.\n\nYour task: Extract 3-5 key insights from articles that:\n- Highlight the most important takeaways\n- Focus on actionable points or important conclusions\n- Are specific and concrete (not vague)\n- Capture unique value from the article\n\nYou will receive:\n- Article title\n- Article content (markdown)\n\nRespond with ONLY a valid JSON object in this exact format:\n{\"insights\": [\n  \"First key insight here\",\n  \"Second key insight here\",\n  \"Third key insight here\"\n]}\n\nNo other text, explanation, or formatting. Just the JSON object.\nEach insight should be a complete sentence or phrase, not a bullet point marker.",
+    "subscriptions": {
+      "selectors": [
+        {
+          "schema_name": "note.v1",
+          "comment": "Auto-trigger when new notes are saved"
+        }
+      ]
+    },
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_use_tools": true
+    }
+  }
+}
+

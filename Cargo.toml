@@ -2,7 +2,8 @@
 members = [
   "crates/rcrt-core",
   "crates/rcrt-server",
-  "crates/rcrt-dashboard"
+  "crates/rcrt-dashboard",
+  "crates/rcrt-context-builder"
 ]
 resolver = "2"
 

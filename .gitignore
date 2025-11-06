@@ -45,6 +45,16 @@ build/
 *.so
 *.dylib
 
+# Desktop build system artifacts
+desktop-build/output/
+desktop-build/output-v2/
+desktop-build/dist/
+desktop-build/dist-v2/
+desktop-build/service-manager/go.sum
+desktop-build/podman/*.exe
+desktop-build/podman/*.dmg
+desktop-build/podman/*.AppImage
+
 # Docker
 .dockerignore
 docker-compose.override.yml
@@ -56,3 +66,40 @@ temp/
 *.bak
 *.backup
 nul
+docs/RCRT_BROWSER_EXTENSION_V2_DESIGN.md
+docs/RCRT_VS_THINK_EXTENSION_ANALYSIS.md
+/think-extension
+THINK_EXTENSION_INTEGRATION_SUMMARY.md
+
+# Token files - NEVER commit these!
+*token*.json
+*token*.txt
+curator_token.json
+user_token.json
+response.json
+token_response.*
+
+# Temporary documentation and status files
+*_SUMMARY.md
+*_COMPLETE.md
+*_FIX.md
+*_FIXED.md
+*SUMMARY*.md
+*COMPLETE*.md
+QUICK_FIX*.md
+complete-*.txt
+recent-*.txt
+SYSTEM_PROMPT_FINAL.txt
+
+# Build artifacts that were missed
+desktop-build/podman/*.tar
+desktop-build/podman/*.pkg
+desktop-build/podman/*.zip
+desktop-build/podman/images/
+rcrt-visual-builder/dist/
+rcrt-dashboard-v2/dist/
+
+# Next.js build artifacts
+**/.next/
+**/.turbo/
+**/out/

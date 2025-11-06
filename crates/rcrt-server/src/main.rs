@@ -33,6 +33,7 @@ use tokenizers::Tokenizer;
 
 static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
 
+
 #[derive(Clone)]
 struct AppState {
     db: Db,
@@ -42,6 +43,7 @@ struct AppState {
     #[cfg(feature = "nats")]
     nats_conn: Option<nats::Connection>,
     hygiene_stats: Arc<Mutex<hygiene::HygieneStats>>,
+    schema_cache: Arc<transforms::SchemaDefinitionCache>,
 }
 
 #[tokio::main]
@@ -75,11 +77,18 @@ async fn main() -> Result<()> {
     #[cfg(feature = "nats")]
     let nats_conn = {
         let nats_url = std::env::var("NATS_URL").expect("NATS_URL not set");
-        Some(nats::connect(&nats_url).expect("failed to connect to NATS"))
+        let conn = nats::connect(&nats_url).expect("failed to connect to NATS");
+        tracing::info!("✅ Connected to NATS at {}", nats_url);
+        Some(conn)
     };
 
     // Create shared hygiene stats
     let hygiene_stats = Arc::new(Mutex::new(hygiene::HygieneStats::default()));
+    
+    // Initialize schema definition cache for llm_hints
+    tracing::info!("Initializing schema definition cache...");
+    let schema_cache = Arc::new(transforms::SchemaDefinitionCache::new(Arc::new(db.clone())));
+    tracing::info!("Schema cache ready");
     
     #[cfg(feature = "nats")]
     let state = AppState { 
@@ -88,7 +97,8 @@ async fn main() -> Result<()> {
         jwt_encoding_key, 
         jwt_validation, 
         nats_conn,
-        hygiene_stats: hygiene_stats.clone()
+        hygiene_stats: hygiene_stats.clone(),
+        schema_cache: schema_cache.clone()
     };
     #[cfg(not(feature = "nats"))]
     let state = AppState { 
@@ -96,7 +106,8 @@ async fn main() -> Result<()> {
         jwt_decoding_key, 
         jwt_encoding_key, 
         jwt_validation,
-        hygiene_stats: hygiene_stats.clone()
+        hygiene_stats: hygiene_stats.clone(),
+        schema_cache: schema_cache.clone()
     };
 
     // Start hygiene runner for automatic cleanup
@@ -583,6 +594,9 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
+        ttl_type: None,
+        ttl_config: None,
+        ttl_source: None,
     };
     
     // Apply automatic TTL based on schema and tags
@@ -647,30 +661,42 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
         return Err((axum::http::StatusCode::NOT_FOUND, "not found".into()));
     };
     
-    // Apply LLM hints if present
-    if let Some(hints_value) = view.context.get("llm_hints") {
-        // Clone the value to avoid borrow issues
-        let hints_value = hints_value.clone();
-        
-        // Try to parse llm_hints
-        match serde_json::from_value::<transforms::LlmHints>(hints_value) {
-            Ok(hints) => {
-                // Apply transforms
-                let engine = transforms::TransformEngine::new();
-                match engine.apply_llm_hints(&view.context, &hints) {
-                    Ok(transformed) => {
-                        tracing::debug!("Applied llm_hints transform for breadcrumb {}", id);
-                        view.context = transformed;
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to apply llm_hints for breadcrumb {}: {}", id, e);
-                        // Continue with original context on error
-                    }
-                }
+    // Track read for usage-based TTL (best effort, don't fail on error)
+    let _ = sqlx::query("
+        UPDATE breadcrumbs 
+        SET read_count = COALESCE(read_count, 0) + 1
+        WHERE id = $1
+        AND ttl_type IN ('usage', 'hybrid')
+    ")
+    .bind(id)
+    .execute(&state.db.pool)
+    .await;
+    
+    // Try to get llm_hints from schema definition first, then fall back to instance hints
+    let hints_to_apply = if let Some(schema_name) = &view.schema_name {
+        // Load hints from schema definition cache
+        state.schema_cache.load_schema_hints(schema_name).await
+    } else {
+        None
+    };
+    
+    // If no schema hints, check if breadcrumb has instance-level hints
+    let final_hints = hints_to_apply.or_else(|| {
+        view.context.get("llm_hints")
+            .and_then(|v| serde_json::from_value::<transforms::LlmHints>(v.clone()).ok())
+    });
+    
+    // Apply hints if we found any
+    if let Some(hints) = final_hints {
+        let engine = transforms::TransformEngine::new();
+        match engine.apply_llm_hints(&view.context, &hints) {
+            Ok(transformed) => {
+                tracing::debug!("Applied llm_hints transform for breadcrumb {} (schema: {:?})", id, view.schema_name);
+                view.context = transformed;
             }
             Err(e) => {
-                tracing::debug!("Could not parse llm_hints for breadcrumb {}: {}", id, e);
-                // Continue with original context if hints are malformed
+                tracing::warn!("Failed to apply llm_hints for breadcrumb {}: {}", id, e);
+                // Continue with original context on error
             }
         }
     }
@@ -679,9 +705,7 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
 }
 
 async fn get_breadcrumb_full(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<BreadcrumbFull>, (StatusCode, String)> {
-    // Require ACL read_full or curator role
-    let allowed = auth.roles.iter().any(|r| r == "curator") || state.db.has_acl_action(auth.owner_id, auth.agent_id, id, "read_full").await.map_err(internal_error)?;
-    if !allowed { return Err((StatusCode::FORBIDDEN, "forbidden".into())); }
+    // Access control handled by get_breadcrumb_full_for (checks visibility and ACLs)
     let Some(full) = state.db.get_breadcrumb_full_for(auth.owner_id, Some(auth.agent_id), id).await.map_err(internal_error)? else {
         return Err((StatusCode::NOT_FOUND, "not found".into()));
     };
@@ -726,6 +750,9 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
+        ttl_type: None,
+        ttl_config: None,
+        ttl_source: None,
     };
     
     tracing::info!("🔧 BreadcrumbUpdate created: context_is_some={}", upd.context.is_some());

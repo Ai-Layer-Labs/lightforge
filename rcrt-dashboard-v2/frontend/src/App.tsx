@@ -1,8 +1,10 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { HeroUIProvider } from '@heroui/react';
 import { DashboardProvider } from './stores/DashboardStore';
-import { Dashboard } from './components/Dashboard';
+import { ThemeProvider } from './components/theme/ThemeProvider';
+import { AppRouter } from './components/routing/AppRouter';
 import './App.css';
 
 // Create a client
@@ -22,11 +24,15 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <DashboardProvider>
-        <div className="App min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-          <Dashboard />
-        </div>
-      </DashboardProvider>
+      <main className="dark bg-background text-foreground" style={{ width: '100%', height: '100%' }}>
+        <HeroUIProvider>
+          <ThemeProvider defaultTheme="theme:default">
+            <DashboardProvider>
+              <AppRouter />
+            </DashboardProvider>
+          </ThemeProvider>
+        </HeroUIProvider>
+      </main>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

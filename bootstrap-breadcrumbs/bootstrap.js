@@ -4,9 +4,11 @@
  * Initializes the system with essential breadcrumbs on first run
  * 
  * SINGLE SOURCE OF TRUTH:
- * Agents: bootstrap-breadcrumbs/system/*.json
- * Tools: Dynamically discovered by tools-runner
- * Templates: bootstrap-breadcrumbs/templates/*.json
+ * - System: bootstrap-breadcrumbs/system/*.json (agents, configs)
+ * - Tools: bootstrap-breadcrumbs/tools-self-contained/*.json (tool.code.v1)
+ * - Templates: bootstrap-breadcrumbs/templates/*.json
+ * - Knowledge: bootstrap-breadcrumbs/knowledge/*.json (for LLM semantic search)
+ * - Schemas: bootstrap-breadcrumbs/schemas/*.json (llm_hints for context optimization)
  */
 
 import fetch from 'node-fetch';
@@ -80,7 +82,7 @@ async function bootstrap() {
     });
 
     if (existingMarkers.length > 0) {
-      const markerResp = await api('GET', `/breadcrumbs/${existingMarkers[0].id}`);
+      const markerResp = await api('GET', `/breadcrumbs/${existingMarkers[0].id}/full`);
       if (!markerResp.ok) {
         console.log('⚠️  Could not read bootstrap marker - continuing');
       } else {
@@ -197,8 +199,203 @@ async function bootstrap() {
       }
     }
 
-    // 5. Create bootstrap marker
-    console.log('\n5️⃣ Creating bootstrap marker...');
+    // 5. Load knowledge base breadcrumbs
+    console.log('\n5️⃣ Loading knowledge base...');
+    const knowledgeDir = path.join(__dirname, 'knowledge');
+    if (fs.existsSync(knowledgeDir)) {
+      const knowledgeFiles = fs.readdirSync(knowledgeDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of knowledgeFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(knowledgeDir, file), 'utf-8'));
+          
+          // Check if knowledge already exists (by title and schema)
+          const existing = await searchBreadcrumbs({
+            schema_name: data.schema_name,
+            tag: 'knowledge'
+          });
+          
+          const existingItem = existing.find(item => item.title === data.title);
+          
+          if (existingItem) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No knowledge directory found (knowledge/)');
+    }
+
+    // 6. Load schema definitions (llm_hints for context optimization)
+    console.log('\n6️⃣ Loading schema definitions...');
+    const schemasDir = path.join(__dirname, 'schemas');
+    if (fs.existsSync(schemasDir)) {
+      const schemaFiles = fs.readdirSync(schemasDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of schemaFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(schemasDir, file), 'utf-8'));
+          
+          // Check if schema definition already exists by title (simpler check)
+          const existing = await searchBreadcrumbs({
+            schema_name: 'schema.def.v1',
+            tag: 'system:schema'
+          });
+          
+          const existingItem = existing.find(item => item.title === data.title);
+          
+          if (existingItem) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No schemas directory found (schemas/)');
+    }
+
+    // 7. Load themes (theme.v1)
+    console.log('\n7️⃣ Loading themes...');
+    const themesDir = path.join(__dirname, 'themes');
+    if (fs.existsSync(themesDir)) {
+      const themeFiles = fs.readdirSync(themesDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of themeFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(themesDir, file), 'utf-8'));
+          
+          // Check if theme already exists
+          const existing = await searchBreadcrumbs({
+            schema_name: 'theme.v1',
+            tag: 'theme'
+          });
+          
+          const existingItem = existing.find(item => item.title === data.title);
+          
+          if (existingItem) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No themes directory found (themes/)');
+    }
+
+    // 8. Load pages (ui.page.v1 and page.layout.v1)
+    console.log('\n8️⃣ Loading pages...');
+    const pagesDir = path.join(__dirname, 'pages');
+    if (fs.existsSync(pagesDir)) {
+      const pageFiles = fs.readdirSync(pagesDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of pageFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(pagesDir, file), 'utf-8'));
+          
+          // Check if page already exists
+          const pageTag = data.tags.find(t => t.startsWith('page:'));
+          const existing = await searchBreadcrumbs({
+            schema_name: data.schema_name,
+            tag: pageTag || 'page'
+          });
+          
+          const existingItem = existing.find(item => item.title === data.title);
+          
+          if (existingItem) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No pages directory found (pages/)');
+    }
+
+    // 9. Load initial states (ui.state.v1)
+    console.log('\n9️⃣ Loading initial states...');
+    const statesDir = path.join(__dirname, 'states');
+    if (fs.existsSync(statesDir)) {
+      const stateFiles = fs.readdirSync(statesDir).filter(f => f.endsWith('.json'));
+      
+      for (const file of stateFiles) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(statesDir, file), 'utf-8'));
+          
+          // Check if state already exists
+          const stateTag = data.tags.find(t => t.startsWith('state:'));
+          const existing = await searchBreadcrumbs({
+            schema_name: 'ui.state.v1',
+            tag: stateTag || 'state'
+          });
+          
+          if (existing.length > 0) {
+            console.log(`   ⏭️  ${data.title} already exists`);
+            continue;
+          }
+          
+          const resp = await api('POST', '/breadcrumbs', data);
+          if (resp.ok) {
+            const result = await resp.json();
+            console.log(`   ✅ Created: ${data.title} (${result.id})`);
+          } else {
+            const errorText = await resp.text();
+            console.error(`   ❌ Failed: ${data.title} - ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error loading ${file}:`, error.message);
+        }
+      }
+    } else {
+      console.log('   ℹ️  No states directory found (states/)');
+    }
+
+    // 10. Create bootstrap marker
+    console.log('\n🔟 Creating bootstrap marker...');
     const markerData = JSON.parse(
       fs.readFileSync(path.join(systemDir, 'bootstrap-marker.json'), 'utf-8')
     );
@@ -209,14 +406,22 @@ async function bootstrap() {
       console.log('   ✅ Bootstrap complete!');
     }
 
-    // 5. Summary
+    // Summary
     console.log('\n📊 Bootstrap Summary:');
     console.log('   • System breadcrumbs (agents, configs)');
+    console.log('   • Self-contained tools (tool.code.v1)');
     console.log('   • Template library');
+    console.log('   • Knowledge base (for LLM semantic search)');
+    console.log('   • Schema definitions (llm_hints for context optimization)');
+    console.log('   • Themes (theme.v1)');
+    console.log('   • Pages (ui.page.v1 and page.layout.v1)');
+    console.log('   • Initial states (ui.state.v1)');
     console.log('   • Bootstrap marker');
     console.log(`   • Version: ${BOOTSTRAP_VERSION}`);
     console.log('');
-    console.log('   ✨ Tools: Dynamically discovered by tools-runner (not pre-loaded)');
+    console.log('   ✨ Tools are dynamically discovered by tools-runner');
+    console.log('   ✨ Pages are dynamically loaded from breadcrumbs');
+    console.log('   ✨ UI is 100% breadcrumb-driven (no hardcoded components)');
     
     console.log('\n🎯 Next Steps:');
     console.log('   1. Start tools-runner → discovers all tools automatically');
@@ -226,8 +431,13 @@ async function bootstrap() {
     console.log('');
     console.log('💡 Adding Components:');
     console.log('   • Agents: Create system/*.json → run: node bootstrap.js');
-    console.log('   • Tools: Create src/my-tool/definition.json → restart tools-runner');
-    console.log('   • Tools auto-register - no bootstrap needed!');
+    console.log('   • Tools: Create tools-self-contained/*.json → run: node bootstrap.js');
+    console.log('   • Knowledge: Create knowledge/*.json → run: node bootstrap.js');
+    console.log('   • Templates: Create templates/*.json → run: node bootstrap.js');
+    console.log('   • Schemas: Create schemas/*.json → run: node bootstrap.js');
+    console.log('   • Pages: Create pages/*.json → run: node bootstrap.js');
+    console.log('   • Themes: Create themes/*.json → run: node bootstrap.js');
+    console.log('   • States: Create states/*.json → run: node bootstrap.js');
 
   } catch (error) {
     console.error('❌ Bootstrap failed:', error);

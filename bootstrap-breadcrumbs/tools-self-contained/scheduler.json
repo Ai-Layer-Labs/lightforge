@@ -1,0 +1,96 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "Scheduler Tool (Self-Contained)",
+  "tags": ["tool", "tool:scheduler", "workspace:tools", "self-contained", "system"],
+  "context": {
+    "name": "scheduler",
+    "description": "Continuously monitors schedule definitions and publishes tick breadcrumbs when schedules should fire. This enables time-based automation for other tools.",
+    "version": "1.0.0",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * Scheduler Tool - Self-Contained Deno Version\n * Monitors schedule.definition.v1 breadcrumbs and publishes schedule.tick.v1 when schedules fire\n */\n\ninterface Input {\n  check_interval_ms?: number;\n}\n\ninterface Output {\n  status: string;\n  schedules_loaded: number;\n  ticks_published: number;\n  uptime_ms: number;\n}\n\ninterface Context {\n  api: any;\n  request: any;\n}\n\ninterface ScheduleInterval {\n  type: 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly';\n  every_n_minutes?: number;\n  minute?: number;\n  time?: string;\n  weekdays?: string[];\n  day_of_month?: number;\n  nth_weekday?: { nth: number | 'last', weekday: string };\n  timezone?: string;\n}\n\ninterface ScheduleDefinition {\n  id: string;\n  title: string;\n  context: {\n    interval: ScheduleInterval;\n    enabled: boolean;\n    labels: string[];\n  };\n}\n\n// Track last fire times to prevent duplicate ticks\nconst lastFireTimes = new Map<string, number>();\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  const checkInterval = input.check_interval_ms || 60000; // Default: 1 minute\n  const startTime = Date.now();\n  let ticksPublished = 0;\n  \n  console.log('⏰ Scheduler starting...');\n  console.log(`   Check interval: ${checkInterval}ms (${checkInterval / 1000}s)`);\n  \n  // Main scheduler loop\n  while (true) {\n    try {\n      // Load all schedule definitions\n      const schedules = await loadScheduleDefinitions(context);\n      console.log(`📋 Loaded ${schedules.length} schedule(s)`);\n      \n      // Check each schedule\n      const now = new Date();\n      for (const schedule of schedules) {\n        if (shouldFireSchedule(schedule, now)) {\n          await publishTick(schedule, context);\n          ticksPublished++;\n        }\n      }\n      \n      // Wait for next check\n      await sleep(checkInterval);\n      \n    } catch (error) {\n      console.error('❌ Scheduler error:', error);\n      // Continue running despite errors\n      await sleep(checkInterval);\n    }\n  }\n}\n\nasync function loadScheduleDefinitions(context: Context): Promise<ScheduleDefinition[]> {\n  try {\n    const results = await context.api.searchBreadcrumbs({\n      schema_name: 'schedule.definition.v1',\n      tag: 'workspace:tools',\n      limit: 100\n    });\n    \n    // Filter to enabled schedules only\n    return results.filter((s: any) => s.context?.enabled !== false);\n  } catch (error) {\n    console.warn('Failed to load schedule definitions:', error);\n    return [];\n  }\n}\n\nfunction shouldFireSchedule(schedule: ScheduleDefinition, now: Date): boolean {\n  const interval = schedule.context.interval;\n  const scheduleId = schedule.id;\n  \n  // Get last fire time\n  const lastFire = lastFireTimes.get(scheduleId) || 0;\n  const minutesSinceLastFire = (now.getTime() - lastFire) / (1000 * 60);\n  \n  // Prevent firing more than once per minute\n  if (minutesSinceLastFire < 1) {\n    return false;\n  }\n  \n  // Check based on interval type\n  switch (interval.type) {\n    case 'minutely':\n      return shouldFireMinutely(interval, now, lastFire);\n    case 'hourly':\n      return shouldFireHourly(interval, now);\n    case 'daily':\n      return shouldFireDaily(interval, now);\n    case 'weekly':\n      return shouldFireWeekly(interval, now);\n    case 'monthly':\n      return shouldFireMonthly(interval, now);\n    default:\n      console.warn(`Unknown interval type: ${interval.type}`);\n      return false;\n  }\n}\n\nfunction shouldFireMinutely(interval: ScheduleInterval, now: Date, lastFire: number): boolean {\n  const everyN = interval.every_n_minutes || 1;\n  const minutesSinceLastFire = (now.getTime() - lastFire) / (1000 * 60);\n  return minutesSinceLastFire >= everyN;\n}\n\nfunction shouldFireHourly(interval: ScheduleInterval, now: Date): boolean {\n  const targetMinute = interval.minute || 0;\n  const currentMinute = now.getMinutes();\n  // Fire if we're at the target minute\n  return currentMinute === targetMinute;\n}\n\nfunction shouldFireDaily(interval: ScheduleInterval, now: Date): boolean {\n  if (!interval.time) return false;\n  \n  const [targetHour, targetMinute] = interval.time.split(':').map(Number);\n  const currentHour = now.getHours();\n  const currentMinute = now.getMinutes();\n  \n  return currentHour === targetHour && currentMinute === targetMinute;\n}\n\nfunction shouldFireWeekly(interval: ScheduleInterval, now: Date): boolean {\n  if (!interval.time || !interval.weekdays) return false;\n  \n  // Check if today is one of the target weekdays\n  const weekdayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];\n  const currentWeekday = weekdayNames[now.getDay()];\n  \n  if (!interval.weekdays.includes(currentWeekday)) {\n    return false;\n  }\n  \n  // Check time\n  const [targetHour, targetMinute] = interval.time.split(':').map(Number);\n  const currentHour = now.getHours();\n  const currentMinute = now.getMinutes();\n  \n  return currentHour === targetHour && currentMinute === targetMinute;\n}\n\nfunction shouldFireMonthly(interval: ScheduleInterval, now: Date): boolean {\n  if (!interval.time) return false;\n  \n  // Check day of month\n  if (interval.day_of_month) {\n    if (now.getDate() !== interval.day_of_month) {\n      return false;\n    }\n  }\n  \n  // Check nth weekday (e.g., 2nd Tuesday)\n  if (interval.nth_weekday) {\n    if (!isNthWeekday(now, interval.nth_weekday.nth, interval.nth_weekday.weekday)) {\n      return false;\n    }\n  }\n  \n  // Check time\n  const [targetHour, targetMinute] = interval.time.split(':').map(Number);\n  const currentHour = now.getHours();\n  const currentMinute = now.getMinutes();\n  \n  return currentHour === targetHour && currentMinute === targetMinute;\n}\n\nfunction isNthWeekday(date: Date, nth: number | 'last', weekday: string): boolean {\n  const weekdayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];\n  const targetWeekdayIndex = weekdayNames.indexOf(weekday);\n  \n  if (targetWeekdayIndex === -1 || date.getDay() !== targetWeekdayIndex) {\n    return false;\n  }\n  \n  if (nth === 'last') {\n    // Check if this is the last occurrence of this weekday in the month\n    const nextWeek = new Date(date);\n    nextWeek.setDate(date.getDate() + 7);\n    return nextWeek.getMonth() !== date.getMonth();\n  }\n  \n  // Calculate which occurrence this is\n  const dayOfMonth = date.getDate();\n  const occurrence = Math.ceil(dayOfMonth / 7);\n  return occurrence === nth;\n}\n\nasync function publishTick(schedule: ScheduleDefinition, context: Context): Promise<void> {\n  try {\n    const now = new Date();\n    const interval = schedule.context.interval;\n    \n    // Create tick breadcrumb\n    await context.api.createBreadcrumb({\n      schema_name: 'schedule.tick.v1',\n      title: `Schedule Tick: ${schedule.title}`,\n      tags: ['schedule:tick', ...schedule.context.labels],\n      context: {\n        schedule_id: schedule.id,\n        schedule_title: schedule.title,\n        fired_at: now.toISOString(),\n        interval_type: interval.type,\n        interval_details: interval\n      },\n      ttl: new Date(now.getTime() + 5 * 60 * 1000).toISOString() // Expire in 5 minutes\n    });\n    \n    // Update last fire time\n    lastFireTimes.set(schedule.id, now.getTime());\n    \n    console.log(`✅ Published tick for: ${schedule.title} (${interval.type})`);\n  } catch (error) {\n    console.error(`Failed to publish tick for ${schedule.title}:`, error);\n  }\n}\n\nfunction sleep(ms: number): Promise<void> {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "check_interval_ms": {
+          "type": "number",
+          "description": "How often to check schedules in milliseconds (default: 60000 = 1 minute)",
+          "default": 60000,
+          "minimum": 1000
+        }
+      }
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Scheduler status"
+        },
+        "schedules_loaded": {
+          "type": "number",
+          "description": "Number of schedules being monitored"
+        },
+        "ticks_published": {
+          "type": "number",
+          "description": "Total ticks published since start"
+        },
+        "uptime_ms": {
+          "type": "number",
+          "description": "Scheduler uptime in milliseconds"
+        }
+      },
+      "required": ["status", "schedules_loaded", "ticks_published", "uptime_ms"]
+    },
+    "required_secrets": [],
+    "limits": {
+      "memory_mb": 128,
+      "timeout_ms": 86400000,
+      "cpu_percent": 10
+    },
+    "permissions": {
+      "net": true,
+      "breadcrumbs": {
+        "read": ["schedule.definition.v1"],
+        "write": ["schedule.tick.v1"]
+      }
+    },
+    "examples": [
+      {
+        "input": {},
+        "output": {
+          "status": "running",
+          "schedules_loaded": 3,
+          "ticks_published": 15,
+          "uptime_ms": 3600000
+        },
+        "description": "Scheduler running with default settings",
+        "explanation": "Scheduler runs continuously with default 60-second check interval, monitoring 3 schedule definitions and has published 15 tick breadcrumbs over its 1-hour uptime."
+      },
+      {
+        "input": {
+          "check_interval_ms": 30000
+        },
+        "output": {
+          "status": "running",
+          "schedules_loaded": 5,
+          "ticks_published": 42,
+          "uptime_ms": 7200000
+        },
+        "description": "Scheduler with 30-second check interval",
+        "explanation": "Scheduler runs with faster 30-second checks for more responsive scheduling. Currently monitoring 5 schedules and has published 42 ticks over 2-hour uptime."
+      }
+    ],
+    "ui_schema": {
+      "configurable": false,
+      "description": "This scheduler runs continuously and monitors schedule definitions. No configuration needed - it auto-starts with the system."
+    },
+    "bootstrap": {
+      "enabled": true,
+      "mode": "continuous",
+      "priority": 100
+    }
+  }
+}
+

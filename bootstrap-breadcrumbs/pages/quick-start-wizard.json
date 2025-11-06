@@ -1,0 +1,614 @@
+{
+  "schema_name": "ui.page.v1",
+  "title": "Quick Start Wizard",
+  "tags": ["page", "page:quick-start", "system:page"],
+  "context": {
+    "state_ref": "state:quick-start-wizard",
+    "data_sources": {
+      "providers": {
+        "breadcrumb_search": {
+          "schema_name": "tool.code.v1",
+          "tag": "llm",
+          "limit": 10
+        }
+      },
+      "agents": {
+        "breadcrumb_search": {
+          "schema_name": "agent.def.v1",
+          "tag": "workspace:agents",
+          "limit": 20
+        }
+      }
+    },
+    "actions": {
+      "selectProvider": {
+        "action": "sequence",
+        "steps": [
+          {
+            "action": "setState",
+            "updates": {
+              "selectedProvider": "{{args.providerId}}",
+              "selectedProviderName": "{{args.providerName}}",
+              "requiresSecret": "{{args.requiresSecret}}",
+              "currentStep": 2
+            }
+          }
+        ]
+      },
+      "createSecret": {
+        "action": "sequence",
+        "steps": [
+          {
+            "action": "api.call",
+            "method": "POST",
+            "endpoint": "/api/secrets",
+            "body": {
+              "name": "{{state.formData.secretName}}",
+              "scope_type": "owner",
+              "value": "{{state.formData.apiKey}}"
+            },
+            "on_success": {
+              "action": "setState",
+              "updates": {
+                "createdSecretId": "{{response.id}}"
+              }
+            }
+          },
+          {
+            "action": "api.call",
+            "method": "POST",
+            "endpoint": "/api/breadcrumbs",
+            "body": {
+              "title": "{{state.selectedProviderName}} Configuration",
+              "schema_name": "tool.config.v1",
+              "tags": ["tool:config", "tool:{{state.selectedProviderName}}", "workspace:tools"],
+              "context": {
+                "tool_name": "{{state.selectedProviderName}}",
+                "config": {
+                  "apiKeySecretId": "{{state.createdSecretId}}",
+                  "defaultModel": "{{state.formData.defaultModel}}",
+                  "temperature": "{{state.formData.temperature}}",
+                  "maxTokens": "{{state.formData.maxTokens}}"
+                }
+              }
+            },
+            "on_success": {
+              "action": "setState",
+              "updates": {
+                "createdConfigId": "{{response.id}}",
+                "currentStep": 3
+              }
+            }
+          }
+        ]
+      },
+      "skipSecret": {
+        "action": "setState",
+        "updates": {
+          "currentStep": 3
+        }
+      },
+      "createConfig": {
+        "action": "sequence",
+        "steps": [
+          {
+            "action": "api.call",
+            "method": "POST",
+            "endpoint": "/api/breadcrumbs",
+            "body": {
+              "title": "{{state.selectedProviderName}} Configuration",
+              "schema_name": "tool.config.v1",
+              "tags": ["tool:config", "tool:{{state.selectedProviderName}}", "workspace:tools"],
+              "context": {
+                "tool_name": "{{state.selectedProviderName}}",
+                "config": {
+                  "apiKeySecretId": "{{state.createdSecretId}}",
+                  "defaultModel": "{{state.formData.defaultModel}}",
+                  "temperature": "{{state.formData.temperature}}",
+                  "maxTokens": "{{state.formData.maxTokens}}"
+                }
+              }
+            },
+            "on_success": {
+              "action": "setState",
+              "updates": {
+                "createdConfigId": "{{response.id}}",
+                "currentStep": 4
+              }
+            }
+          }
+        ]
+      },
+      "toggleAgent": {
+        "action": "setState",
+        "updates": {
+          "selectedAgents": "{{args.agentId}}"
+        }
+      },
+      "assignAgentsAndContinue": {
+        "action": "sequence",
+        "steps": [
+          {
+            "action": "log",
+            "message": "Assigning config to agents (multi-agent update coming soon)"
+          },
+          {
+            "action": "setState",
+            "updates": {
+              "currentStep": 4
+            }
+          }
+        ]
+      },
+      "goToDashboard": {
+        "action": "completeFirstLaunch",
+        "navigate_to": "/dashboard"
+      },
+      "backStep": {
+        "action": "setState",
+        "updates": {
+          "currentStep": "{{calc(state.currentStep - 1)}}"
+        }
+      }
+    },
+    "ui": {
+      "div": {
+        "className": "w-full h-full flex flex-col bg-gradient-rcrt",
+        "children": [
+          {
+            "div": {
+              "className": "flex items-center justify-between p-6 border-b border-white/10",
+              "children": [
+                {
+                  "div": {
+                    "children": [
+                      {
+                        "h1": {
+                          "className": "text-2xl font-bold text-white",
+                          "children": "Quick Start"
+                        }
+                      },
+                      {
+                        "p": {
+                          "className": "text-sm text-gray-400",
+                          "children": "Set up your LLM provider in just a few steps"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "div": {
+                    "className": "text-rcrt-primary text-sm font-medium",
+                    "children": "Step {{state.currentStep}} of 4"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Progress": {
+              "value": "{{calc(state.currentStep / 4 * 100)}}",
+              "size": "sm",
+              "color": "primary",
+              "className": "w-full rounded-none"
+            }
+          },
+          {
+            "div": {
+              "className": "flex-1 overflow-y-auto p-8",
+              "children": [
+                {
+                  "div": {
+                    "className": "max-w-4xl mx-auto",
+                    "children": [
+                      {
+                        "ConditionalRender": {
+                          "condition": "{{state.currentStep === 1}}",
+                          "render": {
+                            "div": {
+                              "children": [
+                                {
+                                  "h2": {
+                                    "className": "text-2xl font-bold text-white mb-2",
+                                    "children": "Choose Your LLM Provider"
+                                  }
+                                },
+                                {
+                                  "p": {
+                                    "className": "text-gray-400 mb-8",
+                                    "children": "Select the service you'd like to use for AI-powered features"
+                                  }
+                                },
+                                {
+                                  "div": {
+                                    "className": "grid grid-cols-2 md:grid-cols-3 gap-6",
+                                    "children": {
+                                      "for_each": "{{data.providers}}",
+                                      "render_item": {
+                                        "Card": {
+                                          "isPressable": true,
+                                          "className": "h-32 hover:scale-105 transition-transform bg-gradient-to-br from-green-500/10 to-cyan-500/10 border-2 border-green-500/40",
+                                          "onPress": {
+                                            "action": "selectProvider",
+                                            "args": {
+                                              "providerId": "{{item.id}}",
+                                              "providerName": "{{item.context.name}}",
+                                              "requiresSecret": "{{item.context.name === 'openrouter'}}"
+                                            }
+                                          },
+                                          "children": [
+                                            {
+                                              "CardBody": {
+                                                "className": "flex flex-col items-center justify-center text-center",
+                                                "children": [
+                                                  {
+                                                    "div": {
+                                                      "className": "text-4xl mb-2",
+                                                      "children": "🌐"
+                                                    }
+                                                  },
+                                                  {
+                                                    "h3": {
+                                                      "className": "font-bold text-green-400 text-sm",
+                                                      "children": "{{item.context.name}}"
+                                                    }
+                                                  },
+                                                  {
+                                                    "p": {
+                                                      "className": "text-xs text-gray-400 mt-1",
+                                                      "children": "{{item.context.description}}"
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "ConditionalRender": {
+                          "condition": "{{state.currentStep === 2}}",
+                          "render": {
+                            "div": {
+                              "children": [
+                                {
+                                  "h2": {
+                                    "className": "text-2xl font-bold text-white mb-2",
+                                    "children": "Configure {{state.selectedProviderName}}"
+                                  }
+                                },
+                                {
+                                  "p": {
+                                    "className": "text-gray-400 mb-8",
+                                    "children": "Set up your credentials and preferences"
+                                  }
+                                },
+                                {
+                                  "ConditionalRender": {
+                                    "condition": "{{state.requiresSecret && !state.createdSecretId}}",
+                                    "render": {
+                                      "Card": {
+                                        "className": "p-6 mb-6 bg-red-500/10 border-2 border-red-500/30",
+                                        "children": [
+                                          {
+                                            "CardHeader": {
+                                              "children": [
+                                                {
+                                                  "h3": {
+                                                    "className": "text-white font-bold",
+                                                    "children": "🔐 Step 1: Create API Secret"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "CardBody": {
+                                              "className": "space-y-4",
+                                              "children": [
+                                                {
+                                                  "Input": {
+                                                    "name": "secretName",
+                                                    "label": "Secret Name",
+                                                    "placeholder": "OPENROUTER_API_KEY",
+                                                    "value": "{{state.formData.secretName}}",
+                                                    "onValueChange": {
+                                                      "action": "setState",
+                                                      "updates": { "formData.secretName": "{{args.value}}" }
+                                                    },
+                                                    "variant": "bordered",
+                                                    "color": "primary",
+                                                    "isRequired": true
+                                                  }
+                                                },
+                                                {
+                                                  "Input": {
+                                                    "name": "apiKey",
+                                                    "label": "API Key",
+                                                    "type": "password",
+                                                    "placeholder": "sk-or-v1-...",
+                                                    "value": "{{state.formData.apiKey}}",
+                                                    "onValueChange": {
+                                                      "action": "setState",
+                                                      "updates": { "formData.apiKey": "{{args.value}}" }
+                                                    },
+                                                    "variant": "bordered",
+                                                    "color": "danger",
+                                                    "isRequired": true
+                                                  }
+                                                },
+                                                {
+                                                  "div": {
+                                                    "className": "flex gap-3 pt-4",
+                                                    "children": [
+                                                      {
+                                                        "Button": {
+                                                          "variant": "bordered",
+                                                          "onPress": {
+                                                            "action": "backStep"
+                                                          },
+                                                          "children": "Back"
+                                                        }
+                                                      },
+                                                      {
+                                                        "ActionButton": {
+                                                          "action": {
+                                                            "action": "createSecret"
+                                                          },
+                                                          "color": "success",
+                                                          "className": "flex-1",
+                                                          "label": "Create Secret & Continue"
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "ConditionalRender": {
+                                    "condition": "{{!state.requiresSecret || state.createdSecretId}}",
+                                    "render": {
+                                      "ToolConfigLoader": {
+                                        "tool_id": "{{state.selectedProvider}}",
+                                        "initial_config": "{{state.formData}}",
+                                        "on_save": {
+                                          "action": "createConfig"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "ConditionalRender": {
+                          "condition": "{{state.currentStep === 3}}",
+                          "render": {
+                            "div": {
+                              "children": [
+                                {
+                                  "h2": {
+                                    "className": "text-2xl font-bold text-white mb-2",
+                                    "children": "Assign to Agents"
+                                  }
+                                },
+                                {
+                                  "p": {
+                                    "className": "text-gray-400 mb-8",
+                                    "children": "Select which agents should use this configuration"
+                                  }
+                                },
+                                {
+                                  "div": {
+                                    "className": "grid grid-cols-2 md:grid-cols-3 gap-4 mb-8",
+                                    "children": {
+                                      "for_each": "{{data.agents}}",
+                                      "render_item": {
+                                        "Card": {
+                                          "isPressable": true,
+                                          "className": "h-28 bg-gradient-to-br from-purple-500/15 to-purple-700/10 border-2 border-purple-500/50",
+                                          "children": [
+                                            {
+                                              "CardBody": {
+                                                "className": "flex flex-col items-center justify-center text-center",
+                                                "children": [
+                                                  {
+                                                    "div": {
+                                                      "className": "text-xl mb-1",
+                                                      "children": "🤖"
+                                                    }
+                                                  },
+                                                  {
+                                                    "h3": {
+                                                      "className": "font-bold text-purple-400 text-xs",
+                                                      "children": "{{item.title}}"
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "div": {
+                                    "className": "flex gap-3",
+                                    "children": [
+                                      {
+                                        "Button": {
+                                          "variant": "bordered",
+                                          "onPress": {
+                                            "action": "backStep"
+                                          },
+                                          "children": "Back"
+                                        }
+                                      },
+                                      {
+                                        "Button": {
+                                          "color": "primary",
+                                          "className": "flex-1",
+                                          "onPress": {
+                                            "action": "assignAgentsAndContinue"
+                                          },
+                                          "children": "Assign & Continue"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "ConditionalRender": {
+                          "condition": "{{state.currentStep === 4}}",
+                          "render": {
+                            "div": {
+                              "className": "text-center py-12",
+                              "children": [
+                                {
+                                  "div": {
+                                    "className": "text-6xl mb-4",
+                                    "children": "🎉"
+                                  }
+                                },
+                                {
+                                  "h2": {
+                                    "className": "text-3xl font-bold text-white mb-2",
+                                    "children": "Setup Complete!"
+                                  }
+                                },
+                                {
+                                  "p": {
+                                    "className": "text-gray-400 mb-8",
+                                    "children": "You're all set to use {{state.selectedProviderName}} with your agents"
+                                  }
+                                },
+                                {
+                                  "Card": {
+                                    "className": "max-w-md mx-auto mb-8 bg-white/5",
+                                    "children": [
+                                      {
+                                        "CardBody": {
+                                          "className": "space-y-3",
+                                          "children": [
+                                            {
+                                              "div": {
+                                                "className": "flex items-center gap-3",
+                                                "children": [
+                                                  {
+                                                    "div": {
+                                                      "className": "w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400",
+                                                      "children": "✓"
+                                                    }
+                                                  },
+                                                  {
+                                                    "span": {
+                                                      "className": "text-gray-300",
+                                                      "children": "Provider configured"
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "ConditionalRender": {
+                                                "condition": "{{state.createdSecretId}}",
+                                                "render": {
+                                                  "div": {
+                                                    "className": "flex items-center gap-3",
+                                                    "children": [
+                                                      {
+                                                        "div": {
+                                                          "className": "w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400",
+                                                          "children": "✓"
+                                                        }
+                                                      },
+                                                      {
+                                                        "span": {
+                                                          "className": "text-gray-300",
+                                                          "children": "Secrets stored securely"
+                                                        }
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "div": {
+                                                "className": "flex items-center gap-3",
+                                                "children": [
+                                                  {
+                                                    "div": {
+                                                      "className": "w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400",
+                                                      "children": "✓"
+                                                    }
+                                                  },
+                                                  {
+                                                    "span": {
+                                                      "className": "text-gray-300",
+                                                      "children": "Configuration saved"
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "Button": {
+                                    "color": "primary",
+                                    "size": "lg",
+                                    "className": "bg-gradient-to-r from-rcrt-primary to-purple-500",
+                                    "onPress": {
+                                      "action": "goToDashboard"
+                                    },
+                                    "children": "Go to Dashboard →"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+

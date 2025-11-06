@@ -4,6 +4,24 @@
 
 /* Custom CSS for RCRT Dashboard v2 */
 
+/* CRITICAL: Force full height everywhere to fix half-screen bug */
+html, body {
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+#root {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.dark {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex;
+  flex-direction: column;
+}
+
 @layer base {
   * {
     box-sizing: border-box;

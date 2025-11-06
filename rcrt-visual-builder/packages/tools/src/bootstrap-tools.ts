@@ -48,122 +48,43 @@ const getToolsSourceDir = () => {
 const toolsDir = getToolsSourceDir();
 
 export async function bootstrapTools(client: RcrtClientEnhanced, workspace: string): Promise<void> {
-  console.log('🔧 Dynamically discovering tools from folders...');
-  console.log(`🔍 Scanning directory: ${toolsDir}`);
+  console.log('🔧 Legacy tool.v1 bootstrap skipped - all tools are now tool.code.v1');
+  console.log('📊 Tools are loaded from bootstrap-breadcrumbs/tools-self-contained/ via bootstrap.js');
   
-  // Check if directory exists
-  if (!fs.existsSync(toolsDir)) {
-    console.error(`❌ Tools directory not found: ${toolsDir}`);
-    console.log('📊 Total tools discovered: 0');
-    return;
-  }
-  
-  // Scan tool folders for definition.json files
-  const entries = fs.readdirSync(toolsDir, { withFileTypes: true });
-  const toolDirs = entries.filter(dirent => dirent.isDirectory());
-  
-  console.log(`📁 Found ${toolDirs.length} directories in ${toolsDir}`);
-  console.log(`📂 Directories: ${toolDirs.map(d => d.name).join(', ')}`);
-  
-  let toolsDiscovered = 0;
-  
-  for (const dir of toolDirs) {
-    const definitionPath = path.join(toolsDir, dir.name, 'definition.json');
-    
-    console.log(`  🔎 Checking ${dir.name}/definition.json...`);
-    
-    // Also check for definition-*.json pattern (for multi-tool folders like llm-tools)
-    const definitionFiles = fs.existsSync(definitionPath) 
-      ? [definitionPath]
-      : fs.readdirSync(path.join(toolsDir, dir.name))
-          .filter(f => f.match(/^definition.*\.json$/))
-          .map(f => path.join(toolsDir, dir.name, f));
-    
-    if (definitionFiles.length === 0) {
-      console.log(`    ⏭️  No definition files in ${dir.name}/`);
-      continue;
-    }
-    
-    console.log(`    ✓ Found ${definitionFiles.length} definition file(s) in ${dir.name}/`);
-    
-    for (const defPath of definitionFiles) {
-      try {
-        const toolDef = JSON.parse(fs.readFileSync(defPath, 'utf-8'));
-        
-        if (toolDef.schema_name !== 'tool.v1') {
-          console.log(`⏭️  Skipping ${path.basename(defPath)} - not tool.v1`);
-          continue;
-        }
-        
-        const toolName = toolDef.context?.name;
-        if (!toolName) {
-          console.log(`⏭️  Skipping ${path.basename(defPath)} - no name in context`);
-          continue;
-        }
-        
-        // Check if tool breadcrumb already exists
-        const existing = await client.searchBreadcrumbs({
-          schema_name: 'tool.v1',
-          tag: `tool:${toolName}`
-        });
-      
-      if (existing.length > 0) {
-        // Update existing tool breadcrumb
-        const existingBreadcrumb = await client.getBreadcrumb(existing[0].id);
-        await client.updateBreadcrumb(existing[0].id, existingBreadcrumb.version, {
-          title: toolDef.title,
-          tags: toolDef.tags,
-          context: toolDef.context
-        });
-        console.log(`✅ Updated tool: ${toolName} (from ${dir.name}/)`);
-      } else {
-        // Create new tool breadcrumb from definition.json
-        await client.createBreadcrumb(toolDef);
-        console.log(`✅ Discovered tool: ${toolName} (from ${dir.name}/)`);
-        toolsDiscovered++;
-      }
-      } catch (error) {
-        console.error(`❌ Failed to discover tool from ${path.basename(defPath)}:`, error);
-      }
-    }
-  }
-  
-  console.log(`📊 Total tools discovered: ${toolsDiscovered}`);
-  
-  // Create/update catalog
+  // Update tool catalog to include tool.code.v1
   await updateToolCatalog(client, workspace);
 }
 
 async function updateToolCatalog(client: RcrtClientEnhanced, workspace: string): Promise<void> {
   try {
-    // Search for all tool.v1 breadcrumbs
-    const toolBreadcrumbs = await client.searchBreadcrumbs({
-      schema_name: 'tool.v1',
+    // Search for tool.code.v1 breadcrumbs ONLY (legacy tool.v1 removed)
+    const toolCodeV1Breadcrumbs = await client.searchBreadcrumbs({
+      schema_name: 'tool.code.v1',
       tag: workspace
     });
     
-    console.log(`📚 Found ${toolBreadcrumbs.length} tools`);
+    console.log(`📚 Found ${toolCodeV1Breadcrumbs.length} tool.code.v1 tools`);
     
-    // Fetch full details
-    const tools = await Promise.all(
-      toolBreadcrumbs.map(async (tb) => {
+    // Fetch full details for tool.code.v1
+    const allTools = await Promise.all(
+      toolCodeV1Breadcrumbs.map(async (tb) => {
         const breadcrumb = await client.getBreadcrumb(tb.id);
         return breadcrumb.context;
       })
     );
     
-    // Build catalog
-    const catalog = tools.map(tool => ({
+    // Build catalog from tool.code.v1 breadcrumbs
+    const catalog = allTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       category: tool.category || 'general',
       version: tool.version || '1.0.0',
-      inputSchema: tool.definition?.inputSchema || {},
-      outputSchema: tool.definition?.outputSchema || {},
-      examples: tool.definition?.examples || [],
+      inputSchema: tool.input_schema || {},
+      outputSchema: tool.output_schema || {},
+      examples: tool.examples || [],
       capabilities: tool.capabilities || {
         async: true,
-        timeout: 30000,
+        timeout: tool.limits?.timeout_ms || 30000,
         retries: 0
       },
       status: 'active',

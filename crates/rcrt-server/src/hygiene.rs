@@ -251,7 +251,7 @@ impl HygieneRunner {
     async fn cleanup_expired_breadcrumbs(&self) -> Result<u64, Box<dyn std::error::Error>> {
         info!("Cleaning up explicitly expired breadcrumbs...");
         
-        // Clean up breadcrumbs with explicit TTL that have expired
+        // 1. Clean up breadcrumbs with explicit datetime TTL that have expired
         let query = "DELETE FROM breadcrumbs WHERE ttl IS NOT NULL AND ttl < NOW()";
         let result = sqlx::query(query)
             .execute(&self.state.db.pool)
@@ -259,16 +259,68 @@ impl HygieneRunner {
         
         let explicit_ttl_deleted = result.rows_affected();
         
-        // Apply schema-specific TTL policies for breadcrumbs without explicit TTL
+        // 2. Clean up usage-based TTL breadcrumbs
+        let usage_deleted = self.cleanup_usage_ttl().await?;
+        
+        // 3. Clean up hybrid TTL breadcrumbs
+        let hybrid_deleted = self.cleanup_hybrid_ttl().await?;
+        
+        // 4. Apply schema-specific TTL policies for breadcrumbs without explicit TTL
         let policy_deleted = self.apply_implicit_ttl_policies().await?;
         
-        let total = explicit_ttl_deleted + policy_deleted;
+        let total = explicit_ttl_deleted + usage_deleted + hybrid_deleted + policy_deleted;
         
         if total > 0 {
-            info!("Purged {} expired breadcrumbs (explicit: {}, policy: {})", total, explicit_ttl_deleted, policy_deleted);
+            info!("Purged {} expired breadcrumbs (datetime: {}, usage: {}, hybrid: {}, policy: {})", 
+                total, explicit_ttl_deleted, usage_deleted, hybrid_deleted, policy_deleted);
         }
         
         Ok(total)
+    }
+    
+    /// Cleanup usage-based TTL breadcrumbs (exceeded max_reads)
+    async fn cleanup_usage_ttl(&self) -> Result<u64, Box<dyn std::error::Error>> {
+        let query = "
+            DELETE FROM breadcrumbs 
+            WHERE ttl_type = 'usage' 
+            AND read_count >= COALESCE(CAST(ttl_config->>'max_reads' AS INTEGER), 1)
+        ";
+        
+        let result = sqlx::query(query)
+            .execute(&self.state.db.pool)
+            .await?;
+        
+        let deleted = result.rows_affected();
+        if deleted > 0 {
+            info!("Cleaned up {} usage-based TTL breadcrumbs", deleted);
+        }
+        
+        Ok(deleted)
+    }
+    
+    /// Cleanup hybrid TTL breadcrumbs (any condition met)
+    async fn cleanup_hybrid_ttl(&self) -> Result<u64, Box<dyn std::error::Error>> {
+        // Hybrid "any" mode: delete if datetime expired OR usage exceeded
+        let query = "
+            DELETE FROM breadcrumbs 
+            WHERE ttl_type = 'hybrid'
+            AND COALESCE(CAST(ttl_config->>'hybrid_mode' AS TEXT), 'any') = 'any'
+            AND (
+                (ttl IS NOT NULL AND ttl < NOW())  -- datetime expired
+                OR (read_count >= COALESCE(CAST(ttl_config->>'max_reads' AS INTEGER), 999999))  -- usage exceeded
+            )
+        ";
+        
+        let result = sqlx::query(query)
+            .execute(&self.state.db.pool)
+            .await?;
+        
+        let deleted = result.rows_affected();
+        if deleted > 0 {
+            info!("Cleaned up {} hybrid TTL breadcrumbs", deleted);
+        }
+        
+        Ok(deleted)
     }
     
     async fn apply_implicit_ttl_policies(&self) -> Result<u64, Box<dyn std::error::Error>> {
@@ -592,6 +644,9 @@ impl HygieneRunner {
                 visibility: None,
                 sensitivity: None,
                 ttl: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
+                ttl_type: Some("datetime".to_string()),
+                ttl_config: None,
+                ttl_source: Some("auto-applied".to_string()),
             },
             None // No embedding needed for stats
         ).await?;

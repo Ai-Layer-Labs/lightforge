@@ -87,6 +87,7 @@ export function CreateAgentForm({ onBack, isCreating, setIsCreating }: {
   
   let availableTools = [];
   if (toolCatalog.length > 0) {
+    // Note: getBreadcrumb should use /full endpoint in agent-runner for untransformed data
     const catalog = await context.rcrtClient.getBreadcrumb(toolCatalog[0].id);
     availableTools = catalog.context?.tools || [];
   }

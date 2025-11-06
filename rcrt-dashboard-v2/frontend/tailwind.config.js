@@ -1,9 +1,13 @@
+import { heroui } from '@heroui/react';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -101,6 +105,46 @@ export default {
     },
   },
   plugins: [
+    // HeroUI plugin (must come first)
+    heroui({
+      defaultTheme: "dark",
+      themes: {
+        dark: {
+          colors: {
+            background: "#0f1117",
+            foreground: "#ffffff",
+            content1: "#1a1d2e",
+            content2: "#252938",
+            content3: "#2d3348",
+            content4: "#363b55",
+            default: {
+              DEFAULT: "#3a3f5c",
+              foreground: "#ffffff",
+            },
+            primary: {
+              DEFAULT: "#00f5ff",
+              foreground: "#000000",
+            },
+            secondary: {
+              DEFAULT: "#a855f7",
+              foreground: "#ffffff",
+            },
+            success: {
+              DEFAULT: "#10b981",
+              foreground: "#000000",
+            },
+            warning: {
+              DEFAULT: "#f59e0b",
+              foreground: "#000000",
+            },
+            danger: {
+              DEFAULT: "#ef4444",
+              foreground: "#ffffff",
+            },
+          },
+        },
+      },
+    }),
     // Add custom utilities
     function({ addUtilities }) {
       const newUtilities = {

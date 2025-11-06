@@ -1,0 +1,140 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Theme Schema Definition",
+  "tags": ["schema", "schema:theme.v1", "system:schema"],
+  "context": {
+    "schema_name": "theme.v1",
+    "version": "1.0.0",
+    "description": "Defines visual themes with colors, fonts, spacing, and other design tokens",
+    "purpose": "Enable dynamic theme management and customization via breadcrumbs",
+    "structure": {
+      "title": {
+        "type": "string",
+        "required": true,
+        "description": "Theme name displayed in UI"
+      },
+      "tags": {
+        "type": "array",
+        "required": true,
+        "description": "Must include 'theme' and optionally 'theme:{name}' for identification",
+        "example": ["theme", "theme:default", "system:theme"]
+      },
+      "context": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "required": true,
+            "description": "Human-readable theme name"
+          },
+          "extends": {
+            "type": "string",
+            "description": "ID or name of parent theme to extend"
+          },
+          "colors": {
+            "type": "object",
+            "required": true,
+            "description": "Color palette with semantic names",
+            "properties": {
+              "primary": {"type": "string", "format": "color"},
+              "secondary": {"type": "string", "format": "color"},
+              "background": {"type": "string", "format": "color"},
+              "surface": {"type": "string", "format": "color"},
+              "text": {"type": "string", "format": "color"},
+              "textSecondary": {"type": "string", "format": "color"},
+              "success": {"type": "string", "format": "color"},
+              "warning": {"type": "string", "format": "color"},
+              "error": {"type": "string", "format": "color"},
+              "info": {"type": "string", "format": "color"},
+              "nodeTool": {"type": "string", "description": "Tool node color"},
+              "nodeSecret": {"type": "string", "description": "Secret node color"},
+              "nodeAgent": {"type": "string", "description": "Agent node color"}
+            }
+          },
+          "fonts": {
+            "type": "object",
+            "required": true,
+            "properties": {
+              "main": {"type": "string", "description": "Primary font stack"},
+              "mono": {"type": "string", "description": "Monospace font stack"},
+              "heading": {"type": "string", "description": "Heading font stack"}
+            }
+          },
+          "spacing": {
+            "type": "object",
+            "required": true,
+            "properties": {
+              "unit": {"type": "number", "description": "Base spacing unit in pixels"},
+              "xs": {"type": "number"},
+              "sm": {"type": "number"},
+              "md": {"type": "number"},
+              "lg": {"type": "number"},
+              "xl": {"type": "number"}
+            }
+          },
+          "borderRadius": {
+            "type": "object",
+            "required": true,
+            "properties": {
+              "sm": {"type": "string"},
+              "md": {"type": "string"},
+              "lg": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "css_variable_mapping": {
+      "description": "Theme properties are converted to CSS variables at runtime",
+      "example": {
+        "colors.primary": "--color-primary",
+        "fonts.main": "--font-main",
+        "spacing.unit": "--spacing-unit",
+        "borderRadius.md": "--border-radius-md"
+      }
+    },
+    "examples": [
+      {
+        "description": "Dark theme with cyan primary color",
+        "breadcrumb": {
+          "schema_name": "theme.v1",
+          "title": "RCRT Dark Theme",
+          "tags": ["theme", "theme:default"],
+          "context": {
+            "name": "RCRT Dark",
+            "colors": {
+              "primary": "#00f5ff",
+              "secondary": "#a855f7",
+              "background": "#0f1117",
+              "surface": "#1a1d2e",
+              "text": "#ffffff",
+              "textSecondary": "#9ca3af"
+            },
+            "fonts": {
+              "main": "system-ui, sans-serif",
+              "mono": "monospace"
+            },
+            "spacing": {
+              "unit": 4,
+              "sm": 12,
+              "md": 16,
+              "lg": 24
+            },
+            "borderRadius": {
+              "sm": "0.375rem",
+              "md": "0.5rem",
+              "lg": "0.75rem"
+            }
+          }
+        }
+      }
+    ],
+    "llm_hints": {
+      "summary": "Theme schema - define visual design tokens",
+      "when_to_use": "When creating or customizing visual themes",
+      "key_concepts": ["colors use semantic names", "CSS variables generated automatically", "can extend other themes"]
+    }
+  }
+}
+

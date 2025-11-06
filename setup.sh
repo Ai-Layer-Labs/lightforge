@@ -76,7 +76,6 @@ PROJECT_PREFIX=${PROJECT_PREFIX}
 RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
 DB_HOST=${PROJECT_PREFIX}db
 DB_URL=postgresql://postgres:postgres@\${DB_HOST}/rcrt
-NATS_URL=nats://${PROJECT_PREFIX}nats:4222
 
 # External URLs (for browser/extension access)
 RCRT_EXTERNAL_URL=http://localhost:8081
@@ -112,6 +111,18 @@ fi
 echo "🧹 Cleaning up..."
 rm -rf rcrt-visual-builder/apps/builder/node_modules || true
 rm -rf rcrt-visual-builder/node_modules || true
+
+# Ensure database volume is clean for fresh migrations
+echo "🔧 Checking database state..."
+if docker volume ls | grep -q "thinkos-1_db_data"; then
+    echo "⚠️  Existing database volume found. For a truly fresh install, run:"
+    echo "   docker compose down -v  # Remove containers AND volumes"
+    echo "   Then re-run this setup script"
+    echo ""
+    echo "   Continuing with existing database (migrations will apply if not already run)..."
+else
+    echo "✅ No existing database volume - fresh install"
+fi
 
 # Build the browser extension first (if node/npm available)
 if command -v npm >/dev/null 2>&1; then
@@ -161,7 +172,6 @@ services:
     container_name: ${PROJECT_PREFIX}rcrt
     environment:
       - DB_URL=postgresql://postgres:postgres@${PROJECT_PREFIX}db/rcrt
-      - NATS_URL=nats://${PROJECT_PREFIX}nats:4222
     depends_on:
       - ${PROJECT_PREFIX}db
       - ${PROJECT_PREFIX}nats
@@ -181,6 +191,12 @@ services:
     environment:
       - RCRT_BASE_URL=http://${PROJECT_PREFIX}rcrt:8080
       
+  context-builder:
+    container_name: ${PROJECT_PREFIX}context-builder
+    environment:
+      - RCRT_API_URL=http://${PROJECT_PREFIX}rcrt:8080
+      - DATABASE_URL=postgresql://postgres:postgres@${PROJECT_PREFIX}db/rcrt
+      
   builder:
     container_name: ${PROJECT_PREFIX}builder
     environment:
@@ -189,13 +205,29 @@ EOF
     echo "✅ Custom override created"
 fi
 
-# Start services
-echo "🚀 Starting services with prefix: ${PROJECT_PREFIX:-none}"
-docker compose up -d db nats rcrt dashboard tools-runner
+# Start services in proper order for NATS JetStream
+echo "🚀 Starting core infrastructure with prefix: ${PROJECT_PREFIX:-none}"
+echo "   Step 1: Database and NATS..."
+docker compose up -d db nats
 
-# Wait for core services to be ready
-echo "⏳ Waiting for core services..."
-sleep 20
+echo "⏳ Waiting for DB and NATS to be healthy..."
+sleep 5
+
+echo "   Step 2: RCRT (creates JetStream streams)..."
+docker compose up -d rcrt
+
+echo "⏳ Waiting for RCRT to initialize JetStream..."
+sleep 10
+
+echo "   Step 3: Context Builder (consumes from JetStream)..."
+docker compose up -d context-builder
+
+echo "   Step 4: Dashboard and Tools Runner..."
+docker compose up -d dashboard tools-runner
+
+# Wait for services to stabilize
+echo "⏳ Waiting for all services to be ready..."
+sleep 10
 
 # Try to start builder (may fail due to node_modules issues)
 echo "🔨 Starting builder (optional)..."
@@ -218,9 +250,9 @@ else
     echo "⚠️  psql not found - skipping system agent creation (database will handle on first use)"
 fi
 
-# Wait a bit more for tools-runner to register tools
-echo "⏳ Waiting for tool catalog to be created..."
-sleep 10
+# Wait for tools-runner to fully initialize and register tools
+echo "⏳ Waiting for tools-runner to initialize..."
+sleep 15
 
 # Bootstrap system using SINGLE SOURCE OF TRUTH
 echo "🌱 Bootstrapping system from bootstrap-breadcrumbs/ ..."
@@ -236,6 +268,16 @@ if command -v node >/dev/null 2>&1; then
         echo ""
         exit 1
     }
+    
+    # Wait for bootstrap tools to execute (openrouter-models-sync needs to run)
+    echo "⏳ Waiting for bootstrap tools to complete initial execution..."
+    echo "   (This includes syncing OpenRouter model catalog)"
+    sleep 20
+    
+    # Restart tools-runner to ensure it picks up the model catalog
+    echo "🔄 Restarting tools-runner to load model catalog..."
+    docker compose restart tools-runner
+    sleep 10
 else
     echo "❌ Node.js not found - bootstrap requires Node.js"
     echo "   Install Node.js and run: cd bootstrap-breadcrumbs && node bootstrap.js"
@@ -278,7 +320,8 @@ docker compose ps --format "table {{.Service}}\t{{.Status}}"
 echo ""
 echo "🤖 System Components:"
 echo "   ✅ Modern Agent Runner  - Executes agent definitions"
-echo "   ✅ Tools Runner         - Handles tool invocations"
+echo "   ✅ Tools Runner         - Handles tool invocations (Deno-based)"
+echo "   ✅ Context Builder      - Rust-based context assembly"
 echo "   ✅ Database & NATS      - Core infrastructure"
 echo "   ✅ Dashboard            - Visual management interface"
 echo ""

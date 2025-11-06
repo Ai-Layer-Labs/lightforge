@@ -97,7 +97,7 @@ export function useRealTimeData() {
       console.log('🛠️ Found tool catalog breadcrumb:', toolCatalog.id);
       
       // Get full context to see the tools list
-      const response = await authenticatedFetch(`/api/breadcrumbs/${toolCatalog.id}`);
+      const response = await authenticatedFetch(`/api/breadcrumbs/${toolCatalog.id}/full`);
       if (!response.ok) {
         throw new Error(`Failed to load tool catalog: ${response.statusText}`);
       }
@@ -160,10 +160,13 @@ export function useRealTimeData() {
       const processDataAndConnections = async () => {
         console.log('🔄 Processing loaded data into render nodes...');
         
-        // Only filter out tool config requests, but keep tool catalog and other tool-related breadcrumbs visible
+        // Filter out tool.code.v1 breadcrumbs (already represented in tool catalog)
+        // Also filter out tool config requests
         const regularBreadcrumbs = breadcrumbsQuery.data.filter(b => 
           // Keep tool catalog visible as it's an important system breadcrumb
-          // Only filter out tool config requests which are just status breadcrumbs
+          // Filter out tool.code.v1 since they're shown via tool catalog
+          b.schema_name !== 'tool.code.v1' &&
+          // Filter out tool config requests which are just status breadcrumbs
           !b.tags?.includes('tool:config:request') &&
           !b.schema_name?.includes('tool.config.request')
         );
@@ -291,7 +294,7 @@ export function useRealTimeData() {
     // Load full context for these breadcrumbs in parallel
     const fullContextPromises = importantBreadcrumbs.map(async (breadcrumb) => {
       try {
-        const response = await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}`);
+        const response = await authenticatedFetch(`/api/breadcrumbs/${breadcrumb.id}/full`);
         if (response.ok) {
           const fullData = await response.json();
           // Create new enhanced breadcrumb object

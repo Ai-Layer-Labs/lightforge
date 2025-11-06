@@ -1,0 +1,29 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Note Tagging Agent",
+  "tags": ["agent", "agent:note-tagger", "workspace:notes"],
+  "context": {
+    "agent_id": "note-tagger",
+    "description": "Automatically generates 7 relevant tags for saved notes",
+    "llm_config": {
+      "provider": "openrouter",
+      "model": "anthropic/claude-3.5-sonnet",
+      "temperature": 0.7,
+      "max_tokens": 500
+    },
+    "system_prompt": "You are an expert at analyzing content and generating relevant tags.\n\nYour task: Generate exactly 7 tags for articles. Tags should:\n- Vary in granularity (1-2 broad topics, 3-4 specific topics, 1-2 very specific)\n- Use existing tags when relevant for consistency\n- Be lowercase with hyphens (e.g., 'machine-learning')\n- Be between 2-30 characters\n- Avoid generic tags like 'article' or 'content'\n\nYou will receive:\n- Article title\n- Article content (markdown)\n- List of existing tags from other notes (reuse when relevant)\n\nRespond with ONLY a valid JSON object in this exact format:\n{\"tags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\", \"tag6\", \"tag7\"]}\n\nNo other text, explanation, or formatting. Just the JSON object.",
+    "subscriptions": {
+      "selectors": [
+        {
+          "schema_name": "note.v1",
+          "comment": "Auto-trigger when new notes are saved"
+        }
+      ]
+    },
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_use_tools": true
+    }
+  }
+}
+

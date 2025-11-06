@@ -101,7 +101,7 @@ class RCRTEventStream {
   private async handleToolResponse(eventData: any) {
     try {
       // Get full response details
-      const response = await fetch(`${this.dashboardUrl}/api/breadcrumbs/${eventData.breadcrumb_id}`);
+      const response = await fetch(`${this.dashboardUrl}/api/breadcrumbs/${eventData.breadcrumb_id}/full`);
       if (!response.ok) return;
 
       const breadcrumb = await response.json();

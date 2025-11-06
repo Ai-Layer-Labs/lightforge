@@ -1,0 +1,51 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Agent Context Schema Definition",
+  "tags": ["schema:definition", "system:bootstrap", "defines:agent.context.v1"],
+  "context": {
+    "defines_schema": "agent.context.v1",
+    "schema_version": "1.0.0",
+    "category": "agents",
+    "description": "Assembled context provided to agents",
+    
+    "llm_hints": {
+      "include": ["breadcrumbs", "token_estimate"],
+      "exclude": ["consumer_id", "trigger_event_id", "sources_assembled", "assembled_at"]
+    },
+    
+    "lifecycle": {
+      "ttl_policy": {
+        "type": "duration",
+        "config": {
+          "hours": 1
+        },
+        "description": "Agent context expires after 1 hour (ephemeral)",
+        "allow_override": false
+      }
+    },
+    
+    "field_definitions": {
+      "consumer_id": {
+        "type": "string",
+        "required": true,
+        "description": "Agent ID receiving this context"
+      },
+      "breadcrumbs": {
+        "type": "array",
+        "required": true,
+        "description": "Assembled breadcrumbs for agent"
+      },
+      "token_estimate": {
+        "type": "number",
+        "required": false,
+        "description": "Estimated token count"
+      },
+      "trigger_event_id": {
+        "type": "string",
+        "required": false,
+        "description": "Event that triggered assembly"
+      }
+    }
+  }
+}
+

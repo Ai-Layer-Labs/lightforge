@@ -42,6 +42,18 @@ export interface ToolCodeBreadcrumb {
         value: any;
       }>;
     }>;
+    ui_schema?: {
+      configurable?: boolean;
+      config_fields?: Array<any>;
+      description?: string;
+    };
+    bootstrap?: {
+      enabled: boolean;
+      mode: 'once' | 'continuous' | 'disabled';
+      priority?: number;
+      wait_for?: string[];
+      input?: any;
+    };
   };
 }
 
@@ -137,6 +149,112 @@ export class DenoToolRuntime {
   async reloadTools(): Promise<void> {
     this.tools.clear();
     await this.loadTools();
+  }
+  
+  /**
+   * Get tools configured for bootstrap execution
+   * Returns tools sorted by priority (highest first)
+   */
+  getBootstrapTools(): ToolCodeBreadcrumb[] {
+    const bootstrapTools = Array.from(this.tools.values())
+      .filter(tool => tool.context.bootstrap?.enabled === true);
+    
+    // Sort by priority (descending) then by name
+    bootstrapTools.sort((a, b) => {
+      const priorityA = a.context.bootstrap?.priority ?? 50;
+      const priorityB = b.context.bootstrap?.priority ?? 50;
+      
+      if (priorityB !== priorityA) {
+        return priorityB - priorityA; // Higher priority first
+      }
+      
+      return a.context.name.localeCompare(b.context.name);
+    });
+    
+    return bootstrapTools;
+  }
+  
+  /**
+   * Check if tool dependencies are satisfied
+   */
+  private checkDependencies(tool: ToolCodeBreadcrumb, completedTools: Set<string>): boolean {
+    const waitFor = tool.context.bootstrap?.wait_for || [];
+    return waitFor.every(dep => completedTools.has(dep));
+  }
+  
+  /**
+   * Execute bootstrap tools in correct order
+   */
+  async executeBootstrap(): Promise<{ successful: number; failed: number; skipped: number }> {
+    const bootstrapTools = this.getBootstrapTools();
+    
+    if (bootstrapTools.length === 0) {
+      console.log('[Bootstrap] No bootstrap tools found');
+      return { successful: 0, failed: 0, skipped: 0 };
+    }
+    
+    console.log(`[Bootstrap] Found ${bootstrapTools.length} bootstrap tool(s)`);
+    
+    const completedTools = new Set<string>();
+    const failedTools = new Set<string>();
+    const skippedTools = new Set<string>();
+    
+    // Separate once vs continuous tools
+    const onceTools = bootstrapTools.filter(t => t.context.bootstrap?.mode === 'once');
+    const continuousTools = bootstrapTools.filter(t => t.context.bootstrap?.mode === 'continuous');
+    
+    // Execute "once" tools sequentially
+    for (const tool of onceTools) {
+      // Check dependencies
+      if (!this.checkDependencies(tool, completedTools)) {
+        console.warn(`[Bootstrap] Skipping ${tool.context.name} - dependencies not met`);
+        skippedTools.add(tool.context.name);
+        continue;
+      }
+      
+      try {
+        console.log(`[Bootstrap] Executing ${tool.context.name} (priority: ${tool.context.bootstrap?.priority ?? 50})...`);
+        
+        const input = tool.context.bootstrap?.input || {};
+        const result = await this.executeTool({
+          tool_name: tool.context.name,
+          input,
+          request_id: `bootstrap-${tool.context.name}-${Date.now()}`,
+          agent_id: 'bootstrap',
+          workspace: this.workspace,
+          trigger_event: {
+            schema_name: 'system.startup.v1',
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        if (result.success) {
+          console.log(`[Bootstrap] ✅ ${tool.context.name} completed`);
+          completedTools.add(tool.context.name);
+        } else {
+          console.error(`[Bootstrap] ❌ ${tool.context.name} failed:`, result.error);
+          failedTools.add(tool.context.name);
+        }
+      } catch (error) {
+        console.error(`[Bootstrap] ❌ ${tool.context.name} threw error:`, error);
+        failedTools.add(tool.context.name);
+      }
+    }
+    
+    // Note: Continuous tools are NOT executed here
+    // They should be started by the tools-runner main loop
+    if (continuousTools.length > 0) {
+      console.log(`[Bootstrap] Found ${continuousTools.length} continuous tool(s) - these will be started separately`);
+      continuousTools.forEach(t => {
+        console.log(`   - ${t.context.name} (priority: ${t.context.bootstrap?.priority ?? 50})`);
+      });
+    }
+    
+    return {
+      successful: completedTools.size,
+      failed: failedTools.size,
+      skipped: skippedTools.size
+    };
   }
   
   /**

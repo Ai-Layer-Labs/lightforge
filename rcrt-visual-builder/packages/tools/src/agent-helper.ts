@@ -203,15 +203,15 @@ Key points:
       guidance.code_examples = [
         {
           title: 'Basic Secret Access',
-          code: `const apiKey = await getSecret('OPENROUTER_API_KEY', 'LLM analysis task');`,
+          code: `const apiKey = await getSecret('MY_API_KEY', 'External API analysis task');`,
           description: 'Get a secret value with audit reason'
         },
         {
           title: 'Using Secret with Tool',
           code: `
-const apiKey = await getSecret('OPENROUTER_API_KEY');
-await invokeTool('openrouter', {
-  messages: [{ role: 'user', content: 'Hello' }],
+const apiKey = await getSecret('MY_API_KEY');
+await invokeTool('my-tool', {
+  input: { data: 'Hello' },
   // Note: Most tools auto-configure secrets, manual key not needed
 });`,
           description: 'Most tools automatically use configured secrets'
@@ -229,7 +229,7 @@ await invokeTool('openrouter', {
       guidance.detailed_explanation = `
 Tools are external services that extend agent capabilities. Invoke them using the invokeTool function.
 
-Available tools: openrouter (LLM), calculator, echo, timer, random, web_browser, serpapi
+All tools are defined as tool.code.v1 breadcrumbs and discovered dynamically from the tool catalog.
 
 Tool execution is asynchronous - you create a tool.request.v1 breadcrumb and the tools-runner service executes it, creating a tool.response.v1 breadcrumb with results.
       `;
@@ -245,17 +245,15 @@ console.log('Tool request created:', result.tool_request_id);`,
           description: 'Invoke calculator tool with expression'
         },
         {
-          title: 'LLM Tool Usage',
+          title: 'Generic Tool Usage',
           code: `
-await invokeTool('openrouter', {
-  messages: [
-    { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: userQuery }
-  ],
-  temperature: 0.7,
-  max_tokens: 1000
+await invokeTool('my-tool', {
+  input: {
+    data: userQuery,
+    options: { mode: 'advanced' }
+  }
 });`,
-          description: 'Use OpenRouter for LLM capabilities'
+          description: 'Invoke any tool with structured input'
         }
       ];
       
@@ -363,12 +361,12 @@ Core workflow for agents:
 // 1. Search for context
 const context = await searchBreadcrumbs(userQuery, { limit: 5 });
 
-// 2. Use LLM tool if needed
-const llmResponse = await invokeTool('openrouter', {
-  messages: [
-    { role: 'system', content: 'Use this context: ' + JSON.stringify(context) },
-    { role: 'user', content: userQuery }
-  ]
+// 2. Use external tool if needed
+const toolResponse = await invokeTool('my-tool', {
+  input: {
+    context: JSON.stringify(context),
+    query: userQuery
+  }
 });
 
 // 3. Create structured response
@@ -377,10 +375,10 @@ await createBreadcrumb({
   tags: ['agent:response', 'user:answer'],
   context: {
     user_query: userQuery,
-    llm_response: llmResponse,
+    tool_response: toolResponse,
     context_used: context.map(c => c.id),
     confidence: 0.9,
-    method: 'context_aware_llm'
+    method: 'context_aware_tool'
   }
 });`,
           description: 'Complete pattern for responding to user queries'

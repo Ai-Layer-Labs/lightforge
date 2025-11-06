@@ -32,7 +32,7 @@ async function getAgentDefinition() {
       console.log('Found', agents.length, 'agent definitions');
       
       // Get full definition of first agent
-      const fullResp = await fetch(`${config.rcrtBaseUrl}/breadcrumbs/${agents[0].id}`, {
+      const fullResp = await fetch(`${config.rcrtBaseUrl}/breadcrumbs/${agents[0].id}/full`, {
         headers: { 'Authorization': `Bearer ${jwtToken}` }
       });
       
