@@ -7,9 +7,12 @@
 ## 🚀 Start Here
 
 **New to RCRT?**
-1. Read [../QUICK_START.md](../QUICK_START.md) - Get running in minutes
-2. Read [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Understand the complete system
-3. Read [RCRT_PRINCIPLES.md](RCRT_PRINCIPLES.md) - Learn the philosophy
+1. Read [../QUICK_START.md](../QUICK_START.md) - Get running in minutes (15 min)
+2. Read [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) **Executive Summary** - Quick orientation (5 min) ⭐
+3. Read [RCRT_PRINCIPLES.md](RCRT_PRINCIPLES.md) - Learn the philosophy (30 min)
+4. Deep dive [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system (2-3 hours)
+
+> 💡 **Tip:** The SYSTEM_ARCHITECTURE.md executive summary gives you everything you need to start. Deep dive sections as needed.
 
 ---
 
@@ -18,14 +21,16 @@
 ### System Design & Architecture
 
 **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** ⭐ **START HERE**
-- Complete system design (1,739 lines)
-- All 9 services documented
-- Data flows, patterns, validation
-- Event-driven communication
-- Breadcrumb system
-- Agents vs tools
-- Performance & security
-- **THE definitive reference**
+- **Executive Summary** (5 min) - Quick orientation, status, critical patterns
+- Complete system design (1,900+ lines total)
+- All 9 services documented with I/O and patterns
+- Complete data flows (12-step chat, 10-step notes)
+- Event-driven communication (SSE, NATS, fire-and-forget)
+- Breadcrumb system (schemas, TTL, llm_hints)
+- Agents vs Tools (requirements + counter-examples)
+- Current state (🟢 working, 🟡 limited, 🔴 broken)
+- Performance, security, validation
+- **THE definitive reference - Read executive summary first!**
 
 **[RCRT_PRINCIPLES.md](RCRT_PRINCIPLES.md)**
 - Core philosophy

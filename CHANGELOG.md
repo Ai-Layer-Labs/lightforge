@@ -67,6 +67,33 @@
 - Critical usage notes for /breadcrumbs/{id} vs /breadcrumbs/{id}/full validated
 - Specification now 100% complete and accurate
 
+### Documentation Overhaul (Based on LLM Feedback)
+- **Added executive summary** to SYSTEM_ARCHITECTURE.md (150 lines)
+  - 5-minute quick orientation
+  - System status with visual indicators (🟢🟡🔴)
+  - THE critical pattern (fire-and-forget) explained up front
+  - THE intelligence secret (context-builder) emphasized
+  - Current state prominently displayed
+- **Enhanced critical sections** with visual callouts
+  - Fire-and-forget pattern: Code examples from all 3 services
+  - context-builder importance: WITH vs WITHOUT comparison
+  - Agents vs Tools: Requirements + counter-examples
+- **Added visual indicators throughout**
+  - 🔥 Fire-and-forget (critical pattern)
+  - 🧠 context-builder (intelligence multiplier)
+  - 🟢 Working / 🟡 Limited / 🔴 Broken / 🔵 Solution Ready
+  - 🎯 Critical distinctions
+- **Improved navigation**
+  - "How to Use This Document" guide
+  - Section read time estimates
+  - Use case-based navigation
+- **Enhanced Current System Gaps section**
+  - Priority levels (IMMEDIATE, High, Low)
+  - Impact statements
+  - Solution status
+  - Proof of root causes with code
+- Tested with Sonnet 4.5: Identified need for better orientation (now addressed)
+
 ---
 
 ## Recent Major Milestones (September-October 2025)
