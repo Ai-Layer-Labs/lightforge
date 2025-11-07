@@ -33,8 +33,14 @@
       },
       "get": {
         "summary": "List breadcrumbs",
-        "description": "List breadcrumbs visible to the caller within the owner scope. Optional tag filter.",
-        "parameters": [{ "name": "tag", "in": "query", "schema": { "type": "string" } }],
+        "description": "List breadcrumbs visible to the caller within the owner scope. Optional filters for tag, schema, pagination.",
+        "parameters": [
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Filter by tag" },
+          { "name": "schema_name", "in": "query", "schema": { "type": "string" }, "description": "Filter by schema name" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" }, "description": "Maximum results to return" },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" }, "description": "Number of results to skip (pagination)" },
+          { "name": "include_context", "in": "query", "schema": { "type": "boolean" }, "description": "Include full context in response (default: false)" }
+        ],
         "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ListItem" } } } } } }
       }
     },
@@ -70,15 +76,22 @@
       "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
       "get": {
         "summary": "Get history",
-        "description": "List historical versions with context snapshots and audit details.",
+        "description": "List historical versions with context snapshots and audit details. Returns array of version snapshots ordered by version (most recent first).",
         "responses": { "200": { "description": "History", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/HistoryItem" } } } } } }
       }
     },
     "/breadcrumbs/search": {
       "get": {
         "summary": "Vector search",
-        "description": "Nearest-neighbor search over embeddings (auto-embed with 'q' or pass explicit 'qvec'). Filterable by tag.",
-        "parameters": [{ "name": "q", "in": "query", "schema": { "type": "string" } }, { "name": "qvec", "in": "query", "schema": { "type": "string" } }, { "name": "nn", "in": "query", "schema": { "type": "integer" } }, { "name": "tag", "in": "query", "schema": { "type": "string" } }],
+        "description": "Nearest-neighbor search over embeddings (auto-embed with 'q' or pass explicit 'qvec'). Filterable by tag and schema.",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Query text (will be auto-embedded)" },
+          { "name": "qvec", "in": "query", "schema": { "type": "string" }, "description": "Explicit query vector (comma-separated floats)" },
+          { "name": "nn", "in": "query", "schema": { "type": "integer" }, "description": "Number of nearest neighbors to return (default: 5)" },
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Filter results by tag" },
+          { "name": "schema_name", "in": "query", "schema": { "type": "string" }, "description": "Filter results by schema name" },
+          { "name": "include_context", "in": "query", "schema": { "type": "boolean" }, "description": "Include full context in response (default: false)" }
+        ],
         "responses": { "200": { "description": "Results", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ListItem" } } } } } }
       }
     },
@@ -375,7 +388,8 @@
       "TokenRequest": { "type": "object", "properties": { "owner_id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "roles": { "type": "array", "items": { "type": "string" } }, "ttl_sec": { "type": "integer", "description": "Token TTL in seconds", "default": 3600 } }, "required": ["owner_id", "agent_id"] },
       "TokenResponse": { "type": "object", "properties": { "token": { "type": "string" }, "owner_id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "roles": { "type": "array", "items": { "type": "string" } }, "exp": { "type": "integer", "description": "Expiration timestamp" } } },
       "HygieneStats": { "type": "object", "properties": { "runs_completed": { "type": "integer" }, "total_breadcrumbs_purged": { "type": "integer" }, "total_agents_cleaned": { "type": "integer" }, "last_run_duration_ms": { "type": "integer" }, "last_run_errors": { "type": "array", "items": { "type": "string" } }, "hygiene_enabled": { "type": "boolean" }, "last_updated": { "type": "string", "format": "date-time" } } },
-      "HygieneRunResult": { "type": "object", "properties": { "triggered": { "type": "boolean" }, "health_checks_purged": { "type": "integer" }, "expired_breadcrumbs_purged": { "type": "integer" }, "total_cleaned": { "type": "integer" }, "message": { "type": "string" } } }
+      "HygieneRunResult": { "type": "object", "properties": { "triggered": { "type": "boolean" }, "health_checks_purged": { "type": "integer" }, "expired_breadcrumbs_purged": { "type": "integer" }, "total_cleaned": { "type": "integer" }, "message": { "type": "string" } } },
+      "HistoryItem": { "type": "object", "properties": { "version": { "type": "integer", "description": "Breadcrumb version number" }, "context": { "type": "object", "additionalProperties": true, "description": "Context snapshot for this version" }, "updated_at": { "type": "string", "format": "date-time", "description": "When this version was created" }, "updated_by": { "type": "string", "format": "uuid", "description": "Agent UUID that created this version" } }, "description": "Historical version snapshot of a breadcrumb" }
     },
     "securitySchemes": {
       "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }

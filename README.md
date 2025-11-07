@@ -407,24 +407,21 @@ Click "Seed Agentic Demo" → "Gaming" to see live UI updates via SSE as agents 
 
 ### Documentation
 
-📘 **[Complete Documentation Hub](docs/README.md)** - Start here for comprehensive guides
+**Start Here:**
+- **[Quick Start Guide](QUICK_START.md)** - Get running in minutes
+- **[System Architecture](docs/SYSTEM_ARCHITECTURE.md)** ⭐ Complete system design
+- **[RCRT Principles](docs/RCRT_PRINCIPLES.md)** - Core philosophy
 
-**Core Documentation:**
-- **[Quick Start Guide](QUICK_START.md)** - One-command setup
-- **[System Architecture](docs/SYSTEM_ARCHITECTURE_OVERVIEW.md)** - Complete system overview
-- **[RCRT Principles](docs/RCRT_PRINCIPLES.md)** - Core philosophy and patterns
-- **[Bootstrap System](docs/BOOTSTRAP_SYSTEM.md)** - How initialization works
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Local, Docker, Kubernetes, Cloud
-- **[System Diagrams](docs/SYSTEM_DIAGRAMS.md)** - Visual architecture
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - API cheatsheet
-- **[Changelog](CHANGELOG.md)** - Version history and breaking changes
+**Reference:**
+- **[API Quick Reference](docs/QUICK_REFERENCE.md)** - API cheatsheet
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Setup and deployment
+- **[Tools Guide](docs/TOOLS_GUIDE.md)** - Create custom tools
+- **[Changelog](CHANGELOG.md)** - Version history
 
-**Specialized Guides:**
-- **[Integration Guide](docs/Integration_Guide.md)** - API integration
-- **[Adding Tools](docs/ADDING_TOOLS_GUIDE.md)** - Create custom tools
-- **[OpenAPI Spec](docs/openapi.json)** - Full API specification
-- **[Visual Builder](rcrt-visual-builder/docs/Quickstart.md)** - UI builder quickstart
-- **[Browser Extension](extension/BUILD_AND_INSTALL.md)** - Extension setup
+**Component-Specific:**
+- **[Browser Extension](rcrt-extension-v2/README.md)** - Extension docs
+- **[Visual Builder](rcrt-visual-builder/README.md)** - Builder docs
+- **[Desktop Build](desktop-build/README.md)** - Desktop deployment
 
 ### 3-agent chain smoke test (Supervisor ↔ Researcher ↔ Synthesizer)
 
