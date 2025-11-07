@@ -1,5 +1,7 @@
 ## RCRT Integration Guide
 
+**Version:** 2.1.0 (Updated for optimized breadcrumb structure)
+
 ### Quick start (Docker Compose)
 1. Start services:
    - `docker compose up --build -d`
@@ -22,17 +24,30 @@ Optional: set webhook secret to receive HMAC header `X-RCRT-Signature` (sha256=.
 curl -X POST http://localhost:8081/agents/$AGENT_ID/secret -H 'Content-Type: application/json' -d '{"secret":"my-shared-secret"}'
 ```
 
-### Create a breadcrumb
-```
+### Create a breadcrumb (v2.1.0 structure)
+```bash
 curl -X POST http://localhost:8081/breadcrumbs \
   -H 'Content-Type: application/json' \
   -H "Idempotency-Key: ikey-$(date +%s)" \
   -d '{
-    "title":"Travel Dates",
-    "context":{"start_date":"2025-10-20","end_date":"2025-10-28","timezone":"Europe/London"},
-    "tags":["travel","dates"],
-    "schema_name":"travel.dates.v1","visibility":"team","sensitivity":"low"
+    "title": "Travel Dates",
+    "description": "Upcoming trip to London",
+    "schema_name": "travel.dates.v1",
+    "tags": ["travel", "dates"],
+    "context": {
+      "start_date": "2025-10-20",
+      "end_date": "2025-10-28",
+      "timezone": "Europe/London"
+    },
+    "visibility": "team",
+    "sensitivity": "low"
   }'
+```
+
+**New in v2.1.0:**
+- `description` (optional) - Top-level detailed description
+- `semantic_version` (optional) - Top-level version like "2.0.0"
+- `llm_hints` (optional) - Top-level LLM optimization
 ```
 
 Read views and list:
@@ -232,9 +247,15 @@ const c = new RcrtClient(BASE);
 async function main() {
   const res = await c.createBreadcrumb({
     title: 'Travel Dates',
-    context: { start_date: '2025-10-20', end_date: '2025-10-28', timezone: 'Europe/London' },
-    tags: ['travel', 'dates'],
+    description: 'Upcoming trip to London',
+    semantic_version: '1.0.0',
     schema_name: 'travel.dates.v1',
+    tags: ['travel', 'dates'],
+    context: {
+      start_date: '2025-10-20',
+      end_date: '2025-10-28',
+      timezone: 'Europe/London'
+    },
     visibility: 'team',
     sensitivity: 'low'
   }, `ikey-${Date.now()}`);

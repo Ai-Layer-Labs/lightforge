@@ -647,6 +647,40 @@ For manual migrations:
 docker exec -it rcrt-postgres psql -U rcrt -d rcrt -f migration.sql
 ```
 
+### Upgrading to v2.1.0 (BREAKING CHANGE)
+
+**v2.1.0 introduces normalized breadcrumb structure:**
+
+**Changes:**
+- `description`, `semantic_version`, `llm_hints` now top-level (not in context)
+- NO backward compatibility - old structure not supported
+
+**Migration steps:**
+
+1. **Apply database migration:**
+   ```bash
+   docker-compose exec db psql -U postgres -d rcrt \
+     -f /app/migrations/0008_breadcrumb_normalization.sql
+   ```
+
+2. **Migrate bootstrap files:**
+   ```bash
+   cd bootstrap-breadcrumbs
+   node ../scripts/migrate-breadcrumb-structure.js
+   ```
+
+3. **Rebuild services:**
+   ```bash
+   docker-compose up --build -d
+   ```
+
+4. **Rebootstrap:**
+   ```bash
+   cd bootstrap-breadcrumbs && node bootstrap.js
+   ```
+
+**Important:** Production breadcrumbs need migration or recreation.
+
 ### Cleanup
 
 **Old breadcrumbs** (automatic):

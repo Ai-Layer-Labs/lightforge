@@ -1,11 +1,13 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Theme Schema Definition",
-  "tags": ["schema", "schema:theme.v1", "system:schema"],
+  "tags": [
+    "schema",
+    "schema:theme.v1",
+    "system:schema"
+  ],
   "context": {
     "schema_name": "theme.v1",
-    "version": "1.0.0",
-    "description": "Defines visual themes with colors, fonts, spacing, and other design tokens",
     "purpose": "Enable dynamic theme management and customization via breadcrumbs",
     "structure": {
       "title": {
@@ -17,7 +19,11 @@
         "type": "array",
         "required": true,
         "description": "Must include 'theme' and optionally 'theme:{name}' for identification",
-        "example": ["theme", "theme:default", "system:theme"]
+        "example": [
+          "theme",
+          "theme:default",
+          "system:theme"
+        ]
       },
       "context": {
         "type": "object",
@@ -37,49 +43,116 @@
             "required": true,
             "description": "Color palette with semantic names",
             "properties": {
-              "primary": {"type": "string", "format": "color"},
-              "secondary": {"type": "string", "format": "color"},
-              "background": {"type": "string", "format": "color"},
-              "surface": {"type": "string", "format": "color"},
-              "text": {"type": "string", "format": "color"},
-              "textSecondary": {"type": "string", "format": "color"},
-              "success": {"type": "string", "format": "color"},
-              "warning": {"type": "string", "format": "color"},
-              "error": {"type": "string", "format": "color"},
-              "info": {"type": "string", "format": "color"},
-              "nodeTool": {"type": "string", "description": "Tool node color"},
-              "nodeSecret": {"type": "string", "description": "Secret node color"},
-              "nodeAgent": {"type": "string", "description": "Agent node color"}
+              "primary": {
+                "type": "string",
+                "format": "color"
+              },
+              "secondary": {
+                "type": "string",
+                "format": "color"
+              },
+              "background": {
+                "type": "string",
+                "format": "color"
+              },
+              "surface": {
+                "type": "string",
+                "format": "color"
+              },
+              "text": {
+                "type": "string",
+                "format": "color"
+              },
+              "textSecondary": {
+                "type": "string",
+                "format": "color"
+              },
+              "success": {
+                "type": "string",
+                "format": "color"
+              },
+              "warning": {
+                "type": "string",
+                "format": "color"
+              },
+              "error": {
+                "type": "string",
+                "format": "color"
+              },
+              "info": {
+                "type": "string",
+                "format": "color"
+              },
+              "nodeTool": {
+                "type": "string",
+                "description": "Tool node color"
+              },
+              "nodeSecret": {
+                "type": "string",
+                "description": "Secret node color"
+              },
+              "nodeAgent": {
+                "type": "string",
+                "description": "Agent node color"
+              }
             }
           },
           "fonts": {
             "type": "object",
             "required": true,
             "properties": {
-              "main": {"type": "string", "description": "Primary font stack"},
-              "mono": {"type": "string", "description": "Monospace font stack"},
-              "heading": {"type": "string", "description": "Heading font stack"}
+              "main": {
+                "type": "string",
+                "description": "Primary font stack"
+              },
+              "mono": {
+                "type": "string",
+                "description": "Monospace font stack"
+              },
+              "heading": {
+                "type": "string",
+                "description": "Heading font stack"
+              }
             }
           },
           "spacing": {
             "type": "object",
             "required": true,
             "properties": {
-              "unit": {"type": "number", "description": "Base spacing unit in pixels"},
-              "xs": {"type": "number"},
-              "sm": {"type": "number"},
-              "md": {"type": "number"},
-              "lg": {"type": "number"},
-              "xl": {"type": "number"}
+              "unit": {
+                "type": "number",
+                "description": "Base spacing unit in pixels"
+              },
+              "xs": {
+                "type": "number"
+              },
+              "sm": {
+                "type": "number"
+              },
+              "md": {
+                "type": "number"
+              },
+              "lg": {
+                "type": "number"
+              },
+              "xl": {
+                "type": "number"
+              }
             }
           },
           "borderRadius": {
             "type": "object",
             "required": true,
             "properties": {
-              "sm": {"type": "string"},
-              "md": {"type": "string"},
-              "lg": {"type": "string"}
+              "sm": {
+                "type": "string"
+              },
+              "md": {
+                "type": "string"
+              },
+              "lg": {
+                "type": "string"
+              }
             }
           }
         }
@@ -100,7 +173,10 @@
         "breadcrumb": {
           "schema_name": "theme.v1",
           "title": "RCRT Dark Theme",
-          "tags": ["theme", "theme:default"],
+          "tags": [
+            "theme",
+            "theme:default"
+          ],
           "context": {
             "name": "RCRT Dark",
             "colors": {
@@ -129,12 +205,17 @@
           }
         }
       }
-    ],
-    "llm_hints": {
-      "summary": "Theme schema - define visual design tokens",
-      "when_to_use": "When creating or customizing visual themes",
-      "key_concepts": ["colors use semantic names", "CSS variables generated automatically", "can extend other themes"]
-    }
+    ]
+  },
+  "description": "Defines visual themes with colors, fonts, spacing, and other design tokens",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "summary": "Theme schema - define visual design tokens",
+    "when_to_use": "When creating or customizing visual themes",
+    "key_concepts": [
+      "colors use semantic names",
+      "CSS variables generated automatically",
+      "can extend other themes"
+    ]
   }
 }
-

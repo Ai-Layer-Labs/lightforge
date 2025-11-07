@@ -94,6 +94,40 @@
   - Proof of root causes with code
 - Tested with Sonnet 4.5: Identified need for better orientation (now addressed)
 
+### Breadcrumb Structure Optimization (BREAKING CHANGE v2.1.0)
+- **Normalized breadcrumb structure** for LLM-assemblability
+  - Moved description, semantic_version, llm_hints to top-level (from context)
+  - Reduces nesting, enables direct SQL queries
+  - LLM-friendly: consistent field locations
+  - **BREAKING:** NO support for context.version, context.description, context.llm_hints
+- **Fixed llm_hints precedence** to Instance > Schema
+  - Allows per-breadcrumb customization
+  - Was backwards (schema overrode instance)
+  - Now properly supports instance overrides
+  - **BREAKING:** Removed legacy context.llm_hints support (clean break)
+- **Database migration** 0008_breadcrumb_normalization.sql
+  - Added: description TEXT, semantic_version TEXT, llm_hints JSONB
+  - Added full-text search index on description
+  - **BREAKING:** Old structure NOT supported - migration required
+- **Updated all code layers**
+  - Rust: models.rs, db.rs, main.rs (struct fields, SQL queries)
+  - TypeScript: Extension and SDK types (optional fields)
+  - REST API: CreateReq, UpdateReq (accept new fields)
+- **Created base templates**
+  - base-breadcrumb.json - Standard structure for all breadcrumbs
+  - base-tool.json - Tool-specific defaults and patterns
+  - base-agent.json - Agent-specific requirements
+- **Migrated bootstrap files** (34 files)
+  - All tools: context.version → semantic_version
+  - All schemas: context.llm_hints → llm_hints
+  - Automated migration script created
+  - Backups preserved (.backup files)
+- **Benefits**
+  - Query performance: Direct column access vs JSONB parsing
+  - LLM clarity: Flat structure, consistent locations
+  - Extensibility: Templates guide LLM-generated breadcrumbs
+  - Foundation for meta-tools and LLM-assemblable system
+
 ---
 
 ## Recent Major Milestones (September-October 2025)

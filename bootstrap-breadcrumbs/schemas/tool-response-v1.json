@@ -1,23 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Tool Response Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:tool.response.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:tool.response.v1"
+  ],
   "context": {
     "defines_schema": "tool.response.v1",
-    "schema_version": "1.0.0",
     "category": "tools",
-    "description": "Tool execution results",
-    
-    "llm_hints": {
-      "transform": {
-        "formatted": {
-          "type": "format",
-          "format": "Tool {tool} ({status}): {output}"
-        }
-      },
-      "mode": "replace"
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "duration",
@@ -51,7 +42,6 @@
         ]
       }
     },
-    
     "field_definitions": {
       "tool": {
         "type": "string",
@@ -79,6 +69,16 @@
         "description": "How long execution took"
       }
     }
+  },
+  "description": "Tool execution results",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "format",
+        "format": "Tool {tool} ({status}): {output}"
+      }
+    },
+    "mode": "replace"
   }
 }
-

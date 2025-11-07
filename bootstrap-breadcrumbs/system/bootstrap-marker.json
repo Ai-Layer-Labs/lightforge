@@ -1,18 +1,24 @@
 {
   "schema_name": "system.bootstrap.v1",
   "title": "RCRT Bootstrap Status",
-  "tags": ["system:bootstrap", "workspace:system"],
+  "tags": [
+    "system:bootstrap",
+    "workspace:system"
+  ],
   "context": {
-    "version": "2.0.0",
     "timestamp": "WILL_BE_SET_AT_RUNTIME",
     "source_of_truth": "bootstrap-breadcrumbs/",
     "philosophy": "All bootstrap data loaded from JSON files - no hardcoding, no fallbacks, no duplicates",
-    "description": "Tracks bootstrap status and prevents duplicate initialization",
     "components": {
       "infrastructure": {
         "database": true,
         "nats": true,
-        "services": ["rcrt", "dashboard", "agent-runner", "tools-runner"]
+        "services": [
+          "rcrt",
+          "dashboard",
+          "agent-runner",
+          "tools-runner"
+        ]
       },
       "agents": {
         "system_agents": [
@@ -21,7 +27,9 @@
           "00000000-0000-0000-0000-0000000000ddd",
           "00000000-0000-0000-0000-000000000AAA"
         ],
-        "default_agents": ["default-chat-assistant"]
+        "default_agents": [
+          "default-chat-assistant"
+        ]
       },
       "breadcrumbs": {
         "system_definitions": true,
@@ -42,5 +50,7 @@
       "5. Create bootstrap marker"
     ],
     "note": "This breadcrumb marks the system as fully bootstrapped. Subsequent runs will skip initialization."
-  }
+  },
+  "description": "Tracks bootstrap status and prevents duplicate initialization",
+  "semantic_version": "2.0.0"
 }

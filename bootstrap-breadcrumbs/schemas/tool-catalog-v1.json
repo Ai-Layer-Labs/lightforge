@@ -1,27 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Tool Catalog Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:tool.catalog.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:tool.catalog.v1"
+  ],
   "context": {
     "defines_schema": "tool.catalog.v1",
-    "schema_version": "1.0.0",
     "category": "tools",
-    "description": "Catalog of available tools for agent discovery",
-    
-    "llm_hints": {
-      "transform": {
-        "tool_list": {
-          "type": "extract",
-          "value": "$.tools[*].name"
-        },
-        "tool_count": {
-          "type": "literal",
-          "literal": "Use tools by their name"
-        }
-      },
-      "mode": "replace"
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "never",
@@ -29,7 +16,6 @@
         "allow_override": false
       }
     },
-    
     "field_definitions": {
       "tools": {
         "type": "array",
@@ -42,6 +28,20 @@
         "description": "When catalog was last updated"
       }
     }
+  },
+  "description": "Catalog of available tools for agent discovery",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "tool_list": {
+        "type": "extract",
+        "value": "$.tools[*].name"
+      },
+      "tool_count": {
+        "type": "literal",
+        "literal": "Use tools by their name"
+      }
+    },
+    "mode": "replace"
   }
 }
-

@@ -12,12 +12,22 @@ export interface BreadcrumbContext {
   [key: string]: any;
 }
 
+export interface LlmHints {
+  transform?: Record<string, any>;
+  include?: string[];
+  exclude?: string[];
+  mode?: 'replace' | 'merge';
+}
+
 export interface Breadcrumb {
   id: string;
   title: string;
+  description?: string;              // NEW: Detailed description
+  semantic_version?: string;         // NEW: Semantic version
   context: BreadcrumbContext;
   tags: string[];
   schema_name?: string;
+  llm_hints?: LlmHints;              // NEW: Instance-level LLM optimization
   visibility?: 'public' | 'team' | 'private';
   sensitivity?: 'low' | 'pii' | 'secret';
   version: number;
@@ -32,18 +42,24 @@ export interface Breadcrumb {
 
 export interface BreadcrumbCreate {
   title: string;
+  description?: string;              // NEW: Detailed description
+  semantic_version?: string;         // NEW: Semantic version
   context: BreadcrumbContext;
   tags: string[];
   schema_name?: string;
+  llm_hints?: LlmHints;              // NEW: Instance-level LLM optimization
   visibility?: 'public' | 'team' | 'private';
   sensitivity?: 'low' | 'pii' | 'secret';
   ttl?: string;
 }
 
 export interface BreadcrumbUpdate {
+  title?: string;
+  description?: string;              // NEW: Update description
+  semantic_version?: string;         // NEW: Update semantic version
   context?: Partial<BreadcrumbContext>;
   tags?: string[];
-  title?: string;
+  llm_hints?: LlmHints;              // NEW: Update LLM hints
   visibility?: 'public' | 'team' | 'private';
   sensitivity?: 'low' | 'pii' | 'secret';
   ttl?: string;

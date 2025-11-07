@@ -1,18 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Tool Code Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:tool.code.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:tool.code.v1"
+  ],
   "context": {
     "defines_schema": "tool.code.v1",
-    "schema_version": "1.0.0",
     "category": "tools",
-    "description": "Self-contained Deno-based tool definitions",
-    
-    "llm_hints": {
-      "include": ["name", "description", "input_schema", "output_schema", "examples"],
-      "exclude": ["code", "permissions", "limits", "ui_schema", "bootstrap"]
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "never",
@@ -20,7 +16,6 @@
         "allow_override": false
       }
     },
-    
     "field_definitions": {
       "name": {
         "type": "string",
@@ -55,6 +50,23 @@
         "description": "Example tool invocations"
       }
     }
+  },
+  "description": "Self-contained Deno-based tool definitions",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
+    ]
   }
 }
-

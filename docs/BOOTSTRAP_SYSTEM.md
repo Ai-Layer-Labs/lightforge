@@ -1,8 +1,12 @@
 # RCRT Bootstrap System
 
+**Version:** 2.1.0 (Updated for optimized breadcrumb structure)
+
 ## Overview
 
 The RCRT bootstrap system provides a **single source of truth** for all system initialization. All agents, tools, and templates are defined as JSON files in the `bootstrap-breadcrumbs/` directory and loaded into the system on startup.
+
+**v2.1.0 Breaking Change:** Breadcrumb structure normalized - `description`, `semantic_version`, and `llm_hints` are now top-level fields (not in context).
 
 ## Architecture
 
@@ -156,18 +160,43 @@ Each tool is defined with:
 }
 ```
 
+### Breadcrumb Structure (v2.1.0)
+
+**Standard structure:**
+```json
+{
+  "schema_name": "tool.code.v1",
+  "title": "Tool Name",
+  "description": "What it does",        // NEW: Top-level
+  "semantic_version": "2.0.0",          // NEW: Top-level  
+  "tags": ["tool", "workspace:tools"],
+  "llm_hints": {                        // NEW: Top-level
+    "include": ["name", "description"],
+    "exclude": ["code"]
+  },
+  "context": {
+    // Schema-specific data only
+  }
+}
+```
+
+**See:** `bootstrap-breadcrumbs/templates/base-breadcrumb.json` for full specification
+
 ### Complete Tool List
 
 1. **openrouter** - LLM API via OpenRouter
 2. **ollama** - Local LLM via Ollama
-3. **agent-helper** - Agent operations (get context, update state)
-4. **breadcrumb-crud** - Direct breadcrumb operations
-5. **agent-loader** - Load agent definitions
-6. **calculator** - Basic math operations
-7. **random** - Generate random numbers
-8. **echo** - Echo back input
-9. **timer** - Delay/timing operations
-10. **context-builder** - Smart context assembly
+3. **calculator** - Basic math operations
+4. **random** - Generate random numbers
+5. **echo** - Echo back input
+6. **timer** - Delay/timing operations
+7. **breadcrumb-crud** - Direct breadcrumb operations
+8. **breadcrumb-search** - Search breadcrumbs
+9. **json-transform** - JSON transformations
+10. **scheduler** - Schedule operations
+11. **venice** - Venice AI integration
+12. **workflow** - Workflow orchestration
+13. **openrouter-models-sync** - Sync model catalog
 11. **file-storage** - File operations
 12. **browser-context-capture** - Capture browser context
 13. **workflow** - Workflow orchestration

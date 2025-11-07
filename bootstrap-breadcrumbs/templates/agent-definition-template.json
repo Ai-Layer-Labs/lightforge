@@ -1,14 +1,22 @@
 {
-  "schema_name": "template.v1", 
+  "schema_name": "template.v1",
   "title": "Agent Definition Template",
-  "tags": ["template:agent", "guide:agents", "workspace:templates", "system:bootstrap"],
+  "tags": [
+    "template:agent",
+    "guide:agents",
+    "workspace:templates",
+    "system:bootstrap"
+  ],
   "context": {
     "template_for": "agent.definition.v1",
-    "description": "Template for creating agents that properly use breadcrumb context",
     "structure": {
       "schema_name": "agent.definition.v1",
       "title": "{Agent Name}",
-      "tags": ["agent:definition", "workspace:agents", "{custom-tags}"],
+      "tags": [
+        "agent:definition",
+        "workspace:agents",
+        "{custom-tags}"
+      ],
       "context": {
         "agent_id": "{unique-agent-id}",
         "llm_tool": "{tool-name-for-llm}",
@@ -28,28 +36,43 @@
           "selectors": [
             {
               "comment": "Subscribe to user messages",
-              "all_tags": ["user:message"],
+              "all_tags": [
+                "user:message"
+              ],
               "schema_name": "chat.message.v1"
             },
             {
               "comment": "Subscribe to tool catalog for discovery",
               "schema_name": "tool.catalog.v1",
-              "all_tags": ["workspace:tools"]
+              "all_tags": [
+                "workspace:tools"
+              ]
             },
             {
               "comment": "Subscribe to tool responses",
               "schema_name": "tool.response.v1",
-              "all_tags": ["workspace:tools"],
+              "all_tags": [
+                "workspace:tools"
+              ],
               "context_match": [
-                {"path": "$.requestedBy", "op": "eq", "value": "{agent_id}"}
+                {
+                  "path": "$.requestedBy",
+                  "op": "eq",
+                  "value": "{agent_id}"
+                }
               ]
             }
           ]
         },
         "response_format": {
           "schema_name": "agent.response.v1",
-          "required_fields": ["message"],
-          "optional_fields": ["tool_requests", "created_breadcrumbs"]
+          "required_fields": [
+            "message"
+          ],
+          "optional_fields": [
+            "tool_requests",
+            "created_breadcrumbs"
+          ]
         }
       }
     },
@@ -69,5 +92,6 @@
       }
     },
     "mode": "replace"
-  }
+  },
+  "description": "Template for creating agents that properly use breadcrumb context"
 }

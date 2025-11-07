@@ -636,11 +636,14 @@ impl HygieneRunner {
             Some(system_agent_id),
             rcrt_core::models::BreadcrumbCreate {
                 title: stats_breadcrumb["title"].as_str().unwrap().to_string(),
+                description: Some("Hygiene runner statistics and status".to_string()),
+                semantic_version: Some("1.0.0".to_string()),
                 context: stats_breadcrumb["context"].clone(),
                 tags: stats_breadcrumb["tags"].as_array().unwrap().iter()
                     .map(|v| v.as_str().unwrap().to_string())
                     .collect(),
                 schema_name: Some(stats_breadcrumb["schema_name"].as_str().unwrap().to_string()),
+                llm_hints: None,
                 visibility: None,
                 sensitivity: None,
                 ttl: Some(chrono::Utc::now() + chrono::Duration::hours(1)),

@@ -1,16 +1,17 @@
 {
   "schema_name": "agent.def.v1",
   "title": "Note Summary Agent",
-  "tags": ["agent:def", "agent:note-summarizer", "workspace:agents", "system:bootstrap"],
+  "tags": [
+    "agent:def",
+    "agent:note-summarizer",
+    "workspace:agents",
+    "system:bootstrap"
+  ],
   "context": {
     "agent_id": "note-summarizer",
-    "description": "Automatically creates concise 2-3 sentence summaries of saved notes",
-    
     "llm_config_id": null,
     "llm_config_comment": "Uses openrouter tool. Configure via tool.config.v1 breadcrumb.",
-    
     "system_prompt": "You are an expert at creating concise, informative summaries.\n\nYour task: Create a 2-3 sentence summary that:\n- Captures the main topic\n- Highlights 1-2 key points\n- Is clear and readable\n\nRespond with ONLY a valid JSON object:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"note.summary.v1\",\n    \"title\": \"Note Summary\",\n    \"tags\": [\"ai-generated\", \"note:NOTE_ID\"],\n    \"context\": {\n      \"note_id\": \"NOTE_ID\",\n      \"summary\": \"Your 2-3 sentence summary here.\"\n    }\n  }\n}\n\nExtract NOTE_ID from the trigger event.\nOutput ONLY the JSON.",
-    
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_use_tools": true,
@@ -18,7 +19,6 @@
       "can_delete_own": false,
       "can_spawn_agents": false
     },
-    
     "subscriptions": {
       "selectors": [
         {
@@ -26,10 +26,13 @@
           "schema_name": "note.v1",
           "role": "trigger",
           "key": "note",
-          "fetch": {"method": "latest", "limit": 1}
+          "fetch": {
+            "method": "latest",
+            "limit": 1
+          }
         }
       ]
     }
-  }
+  },
+  "description": "Automatically creates concise 2-3 sentence summaries of saved notes"
 }
-

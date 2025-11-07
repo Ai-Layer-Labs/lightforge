@@ -1,18 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Agent Context Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:agent.context.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:agent.context.v1"
+  ],
   "context": {
     "defines_schema": "agent.context.v1",
-    "schema_version": "1.0.0",
     "category": "agents",
-    "description": "Assembled context provided to agents",
-    
-    "llm_hints": {
-      "include": ["breadcrumbs", "token_estimate"],
-      "exclude": ["consumer_id", "trigger_event_id", "sources_assembled", "assembled_at"]
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "duration",
@@ -23,7 +19,6 @@
         "allow_override": false
       }
     },
-    
     "field_definitions": {
       "consumer_id": {
         "type": "string",
@@ -46,6 +41,19 @@
         "description": "Event that triggered assembly"
       }
     }
+  },
+  "description": "Assembled context provided to agents",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "include": [
+      "breadcrumbs",
+      "token_estimate"
+    ],
+    "exclude": [
+      "consumer_id",
+      "trigger_event_id",
+      "sources_assembled",
+      "assembled_at"
+    ]
   }
 }
-

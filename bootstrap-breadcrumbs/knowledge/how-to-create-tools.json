@@ -1,15 +1,20 @@
 {
   "schema_name": "knowledge.v1",
   "title": "Complete Guide: Creating Self-Contained Tools in RCRT",
-  "tags": ["knowledge", "documentation", "tools", "development", "tutorial", "workspace:system"],
+  "tags": [
+    "knowledge",
+    "documentation",
+    "tools",
+    "development",
+    "tutorial",
+    "workspace:system"
+  ],
   "context": {
     "topic": "tool-development",
     "audience": "LLM agents and developers",
-    "version": "1.0.0",
     "last_updated": "2025-11-02",
     "content": {
       "summary": "Comprehensive guide for creating tool.code.v1 self-contained tools in the RCRT system, including structure, schemas, permissions, secrets management, and upload process.",
-      
       "quick_start": {
         "overview": "Self-contained tools are Deno-based, sandboxed tools defined as tool.code.v1 breadcrumbs. They execute in an isolated environment with explicitly declared permissions.",
         "process": [
@@ -20,13 +25,17 @@
           "5. Verify it appears in the tool catalog"
         ]
       },
-      
       "required_structure": {
         "description": "Every tool.code.v1 breadcrumb MUST follow this exact structure",
         "template": {
           "schema_name": "tool.code.v1",
           "title": "Tool Name (Self-Contained)",
-          "tags": ["tool", "tool:toolname", "workspace:tools", "self-contained"],
+          "tags": [
+            "tool",
+            "tool:toolname",
+            "workspace:tools",
+            "self-contained"
+          ],
           "context": {
             "name": "toolname",
             "description": "What the tool does",
@@ -54,7 +63,6 @@
           "❌ NEVER forget the code wrapper - this is the #1 mistake"
         ]
       },
-      
       "code_section": {
         "description": "The code.source field contains your Deno TypeScript code",
         "structure": {
@@ -76,7 +84,6 @@
           "Include helpful error messages"
         ]
       },
-      
       "schemas": {
         "input_schema": {
           "purpose": "Defines what inputs the tool accepts",
@@ -95,7 +102,9 @@
                 "maximum": 10
               }
             },
-            "required": ["message"]
+            "required": [
+              "message"
+            ]
           }
         },
         "output_schema": {
@@ -113,11 +122,12 @@
                 "description": "ISO timestamp"
               }
             },
-            "required": ["result"]
+            "required": [
+              "result"
+            ]
           }
         }
       },
-      
       "permissions": {
         "description": "Deno permissions control what the tool can access",
         "available_permissions": {
@@ -145,7 +155,10 @@
             "run": false
           },
           "specific_domain": {
-            "net": ["openrouter.ai", "api.openai.com"],
+            "net": [
+              "openrouter.ai",
+              "api.openai.com"
+            ],
             "read": false,
             "write": false,
             "env": false,
@@ -159,7 +172,6 @@
           "Avoid write and run permissions unless absolutely necessary"
         ]
       },
-      
       "secrets_management": {
         "philosophy": "THE RCRT WAY - Never hardcode secret names, always reference by ID",
         "wrong_way": {
@@ -195,7 +207,6 @@
           }
         }
       },
-      
       "ui_schema": {
         "description": "Defines how the tool's configuration UI is generated in the dashboard",
         "simple_example": {
@@ -252,7 +263,6 @@
           "checkbox - Boolean on/off"
         ]
       },
-      
       "limits": {
         "description": "Resource limits for tool execution",
         "fields": {
@@ -278,7 +288,6 @@
           }
         }
       },
-      
       "examples": {
         "description": "Provide usage examples to help LLMs understand how to use the tool",
         "structure": {
@@ -307,13 +316,17 @@
           "Show how to access nested output fields"
         ]
       },
-      
       "complete_working_example": {
         "description": "A complete, minimal working tool (echo)",
         "json": {
           "schema_name": "tool.code.v1",
           "title": "Echo Tool (Self-Contained)",
-          "tags": ["tool", "tool:echo", "workspace:tools", "self-contained"],
+          "tags": [
+            "tool",
+            "tool:echo",
+            "workspace:tools",
+            "self-contained"
+          ],
           "context": {
             "name": "echo",
             "description": "Returns the input unchanged - useful for testing",
@@ -330,7 +343,9 @@
                   "description": "Message to echo"
                 }
               },
-              "required": ["message"]
+              "required": [
+                "message"
+              ]
             },
             "output_schema": {
               "type": "object",
@@ -372,7 +387,6 @@
           }
         }
       },
-      
       "uploading_your_tool": {
         "description": "How to upload your tool to RCRT using the breadcrumb-create tool",
         "method_1_direct": {
@@ -382,7 +396,12 @@
             "input": {
               "schema_name": "tool.code.v1",
               "title": "Your Tool Name (Self-Contained)",
-              "tags": ["tool", "tool:yourname", "workspace:tools", "self-contained"],
+              "tags": [
+                "tool",
+                "tool:yourname",
+                "workspace:tools",
+                "self-contained"
+              ],
               "context": {
                 "name": "yourname",
                 "description": "What your tool does",
@@ -418,7 +437,6 @@
           "check_logs": "Tools-runner should log 'Registered tool: yourtool'"
         }
       },
-      
       "common_mistakes": {
         "description": "Mistakes to avoid (learned from real experience)",
         "mistakes": [
@@ -466,7 +484,6 @@
           }
         ]
       },
-      
       "testing_your_tool": {
         "description": "How to test your tool after upload",
         "steps": [
@@ -481,7 +498,11 @@
           "input": {
             "schema_name": "tool.request.v1",
             "title": "Test: Your Tool",
-            "tags": ["tool:request", "workspace:tools", "test"],
+            "tags": [
+              "tool:request",
+              "workspace:tools",
+              "test"
+            ],
             "context": {
               "tool": "yourtool",
               "input": {
@@ -492,7 +513,6 @@
           }
         }
       },
-      
       "advanced_features": {
         "calling_other_tools": {
           "description": "Tools can invoke other tools by creating tool.request.v1 breadcrumbs",
@@ -505,10 +525,13 @@
         "bootstrap_execution": {
           "description": "Tools can run automatically on startup",
           "field": "bootstrap: { mode: 'once', priority: 50 }",
-          "modes": ["once - Run once on startup", "continuous - Run continuously", "disabled - Don't auto-run"]
+          "modes": [
+            "once - Run once on startup",
+            "continuous - Run continuously",
+            "disabled - Don't auto-run"
+          ]
         }
       },
-      
       "reference_tools": {
         "description": "Existing tools to study as examples",
         "simple_tools": [
@@ -529,7 +552,6 @@
           "scheduler.json - Continuous background execution"
         ]
       },
-      
       "best_practices_summary": [
         "1. Always start with a working tool template (echo.json or timer.json)",
         "2. Use the correct structure: code.source, not just source",
@@ -542,7 +564,6 @@
         "9. Use descriptive error messages",
         "10. Test thoroughly before deploying"
       ],
-      
       "quick_checklist": [
         "☐ Used correct structure with code.source?",
         "☐ Tags include 'tool', 'tool:name', 'workspace:tools', 'self-contained'?",
@@ -558,6 +579,6 @@
         "☐ Tested upload and execution?"
       ]
     }
-  }
+  },
+  "semantic_version": "1.0.0"
 }
-

@@ -1,11 +1,13 @@
 {
   "schema_name": "schema.def.v1",
   "title": "UI Page Schema Definition",
-  "tags": ["schema", "schema:ui.page.v1", "system:schema"],
+  "tags": [
+    "schema",
+    "schema:ui.page.v1",
+    "system:schema"
+  ],
   "context": {
     "schema_name": "ui.page.v1",
-    "version": "1.0.0",
-    "description": "Defines dynamic pages with HeroUI components, state management, and RCRT API actions",
     "purpose": "Enable LLMs to create complete, interactive UIs purely from breadcrumbs - no code required",
     "structure": {
       "title": {
@@ -17,7 +19,11 @@
         "type": "array",
         "required": true,
         "description": "Must include 'page' and 'page:{name}' for routing",
-        "example": ["page", "page:quick-start", "system:page"]
+        "example": [
+          "page",
+          "page:quick-start",
+          "system:page"
+        ]
       },
       "context": {
         "type": "object",
@@ -36,7 +42,11 @@
               "div": {
                 "className": "p-8",
                 "children": [
-                  { "h1": { "children": "Hello World" } }
+                  {
+                    "h1": {
+                      "children": "Hello World"
+                    }
+                  }
                 ]
               }
             }
@@ -49,7 +59,9 @@
                 "action": "api.call",
                 "method": "POST",
                 "endpoint": "/secrets",
-                "body": { "name": "{{state.secretName}}" }
+                "body": {
+                  "name": "{{state.secretName}}"
+                }
               }
             }
           },
@@ -70,9 +82,31 @@
     },
     "components": {
       "description": "All HeroUI components are available plus special helpers",
-      "heroui_components": ["Card", "Button", "Input", "Modal", "Progress", "Tabs", "etc"],
-      "special_components": ["ConditionalRender", "ForEach", "DataLoader", "FormField", "ActionButton"],
-      "html_elements": ["div", "span", "h1", "h2", "p", "button", "etc"]
+      "heroui_components": [
+        "Card",
+        "Button",
+        "Input",
+        "Modal",
+        "Progress",
+        "Tabs",
+        "etc"
+      ],
+      "special_components": [
+        "ConditionalRender",
+        "ForEach",
+        "DataLoader",
+        "FormField",
+        "ActionButton"
+      ],
+      "html_elements": [
+        "div",
+        "span",
+        "h1",
+        "h2",
+        "p",
+        "button",
+        "etc"
+      ]
     },
     "template_syntax": {
       "variables": "{{state.formData.name}}",
@@ -93,13 +127,20 @@
         "breadcrumb": {
           "schema_name": "ui.page.v1",
           "title": "Test Page",
-          "tags": ["page", "page:test"],
+          "tags": [
+            "page",
+            "page:test"
+          ],
           "context": {
             "ui": {
               "div": {
                 "className": "p-8",
                 "children": [
-                  { "h1": { "children": "Test Page" } },
+                  {
+                    "h1": {
+                      "children": "Test Page"
+                    }
+                  },
                   {
                     "Button": {
                       "color": "primary",
@@ -110,7 +151,9 @@
                         "body": {
                           "title": "Test Breadcrumb",
                           "schema_name": "test.v1",
-                          "tags": ["test"],
+                          "tags": [
+                            "test"
+                          ],
                           "context": {}
                         }
                       },
@@ -123,18 +166,19 @@
           }
         }
       }
-    ],
-    "llm_hints": {
-      "summary": "UI page schema - create complete interactive pages from JSON",
-      "when_to_use": "When creating new pages with forms, buttons, lists, wizards",
-      "key_concepts": [
-        "HeroUI components referenced by name",
-        "State stored in ui.state.v1 breadcrumbs",
-        "Actions call RCRT API directly",
-        "Templates {{}} for dynamic values",
-        "No code required - pure JSON"
-      ]
-    }
+    ]
+  },
+  "description": "Defines dynamic pages with HeroUI components, state management, and RCRT API actions",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "summary": "UI page schema - create complete interactive pages from JSON",
+    "when_to_use": "When creating new pages with forms, buttons, lists, wizards",
+    "key_concepts": [
+      "HeroUI components referenced by name",
+      "State stored in ui.state.v1 breadcrumbs",
+      "Actions call RCRT API directly",
+      "Templates {{}} for dynamic values",
+      "No code required - pure JSON"
+    ]
   }
 }
-

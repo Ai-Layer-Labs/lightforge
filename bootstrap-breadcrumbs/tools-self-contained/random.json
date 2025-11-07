@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Random Number Generator (Self-Contained)",
+  "description": "Generate random numbers",
+  "semantic_version": "2.0.0",
   "tags": ["tool", "tool:random", "workspace:tools", "self-contained"],
+  "llm_hints": {
+    "include": ["name", "description", "input_schema", "output_schema", "examples"],
+    "exclude": ["code", "permissions", "limits"]
+  },
   "context": {
     "name": "random",
-    "description": "Generate random numbers",
-    "version": "2.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Random Number Generator - Self-Contained Deno Version\n * Generates random numbers within specified range\n */\n\ninterface Input {\n  min?: number;\n  max?: number;\n  count?: number;\n}\n\ninterface Output {\n  numbers: number[];\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  const min = input.min !== undefined ? input.min : 0;\n  const max = input.max !== undefined ? input.max : 100;\n  const count = input.count !== undefined ? input.count : 1;\n  \n  // Validate inputs\n  if (typeof min !== 'number' || typeof max !== 'number' || typeof count !== 'number') {\n    throw new Error('min, max, and count must all be numbers');\n  }\n  \n  if (count < 1 || count > 10) {\n    throw new Error('count must be between 1 and 10');\n  }\n  \n  if (min > max) {\n    throw new Error('min must be less than or equal to max');\n  }\n  \n  // Generate random numbers\n  const numbers = Array.from({ length: count }, () => \n    Math.floor(Math.random() * (max - min + 1)) + min\n  );\n  \n  return {\n    numbers\n  };\n}\n"

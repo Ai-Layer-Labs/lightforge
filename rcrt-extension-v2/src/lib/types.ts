@@ -4,12 +4,22 @@
 
 // ============ RCRT Breadcrumb Types ============
 
+export interface LlmHints {
+  transform?: Record<string, any>;
+  include?: string[];
+  exclude?: string[];
+  mode?: 'replace' | 'merge';
+}
+
 export interface Breadcrumb {
   id: string;
   title: string;
+  description?: string;              // NEW: Detailed description
+  semantic_version?: string;         // NEW: Semantic version
   schema_name?: string;
   tags: string[];
   context: Record<string, any>;
+  llm_hints?: LlmHints;              // NEW: Instance-level LLM optimization
   version: number;
   checksum: string;
   ttl?: string;
@@ -25,8 +35,11 @@ export interface Breadcrumb {
 export interface BreadcrumbCreate {
   schema_name?: string;
   title: string;
+  description?: string;              // NEW: Detailed description
+  semantic_version?: string;         // NEW: Semantic version
   tags: string[];
   context: Record<string, any>;
+  llm_hints?: LlmHints;              // NEW: Instance-level LLM optimization
   ttl?: string;
   visibility?: 'public' | 'team' | 'private';
   sensitivity?: 'low' | 'pii' | 'secret';

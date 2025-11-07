@@ -1,11 +1,14 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Breadcrumb Search Tool (Self-Contained)",
-  "tags": ["tool", "tool:breadcrumb-search", "workspace:tools", "self-contained"],
+  "tags": [
+    "tool",
+    "tool:breadcrumb-search",
+    "workspace:tools",
+    "self-contained"
+  ],
   "context": {
     "name": "breadcrumb-search",
-    "description": "Search and retrieve breadcrumbs by schema, tags, or semantic query",
-    "version": "2.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Breadcrumb Search Tool - Self-Contained Deno Version\n * Search breadcrumbs using various methods\n */\n\ninterface Input {\n  query?: string;          // Semantic search query\n  schema_name?: string;    // Filter by schema\n  tag?: string;            // Filter by tag\n  tags?: string[];         // Filter by multiple tags\n  limit?: number;          // Max results\n  nn?: number;             // Number of nearest neighbors for vector search\n}\n\ninterface Output {\n  breadcrumbs: any[];\n  count: number;\n  method: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  const limit = input.limit || 10;\n  let breadcrumbs: any[];\n  let method: string;\n  \n  // Vector search if query provided\n  if (input.query) {\n    method = 'vector';\n    breadcrumbs = await context.api.vectorSearch({\n      q: input.query,\n      nn: input.nn || 5,\n      schema_name: input.schema_name,\n      tag: input.tag\n    });\n  }\n  // Tag/schema search\n  else {\n    method = 'filter';\n    const searchParams: any = {};\n    \n    if (input.schema_name) searchParams.schema_name = input.schema_name;\n    if (input.tag) searchParams.tag = input.tag;\n    if (input.tags) searchParams.tags = input.tags;\n    \n    breadcrumbs = await context.api.searchBreadcrumbs(searchParams);\n  }\n  \n  // Limit results\n  const limited = breadcrumbs.slice(0, limit);\n  \n  return {\n    breadcrumbs: limited,\n    count: limited.length,\n    method\n  };\n}\n"
@@ -27,7 +30,9 @@
         },
         "tags": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Filter by multiple tags"
         },
         "limit": {
@@ -62,7 +67,11 @@
           "description": "Search method used (vector or filter)"
         }
       },
-      "required": ["breadcrumbs", "count", "method"]
+      "required": [
+        "breadcrumbs",
+        "count",
+        "method"
+      ]
     },
     "permissions": {
       "net": false,
@@ -91,7 +100,11 @@
         },
         "output": {
           "breadcrumbs": [
-            { "id": "abc", "title": "Agent Creation Guide", "score": 0.95 }
+            {
+              "id": "abc",
+              "title": "Agent Creation Guide",
+              "score": 0.95
+            }
           ],
           "count": 3,
           "method": "vector"
@@ -107,7 +120,10 @@
         },
         "output": {
           "breadcrumbs": [
-            { "id": "def", "schema_name": "user.message.v1" }
+            {
+              "id": "def",
+              "schema_name": "user.message.v1"
+            }
           ],
           "count": 5,
           "method": "filter"
@@ -115,6 +131,23 @@
         "explanation": "Filter by exact schema and tags"
       }
     ]
+  },
+  "description": "Search and retrieve breadcrumbs by schema, tags, or semantic query",
+  "semantic_version": "2.0.0",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
+    ]
   }
 }
-

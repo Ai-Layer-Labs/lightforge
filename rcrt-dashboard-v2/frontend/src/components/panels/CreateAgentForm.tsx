@@ -49,13 +49,13 @@ export function CreateAgentForm({ onBack, isCreating, setIsCreating }: {
     try {
       const agentDefinition = {
         title: `${agentName} Agent`,
+        description: 'Chat assistant that responds to user messages and can use tools',
+        semantic_version: '1.0.0',
         schema_name: 'agent.definition.v1',
         tags: ['agent:definition', 'workspace:agents', `agent:${agentName}`],
         context: {
           agent_name: agentName,
           agent_entity_id: '00000000-0000-0000-0000-0000000000aa',
-          description: 'Chat assistant that responds to user messages and can use tools',
-          version: '1.0.0',
           category: 'chat',
           
           triggers: [{

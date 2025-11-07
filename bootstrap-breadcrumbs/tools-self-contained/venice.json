@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Venice AI LLM Tool (Self-Contained)",
-  "tags": ["tool", "tool:venice", "workspace:tools", "self-contained", "llm"],
+  "tags": [
+    "tool",
+    "tool:venice",
+    "workspace:tools",
+    "self-contained",
+    "llm"
+  ],
   "context": {
     "name": "venice",
-    "description": "Venice AI - Privacy-focused LLM access with uncensored models",
-    "version": "1.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Venice AI LLM Tool - Self-Contained Deno Version\n * Access uncensored, privacy-focused LLMs\n * RCRT-compliant: Loads secrets by ID from config\n */\n\ninterface Message {\n  role: 'system' | 'user' | 'assistant';\n  content: string;\n}\n\ninterface Input {\n  messages: Message[];\n  model?: string;\n  temperature?: number;\n  max_tokens?: number;\n  config_id?: string;\n}\n\ninterface Output {\n  content: string;\n  model: string;\n  usage: {\n    prompt_tokens: number;\n    completion_tokens: number;\n    total_tokens: number;\n  };\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  // Validate input\n  if (!input.messages || !Array.isArray(input.messages) || input.messages.length === 0) {\n    throw new Error('messages array is required and must not be empty');\n  }\n  \n  // Get config from breadcrumb if config_id provided\n  let config: any = {};\n  if (input.config_id || context.request.trigger_event?.context?.config_id) {\n    const configId = input.config_id || context.request.trigger_event?.context?.config_id;\n    try {\n      const configBreadcrumb = await context.api.getBreadcrumb(configId);\n      if (configBreadcrumb.schema_name === 'tool.config.v1') {\n        config = configBreadcrumb.context.config || {};\n      }\n    } catch (error) {\n      console.warn(`Failed to load config from ${configId}:`, error);\n    }\n  }\n  \n  // Get API key from config (RCRT way: reference by breadcrumb ID)\n  let apiKey: string | undefined;\n  \n  if (config.apiKeySecretId) {\n    // Load secret by ID from config\n    try {\n      const secretBreadcrumb = await context.api.getSecret(config.apiKeySecretId, 'Venice AI API authentication');\n      apiKey = secretBreadcrumb.value;\n    } catch (error) {\n      throw new Error(`Failed to load API key secret: ${error.message}`);\n    }\n  } else {\n    throw new Error('No API key configured. Please set apiKeySecretId in tool config.');\n  }\n  \n  // Determine model (input overrides config)\n  const model = input.model || config.defaultModel || 'llama-3.3-70b';\n  const temperature = input.temperature ?? config.temperature ?? 0.7;\n  const maxTokens = input.max_tokens || config.maxTokens || 4000;\n  \n  // Call Venice AI API (OpenAI-compatible)\n  const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${apiKey}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      model,\n      messages: input.messages,\n      temperature,\n      max_tokens: maxTokens\n    })\n  });\n  \n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`Venice AI API error ${response.status}: ${errorText}`);\n  }\n  \n  const data = await response.json();\n  \n  return {\n    content: data.choices[0].message.content,\n    model: data.model,\n    usage: data.usage || {\n      prompt_tokens: 0,\n      completion_tokens: 0,\n      total_tokens: 0\n    }\n  };\n}\n"
@@ -20,13 +24,20 @@
             "properties": {
               "role": {
                 "type": "string",
-                "enum": ["system", "user", "assistant"]
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant"
+                ]
               },
               "content": {
                 "type": "string"
               }
             },
-            "required": ["role", "content"]
+            "required": [
+              "role",
+              "content"
+            ]
           },
           "description": "Array of chat messages",
           "minItems": 1
@@ -51,7 +62,9 @@
           "description": "Optional tool.config.v1 breadcrumb ID for configuration"
         }
       },
-      "required": ["messages"]
+      "required": [
+        "messages"
+      ]
     },
     "output_schema": {
       "type": "object",
@@ -67,14 +80,24 @@
         "usage": {
           "type": "object",
           "properties": {
-            "prompt_tokens": { "type": "number" },
-            "completion_tokens": { "type": "number" },
-            "total_tokens": { "type": "number" }
+            "prompt_tokens": {
+              "type": "number"
+            },
+            "completion_tokens": {
+              "type": "number"
+            },
+            "total_tokens": {
+              "type": "number"
+            }
           },
           "description": "Token usage statistics"
         }
       },
-      "required": ["content", "model", "usage"]
+      "required": [
+        "content",
+        "model",
+        "usage"
+      ]
     },
     "permissions": {
       "net": true,
@@ -112,10 +135,22 @@
           "default_value": "llama-3.3-70b",
           "required": false,
           "options": [
-            { "value": "llama-3.3-70b", "label": "Llama 3.3 70B" },
-            { "value": "dolphin-2.9.2-qwen2-72b", "label": "Dolphin 2.9.2 Qwen2 72B" },
-            { "value": "nous-hermes-2-mixtral-8x7b-dpo", "label": "Nous Hermes 2 Mixtral 8x7B DPO" },
-            { "value": "mythomax-l2-13b", "label": "MythoMax L2 13B" }
+            {
+              "value": "llama-3.3-70b",
+              "label": "Llama 3.3 70B"
+            },
+            {
+              "value": "dolphin-2.9.2-qwen2-72b",
+              "label": "Dolphin 2.9.2 Qwen2 72B"
+            },
+            {
+              "value": "nous-hermes-2-mixtral-8x7b-dpo",
+              "label": "Nous Hermes 2 Mixtral 8x7B DPO"
+            },
+            {
+              "value": "mythomax-l2-13b",
+              "label": "MythoMax L2 13B"
+            }
           ]
         },
         {
@@ -140,8 +175,8 @@
           "default_value": 0.7,
           "required": false,
           "validation": {
-            "min": 0.0,
-            "max": 2.0,
+            "min": 0,
+            "max": 2,
             "step": 0.1
           }
         }
@@ -152,13 +187,20 @@
         "description": "Simple question",
         "input": {
           "messages": [
-            { "role": "user", "content": "What is Venice AI?" }
+            {
+              "role": "user",
+              "content": "What is Venice AI?"
+            }
           ]
         },
         "output": {
           "content": "Venice AI is a privacy-focused LLM platform providing access to uncensored models.",
           "model": "llama-3.3-70b",
-          "usage": { "prompt_tokens": 10, "completion_tokens": 15, "total_tokens": 25 }
+          "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 15,
+            "total_tokens": 25
+          }
         },
         "explanation": "Access the response with result.content. Venice AI prioritizes privacy and uncensored access."
       },
@@ -166,19 +208,46 @@
         "description": "With system prompt",
         "input": {
           "messages": [
-            { "role": "system", "content": "You are a helpful, uncensored assistant" },
-            { "role": "user", "content": "Tell me about privacy in AI" }
+            {
+              "role": "system",
+              "content": "You are a helpful, uncensored assistant"
+            },
+            {
+              "role": "user",
+              "content": "Tell me about privacy in AI"
+            }
           ],
           "temperature": 0.8
         },
         "output": {
           "content": "Privacy in AI is crucial for protecting user data and ensuring ethical use...",
           "model": "llama-3.3-70b",
-          "usage": { "prompt_tokens": 25, "completion_tokens": 50, "total_tokens": 75 }
+          "usage": {
+            "prompt_tokens": 25,
+            "completion_tokens": 50,
+            "total_tokens": 75
+          }
         },
         "explanation": "System prompts guide behavior. Venice AI models are designed for privacy-focused applications."
       }
     ]
+  },
+  "description": "Venice AI - Privacy-focused LLM access with uncensored models",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
+    ]
   }
 }
-

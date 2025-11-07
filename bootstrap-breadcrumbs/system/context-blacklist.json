@@ -1,12 +1,13 @@
 {
   "schema_name": "context.blacklist.v1",
   "title": "Context Assembly Blacklist",
-  "tags": ["context:config", "system:bootstrap", "system:internal"],
+  "tags": [
+    "context:config",
+    "system:bootstrap",
+    "system:internal"
+  ],
   "context": {
-    "version": "1.2.0",
     "last_updated": "2025-11-03T10:10:00Z",
-    "description": "Schemas excluded from context assembly to prevent metadata leakage",
-    
     "excluded_schemas": [
       {
         "schema_name": "system.health.v1",
@@ -85,7 +86,6 @@
         "reason": "OpenRouter models catalog - massive dataset not relevant for agent context"
       }
     ],
-    
     "notes": [
       "This blacklist prevents metadata from appearing in assembled context",
       "Add schemas here if they're system internals, not user-facing content",
@@ -93,6 +93,7 @@
       "Context-builder loads this at startup and caches in memory",
       "Restart context-builder after updates to pick up changes"
     ]
-  }
+  },
+  "description": "Schemas excluded from context assembly to prevent metadata leakage",
+  "semantic_version": "1.2.0"
 }
-

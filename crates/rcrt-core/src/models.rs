@@ -13,9 +13,12 @@ pub enum Sensitivity { Low, Pii, Secret }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreadcrumbCreate {
     pub title: String,
+    pub description: Option<String>,        // NEW: Detailed description (moved from context)
+    pub semantic_version: Option<String>,   // NEW: Semantic version like "2.0.0" (moved from context.version)
     pub context: JsonValue,
     pub tags: Vec<String>,
     pub schema_name: Option<String>,
+    pub llm_hints: Option<JsonValue>,       // NEW: Instance-level LLM hints (moved from context.llm_hints)
     pub visibility: Option<Visibility>,
     pub sensitivity: Option<Sensitivity>,
     pub ttl: Option<DateTime<Utc>>,
@@ -27,9 +30,12 @@ pub struct BreadcrumbCreate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreadcrumbUpdate {
     pub title: Option<String>,
+    pub description: Option<String>,        // NEW: Update description
+    pub semantic_version: Option<String>,   // NEW: Update semantic version
     pub context: Option<JsonValue>,
     pub tags: Option<Vec<String>>,
     pub schema_name: Option<String>,
+    pub llm_hints: Option<JsonValue>,       // NEW: Update LLM hints
     pub visibility: Option<Visibility>,
     pub sensitivity: Option<Sensitivity>,
     pub ttl: Option<DateTime<Utc>>,
@@ -43,9 +49,12 @@ pub struct Breadcrumb {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub title: String,
+    pub description: Option<String>,        // NEW: Detailed description
+    pub semantic_version: Option<String>,   // NEW: Semantic version
     pub context: JsonValue,
     pub tags: Vec<String>,
     pub schema_name: Option<String>,
+    pub llm_hints: Option<JsonValue>,       // NEW: Instance-level LLM hints
     pub visibility: Visibility,
     pub sensitivity: Sensitivity,
     pub version: i32,
@@ -66,9 +75,12 @@ pub struct Breadcrumb {
 pub struct BreadcrumbContextView {
     pub id: Uuid,
     pub title: String,
+    pub description: Option<String>,        // NEW: Include in context view
+    pub semantic_version: Option<String>,   // NEW: Include in context view
     pub context: JsonValue,
     pub tags: Vec<String>,
     pub schema_name: Option<String>,
+    pub llm_hints: Option<JsonValue>,       // NEW: Include in context view
     pub version: i32,
     pub updated_at: DateTime<Utc>,
 }
@@ -78,9 +90,12 @@ pub struct BreadcrumbFull {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub title: String,
+    pub description: Option<String>,        // NEW: Detailed description
+    pub semantic_version: Option<String>,   // NEW: Semantic version
     pub context: JsonValue,
     pub tags: Vec<String>,
     pub schema_name: Option<String>,
+    pub llm_hints: Option<JsonValue>,       // NEW: Instance-level LLM hints
     pub visibility: Visibility,
     pub sensitivity: Sensitivity,
     pub version: i32,

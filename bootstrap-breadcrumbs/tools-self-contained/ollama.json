@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Ollama Local LLM Tool (Self-Contained)",
-  "tags": ["tool", "tool:ollama_local", "workspace:tools", "self-contained", "llm"],
+  "tags": [
+    "tool",
+    "tool:ollama_local",
+    "workspace:tools",
+    "self-contained",
+    "llm"
+  ],
   "context": {
     "name": "ollama_local",
-    "description": "Ollama - Fast, free, private local models via Ollama",
-    "version": "2.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Ollama LLM Tool - Self-Contained Deno Version\n * Accesses local Ollama models for free, private LLM inference\n */\n\ninterface Message {\n  role: 'system' | 'user' | 'assistant';\n  content: string;\n}\n\ninterface Input {\n  messages: Message[];\n  model?: string;\n  temperature?: number;\n  top_p?: number;\n  ollama_host?: string;\n}\n\ninterface Output {\n  content: string;\n  model: string;\n  usage: {\n    total_tokens: number;\n  };\n  cost_estimate: number;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  // Validate input\n  if (!input.messages || !Array.isArray(input.messages) || input.messages.length === 0) {\n    throw new Error('messages array is required and must not be empty');\n  }\n  \n  const ollamaHost = input.ollama_host || context.secrets['OLLAMA_HOST'] || 'http://localhost:11434';\n  const model = input.model || 'llama3.1:8b';\n  const temperature = input.temperature ?? 0.7;\n  const topP = input.top_p ?? 0.9;\n  \n  // Check Ollama health\n  try {\n    const healthCheck = await fetch(`${ollamaHost}/api/tags`);\n    if (!healthCheck.ok) {\n      throw new Error(`Ollama not available at ${ollamaHost}`);\n    }\n  } catch (error) {\n    throw new Error(`Ollama not available at ${ollamaHost}. Is Ollama running?`);\n  }\n  \n  // Call Ollama API\n  const response = await fetch(`${ollamaHost}/api/chat`, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model,\n      messages: input.messages,\n      options: {\n        temperature,\n        top_p: topP\n      },\n      stream: false\n    })\n  });\n  \n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`Ollama API error ${response.status}: ${errorText}`);\n  }\n  \n  const data = await response.json();\n  \n  // Ollama returns response in message.content\n  return {\n    content: data.message.content,\n    model: data.model || model,\n    usage: {\n      total_tokens: data.eval_count || 0\n    },\n    cost_estimate: 0 // Always free!\n  };\n}\n"
@@ -20,13 +24,20 @@
             "properties": {
               "role": {
                 "type": "string",
-                "enum": ["system", "user", "assistant"]
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant"
+                ]
               },
               "content": {
                 "type": "string"
               }
             },
-            "required": ["role", "content"]
+            "required": [
+              "role",
+              "content"
+            ]
           },
           "description": "Array of chat messages",
           "minItems": 1
@@ -56,7 +67,9 @@
           "default": "http://localhost:11434"
         }
       },
-      "required": ["messages"]
+      "required": [
+        "messages"
+      ]
     },
     "output_schema": {
       "type": "object",
@@ -72,7 +85,9 @@
         "usage": {
           "type": "object",
           "properties": {
-            "total_tokens": { "type": "number" }
+            "total_tokens": {
+              "type": "number"
+            }
           },
           "description": "Token usage statistics"
         },
@@ -81,10 +96,16 @@
           "description": "Always 0 for local models"
         }
       },
-      "required": ["content", "model", "usage"]
+      "required": [
+        "content",
+        "model",
+        "usage"
+      ]
     },
     "permissions": {
-      "net": ["localhost:11434"],
+      "net": [
+        "localhost:11434"
+      ],
       "read": false,
       "write": false,
       "env": false,
@@ -132,8 +153,8 @@
           "default_value": 0.7,
           "required": false,
           "validation": {
-            "min": 0.0,
-            "max": 2.0,
+            "min": 0,
+            "max": 2,
             "step": 0.1
           }
         },
@@ -146,8 +167,8 @@
           "default_value": 0.9,
           "required": false,
           "validation": {
-            "min": 0.0,
-            "max": 1.0,
+            "min": 0,
+            "max": 1,
             "step": 0.05
           }
         }
@@ -158,13 +179,18 @@
         "description": "Simple local query",
         "input": {
           "messages": [
-            { "role": "user", "content": "What is the capital of France?" }
+            {
+              "role": "user",
+              "content": "What is the capital of France?"
+            }
           ]
         },
         "output": {
           "content": "The capital of France is Paris.",
           "model": "llama3.1:8b",
-          "usage": { "total_tokens": 25 },
+          "usage": {
+            "total_tokens": 25
+          },
           "cost_estimate": 0
         },
         "explanation": "Free local inference. Access response with result.content."
@@ -173,19 +199,41 @@
         "description": "Code generation",
         "input": {
           "messages": [
-            { "role": "user", "content": "Write a Python function to reverse a string" }
+            {
+              "role": "user",
+              "content": "Write a Python function to reverse a string"
+            }
           ],
           "model": "codellama:7b"
         },
         "output": {
           "content": "def reverse_string(s):\\n    return s[::-1]",
           "model": "codellama:7b",
-          "usage": { "total_tokens": 40 },
+          "usage": {
+            "total_tokens": 40
+          },
           "cost_estimate": 0
         },
         "explanation": "Use specialized models like codellama for coding tasks. Always free!"
       }
     ]
+  },
+  "description": "Ollama - Fast, free, private local models via Ollama",
+  "semantic_version": "2.0.0",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
+    ]
   }
 }
-

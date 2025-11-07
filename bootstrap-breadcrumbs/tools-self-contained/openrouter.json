@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "OpenRouter LLM Tool (Self-Contained)",
-  "tags": ["tool", "tool:openrouter", "workspace:tools", "self-contained", "llm"],
+  "tags": [
+    "tool",
+    "tool:openrouter",
+    "workspace:tools",
+    "self-contained",
+    "llm"
+  ],
   "context": {
     "name": "openrouter",
-    "description": "OpenRouter - Access to 100+ LLM models via unified API with real pricing",
-    "version": "2.1.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * OpenRouter LLM Tool - Self-Contained Deno Version\n * Accesses 100+ models with real pricing\n * RCRT-compliant: Loads secrets by ID from config\n */\n\ninterface Message {\n  role: 'system' | 'user' | 'assistant';\n  content: string;\n}\n\ninterface Input {\n  messages: Message[];\n  model?: string;\n  temperature?: number;\n  max_tokens?: number;\n  config_id?: string;\n}\n\ninterface Output {\n  content: string;\n  model: string;\n  usage: {\n    prompt_tokens: number;\n    completion_tokens: number;\n    total_tokens: number;\n  };\n  cost_estimate: number;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  // Validate input\n  if (!input.messages || !Array.isArray(input.messages) || input.messages.length === 0) {\n    throw new Error('messages array is required and must not be empty');\n  }\n  \n  // Get config from breadcrumb if config_id provided\n  let config: any = {};\n  if (input.config_id || context.request.trigger_event?.context?.config_id) {\n    const configId = input.config_id || context.request.trigger_event?.context?.config_id;\n    try {\n      const configBreadcrumb = await context.api.getBreadcrumb(configId);\n      if (configBreadcrumb.schema_name === 'tool.config.v1') {\n        config = configBreadcrumb.context.config || {};\n      }\n    } catch (error) {\n      console.warn(`Failed to load config from ${configId}:`, error);\n    }\n  }\n  \n  // Get API key from config (RCRT way: reference by breadcrumb ID)\n  let apiKey: string | undefined;\n  \n  if (config.apiKeySecretId) {\n    // Load secret by ID from config\n    try {\n      const secretBreadcrumb = await context.api.getSecret(config.apiKeySecretId, 'OpenRouter API authentication');\n      apiKey = secretBreadcrumb.value;\n    } catch (error) {\n      throw new Error(`Failed to load API key secret: ${error.message}`);\n    }\n  } else {\n    throw new Error('No API key configured. Please set apiKeySecretId in tool config.');\n  }\n  \n  // Determine model (input overrides config)\n  const model = input.model || config.defaultModel || 'google/gemini-2.0-flash-exp';\n  const temperature = input.temperature ?? config.temperature ?? 0.7;\n  const maxTokens = input.max_tokens || config.maxTokens || 4000;\n  \n  // Call OpenRouter API\n  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${apiKey}`,\n      'Content-Type': 'application/json',\n      'HTTP-Referer': 'http://localhost:3000',\n      'X-Title': 'RCRT Agent System'\n    },\n    body: JSON.stringify({\n      model,\n      messages: input.messages,\n      temperature,\n      max_tokens: maxTokens\n    })\n  });\n  \n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);\n  }\n  \n  const data = await response.json();\n  \n  // Calculate cost using models catalog\n  let costEstimate = 0;\n  try {\n    const catalogResults = await context.api.searchBreadcrumbs({\n      schema_name: 'openrouter.models.catalog.v1',\n      tag: 'openrouter:models'\n    });\n    \n    if (catalogResults.length > 0) {\n      const catalog = catalogResults[0];\n      const modelInfo = catalog.context.models?.find((m: any) => m.id === model);\n      \n      if (modelInfo?.pricing) {\n        const promptCost = (data.usage?.prompt_tokens || 0) * parseFloat(modelInfo.pricing.prompt);\n        const completionCost = (data.usage?.completion_tokens || 0) * parseFloat(modelInfo.pricing.completion);\n        costEstimate = promptCost + completionCost;\n      }\n    }\n  } catch (error) {\n    console.warn('Failed to calculate cost from catalog:', error);\n    // Fallback estimate\n    const totalTokens = data.usage?.total_tokens || 0;\n    costEstimate = (totalTokens / 1000) * 0.005; // $5 per 1M tokens default\n  }\n  \n  return {\n    content: data.choices[0].message.content,\n    model: data.model,\n    usage: data.usage || {\n      prompt_tokens: 0,\n      completion_tokens: 0,\n      total_tokens: 0\n    },\n    cost_estimate: costEstimate\n  };\n}\n"
@@ -20,13 +24,20 @@
             "properties": {
               "role": {
                 "type": "string",
-                "enum": ["system", "user", "assistant"]
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant"
+                ]
               },
               "content": {
                 "type": "string"
               }
             },
-            "required": ["role", "content"]
+            "required": [
+              "role",
+              "content"
+            ]
           },
           "description": "Array of chat messages",
           "minItems": 1
@@ -51,7 +62,9 @@
           "description": "Optional tool.config.v1 breadcrumb ID for configuration"
         }
       },
-      "required": ["messages"]
+      "required": [
+        "messages"
+      ]
     },
     "output_schema": {
       "type": "object",
@@ -67,9 +80,15 @@
         "usage": {
           "type": "object",
           "properties": {
-            "prompt_tokens": { "type": "number" },
-            "completion_tokens": { "type": "number" },
-            "total_tokens": { "type": "number" }
+            "prompt_tokens": {
+              "type": "number"
+            },
+            "completion_tokens": {
+              "type": "number"
+            },
+            "total_tokens": {
+              "type": "number"
+            }
           },
           "description": "Token usage statistics"
         },
@@ -78,7 +97,11 @@
           "description": "Estimated cost in USD"
         }
       },
-      "required": ["content", "model", "usage"]
+      "required": [
+        "content",
+        "model",
+        "usage"
+      ]
     },
     "permissions": {
       "net": true,
@@ -145,8 +168,8 @@
           "default_value": 0.7,
           "required": false,
           "validation": {
-            "min": 0.0,
-            "max": 2.0,
+            "min": 0,
+            "max": 2,
             "step": 0.1
           }
         }
@@ -173,7 +196,9 @@
                 "selectedKeys": "{{state.apiKeySecretId ? [state.apiKeySecretId] : []}}",
                 "onSelectionChange": {
                   "action": "setState",
-                  "updates": { "apiKeySecretId": "{{args.value}}" }
+                  "updates": {
+                    "apiKeySecretId": "{{args.value}}"
+                  }
                 },
                 "classNames": {
                   "trigger": "bg-gray-900/50 border-gray-600 text-white",
@@ -211,7 +236,9 @@
                       "selectedKeys": "{{state.defaultModel ? [state.defaultModel] : []}}",
                       "onSelectionChange": {
                         "action": "setState",
-                        "updates": { "defaultModel": "{{args.value}}" }
+                        "updates": {
+                          "defaultModel": "{{args.value}}"
+                        }
                       },
                       "classNames": {
                         "trigger": "bg-gray-900/50 border-gray-600 text-white",
@@ -265,7 +292,9 @@
                 "value": "{{state.maxTokens}}",
                 "onValueChange": {
                   "action": "setState",
-                  "updates": { "maxTokens": "{{args.value}}" }
+                  "updates": {
+                    "maxTokens": "{{args.value}}"
+                  }
                 },
                 "classNames": {
                   "input": "text-white",
@@ -286,7 +315,9 @@
                 "value": "{{state.temperature}}",
                 "onChange": {
                   "action": "setState",
-                  "updates": { "temperature": "{{args.value}}" }
+                  "updates": {
+                    "temperature": "{{args.value}}"
+                  }
                 },
                 "color": "primary",
                 "size": "sm",
@@ -333,13 +364,20 @@
         "description": "Simple question",
         "input": {
           "messages": [
-            { "role": "user", "content": "What is 2+2?" }
+            {
+              "role": "user",
+              "content": "What is 2+2?"
+            }
           ]
         },
         "output": {
           "content": "2 + 2 equals 4.",
           "model": "google/gemini-2.0-flash-exp",
-          "usage": { "prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18 },
+          "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 8,
+            "total_tokens": 18
+          },
           "cost_estimate": 0.00001
         },
         "explanation": "Access the response with result.content. Model and usage info available."
@@ -348,15 +386,25 @@
         "description": "With system prompt and temperature",
         "input": {
           "messages": [
-            { "role": "system", "content": "You are a helpful coding assistant" },
-            { "role": "user", "content": "How do I create a list in Python?" }
+            {
+              "role": "system",
+              "content": "You are a helpful coding assistant"
+            },
+            {
+              "role": "user",
+              "content": "How do I create a list in Python?"
+            }
           ],
           "temperature": 0.7
         },
         "output": {
           "content": "In Python, you can create a list using square brackets: my_list = [1, 2, 3]",
           "model": "google/gemini-2.0-flash-exp",
-          "usage": { "prompt_tokens": 25, "completion_tokens": 20, "total_tokens": 45 },
+          "usage": {
+            "prompt_tokens": 25,
+            "completion_tokens": 20,
+            "total_tokens": 45
+          },
           "cost_estimate": 0.00003
         },
         "explanation": "System prompts guide behavior. Temperature controls creativity (0-2)."
@@ -365,7 +413,10 @@
         "description": "Specify different model",
         "input": {
           "messages": [
-            { "role": "user", "content": "Explain quantum computing" }
+            {
+              "role": "user",
+              "content": "Explain quantum computing"
+            }
           ],
           "model": "anthropic/claude-3-haiku",
           "max_tokens": 500
@@ -373,11 +424,33 @@
         "output": {
           "content": "Quantum computing uses quantum mechanics principles...",
           "model": "anthropic/claude-3-haiku",
-          "usage": { "prompt_tokens": 12, "completion_tokens": 108, "total_tokens": 120 },
+          "usage": {
+            "prompt_tokens": 12,
+            "completion_tokens": 108,
+            "total_tokens": 120
+          },
           "cost_estimate": 0.00015
         },
         "explanation": "Specify a different model with the model parameter. Check models catalog for available options."
       }
+    ]
+  },
+  "description": "OpenRouter - Access to 100+ LLM models via unified API with real pricing",
+  "semantic_version": "2.1.0",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
     ]
   }
 }

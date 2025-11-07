@@ -224,9 +224,9 @@ export class ToolLoader {
         
         // Update metadata on the instance
         tool.name = toolContext.name || tool.name;
-        tool.description = toolContext.description || tool.description;
+        tool.description = breadcrumb.description || tool.description;
         tool.category = toolContext.category || tool.category;
-        tool.version = toolContext.version || tool.version;
+        tool.version = breadcrumb.semantic_version || tool.version;
         tool.examples = toolContext.definition?.examples || tool.examples || [];
         
         return tool;
@@ -236,9 +236,9 @@ export class ToolLoader {
       return {
         ...tool,
         name: toolContext.name,
-        description: toolContext.description,
+        description: breadcrumb.description,
         category: toolContext.category,
-        version: toolContext.version,
+        version: breadcrumb.semantic_version,
         inputSchema: toolContext.definition?.inputSchema || tool.inputSchema,
         outputSchema: toolContext.definition?.outputSchema || tool.outputSchema,
         examples: toolContext.definition?.examples || tool.examples || []
@@ -274,9 +274,9 @@ export class ToolLoader {
       return {
         ...tool,
         name: toolContext.name,
-        description: toolContext.description,
+        description: breadcrumb.description,
         category: toolContext.category,
-        version: toolContext.version,
+        version: breadcrumb.semantic_version,
         inputSchema: toolContext.definition?.inputSchema || tool.inputSchema,
         outputSchema: toolContext.definition?.outputSchema || tool.outputSchema,
         examples: toolContext.definition?.examples || tool.examples || []
@@ -342,9 +342,9 @@ export class ToolLoader {
       
       return {
         name: toolContext.name,
-        description: toolContext.description,
+        description: breadcrumb.description,
         category: toolContext.category,
-        version: toolContext.version,
+        version: breadcrumb.semantic_version,
         inputSchema: toolContext.definition?.inputSchema || {},
         outputSchema: toolContext.definition?.outputSchema || {},
         examples: toolContext.definition?.examples || [],
@@ -407,7 +407,7 @@ export class ToolLoader {
         name,
         description,
         category: 'self-contained',
-        version: breadcrumb.context.version,
+        version: breadcrumb.semantic_version,
         inputSchema: input_schema,
         outputSchema: output_schema,
         examples: examples || [],
@@ -459,7 +459,7 @@ export class ToolLoader {
             return {
               id: tb.id,
               name: breadcrumb.context.name,
-              description: breadcrumb.context.description,
+              description: breadcrumb.description,
               category: breadcrumb.context.category || 'general',
               schema: tb._schema
             };

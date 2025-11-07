@@ -255,7 +255,7 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
 
         let items = rows.into_iter().map(|(id,title,context,tags,schema_name,version,updated_at)| {
             BreadcrumbContextView {
-                id, title, context, tags, schema_name, version, updated_at
+                id, title, description: None, semantic_version: None, context, tags, schema_name, llm_hints: None, version, updated_at
             }
         }).collect();
         Ok(Json(SearchResult::Context(items)))
@@ -559,9 +559,12 @@ async fn swagger_page() -> Html<&'static str> {
 #[derive(Deserialize)]
 struct CreateReq {
     title: String,
+    description: Option<String>,        // NEW: Detailed description
+    semantic_version: Option<String>,   // NEW: Semantic version
     context: serde_json::Value,
     tags: Vec<String>,
     schema_name: Option<String>,
+    llm_hints: Option<serde_json::Value>, // NEW: Instance-level LLM hints
     visibility: Option<String>,
     sensitivity: Option<String>,
     ttl: Option<chrono::DateTime<chrono::Utc>>,
@@ -588,9 +591,12 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
     // Apply automatic TTL policies for certain breadcrumb types
     let mut breadcrumb_create = BreadcrumbCreate {
         title: req.title,
+        description: None,          // Will be set below
+        semantic_version: None,     // Will be set below
         context: req.context,
         tags: req.tags.clone(),
         schema_name: req.schema_name.clone(),
+        llm_hints: None,            // Will be set below
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
@@ -598,6 +604,11 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         ttl_config: None,
         ttl_source: None,
     };
+    
+    // Map new fields from request to BreadcrumbCreate
+    breadcrumb_create.description = req.description;
+    breadcrumb_create.semantic_version = req.semantic_version;
+    breadcrumb_create.llm_hints = req.llm_hints;
     
     // Apply automatic TTL based on schema and tags
     hygiene::apply_auto_ttl(&mut breadcrumb_create, req.schema_name.as_deref(), &req.tags);
@@ -672,19 +683,26 @@ async fn get_breadcrumb_context(State(state): State<AppState>, auth: AuthContext
     .execute(&state.db.pool)
     .await;
     
-    // Try to get llm_hints from schema definition first, then fall back to instance hints
-    let hints_to_apply = if let Some(schema_name) = &view.schema_name {
-        // Load hints from schema definition cache
-        state.schema_cache.load_schema_hints(schema_name).await
+    // Load llm_hints with precedence: Instance > Schema
+    // NO backward compatibility - new structure only!
+    
+    // 1. Check breadcrumb-level llm_hints (instance override)
+    let instance_hints = view.llm_hints.clone()
+        .and_then(|v| serde_json::from_value::<transforms::LlmHints>(v).ok());
+    
+    // 2. Load schema defaults (fallback)
+    let schema_hints = if instance_hints.is_none() {
+        if let Some(schema_name) = &view.schema_name {
+            state.schema_cache.load_schema_hints(schema_name).await
+        } else {
+            None
+        }
     } else {
         None
     };
     
-    // If no schema hints, check if breadcrumb has instance-level hints
-    let final_hints = hints_to_apply.or_else(|| {
-        view.context.get("llm_hints")
-            .and_then(|v| serde_json::from_value::<transforms::LlmHints>(v.clone()).ok())
-    });
+    // Apply precedence: Instance > Schema (no legacy support!)
+    let final_hints = instance_hints.or(schema_hints);
     
     // Apply hints if we found any
     if let Some(hints) = final_hints {
@@ -715,9 +733,12 @@ async fn get_breadcrumb_full(State(state): State<AppState>, auth: AuthContext, a
 #[derive(Deserialize)]
 struct UpdateReq {
     title: Option<String>,
+    description: Option<String>,        // NEW: Update description
+    semantic_version: Option<String>,   // NEW: Update semantic version
     context: Option<serde_json::Value>,
     tags: Option<Vec<String>>,
     schema_name: Option<String>,
+    llm_hints: Option<serde_json::Value>, // NEW: Update LLM hints
     visibility: Option<String>,
     sensitivity: Option<String>,
     ttl: Option<chrono::DateTime<chrono::Utc>>,
@@ -744,9 +765,12 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
     
     let upd = rcrt_core::models::BreadcrumbUpdate {
         title: req.title,
+        description: req.description,
+        semantic_version: req.semantic_version,
         context: req.context,
         tags: req.tags,
         schema_name: req.schema_name,
+        llm_hints: req.llm_hints,
         visibility: req.visibility.and_then(|v| match v.as_str() {"public"=>Some(rcrt_core::models::Visibility::Public),"private"=>Some(rcrt_core::models::Visibility::Private),"team"=>Some(rcrt_core::models::Visibility::Team),_=>None}),
         sensitivity: req.sensitivity.and_then(|s| match s.as_str() {"pii"=>Some(rcrt_core::models::Sensitivity::Pii),"secret"=>Some(rcrt_core::models::Sensitivity::Secret),"low"=>Some(rcrt_core::models::Sensitivity::Low),_=>None}),
         ttl: req.ttl,
@@ -1434,7 +1458,9 @@ async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQue
             }
         };
         let items = rows.into_iter().map(|(id,title,context,tags,schema_name,version,updated_at)| {
-            BreadcrumbContextView { id, title, context, tags, schema_name, version, updated_at }
+            BreadcrumbContextView { 
+                id, title, description: None, semantic_version: None, context, tags, schema_name, llm_hints: None, version, updated_at 
+            }
         }).collect();
         Ok(Json(ListResult::Context(items)))
     } else {

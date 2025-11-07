@@ -1,11 +1,13 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Page Layout Schema Definition",
-  "tags": ["schema", "schema:page.layout.v1", "system:schema"],
+  "tags": [
+    "schema",
+    "schema:page.layout.v1",
+    "system:schema"
+  ],
   "context": {
     "schema_name": "page.layout.v1",
-    "version": "1.0.0",
-    "description": "Defines dynamic page layouts with sections and slots that can reference breadcrumbs",
     "purpose": "Enable LLMs and users to create pages dynamically by composing breadcrumbs into layouts",
     "structure": {
       "title": {
@@ -17,7 +19,11 @@
         "type": "array",
         "required": true,
         "description": "Must include 'page' and 'page:{name}' for routing",
-        "example": ["page", "page:quick-start", "system:page"]
+        "example": [
+          "page",
+          "page:quick-start",
+          "system:page"
+        ]
       },
       "context": {
         "type": "object",
@@ -30,7 +36,12 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["flex-column", "flex-row", "grid", "custom"],
+                "enum": [
+                  "flex-column",
+                  "flex-row",
+                  "grid",
+                  "custom"
+                ],
                 "description": "Root layout type"
               },
               "sections": {
@@ -45,7 +56,12 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": ["flex-column", "flex-row", "grid", "component"]
+                      "enum": [
+                        "flex-column",
+                        "flex-row",
+                        "grid",
+                        "component"
+                      ]
                     },
                     "slots": {
                       "type": "array",
@@ -61,14 +77,25 @@
                             "type": "object",
                             "description": "Search criteria to find breadcrumbs",
                             "properties": {
-                              "schema_name": {"type": "string"},
-                              "tag": {"type": "string"},
-                              "limit": {"type": "number"}
+                              "schema_name": {
+                                "type": "string"
+                              },
+                              "tag": {
+                                "type": "string"
+                              },
+                              "limit": {
+                                "type": "number"
+                              }
                             }
                           },
                           "render_mode": {
                             "type": "string",
-                            "enum": ["config_form", "display", "card", "custom"],
+                            "enum": [
+                              "config_form",
+                              "display",
+                              "card",
+                              "custom"
+                            ],
                             "description": "How to render the breadcrumb content"
                           }
                         }
@@ -83,9 +110,15 @@
             "type": "object",
             "description": "Optional page metadata",
             "properties": {
-              "description": {"type": "string"},
-              "author": {"type": "string"},
-              "version": {"type": "string"}
+              "description": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
             }
           }
         }
@@ -97,7 +130,11 @@
         "breadcrumb": {
           "schema_name": "page.layout.v1",
           "title": "Tool Configuration Page",
-          "tags": ["page", "page:tools", "workspace:pages"],
+          "tags": [
+            "page",
+            "page:tools",
+            "workspace:pages"
+          ],
           "context": {
             "layout": {
               "type": "flex-column",
@@ -124,12 +161,17 @@
           }
         }
       }
-    ],
-    "llm_hints": {
-      "summary": "Page layout schema - compose breadcrumbs into dynamic pages",
-      "when_to_use": "When creating new pages or UI layouts from breadcrumbs",
-      "key_concepts": ["sections define structure", "slots reference breadcrumbs", "render_mode controls display"]
-    }
+    ]
+  },
+  "description": "Defines dynamic page layouts with sections and slots that can reference breadcrumbs",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "summary": "Page layout schema - compose breadcrumbs into dynamic pages",
+    "when_to_use": "When creating new pages or UI layouts from breadcrumbs",
+    "key_concepts": [
+      "sections define structure",
+      "slots reference breadcrumbs",
+      "render_mode controls display"
+    ]
   }
 }
-

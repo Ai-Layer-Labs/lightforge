@@ -1,0 +1,96 @@
+{
+  "schema_name": "template.agent.v1",
+  "title": "Base Agent Template",
+  "description": "Standard structure for agent.def.v1 breadcrumbs - agents that use context-builder pattern",
+  "semantic_version": "1.0.0",
+  "tags": ["template:agent", "guide:agents", "workspace:templates", "system:bootstrap"],
+  "context": {
+    "template_type": "agent",
+    "extends": "base-breadcrumb",
+    "purpose": "Template for creating agents that properly use RCRT patterns",
+    
+    "critical_requirements": [
+      "🔴 MUST subscribe to agent.context.v1 (not raw events)",
+      "🔴 MUST use context-builder (for rich context)",
+      "🔴 MUST use fire-and-forget (no waiting)",
+      "🔴 MUST orchestrate via tool.request.v1 (not execute directly)"
+    ],
+    
+    "standard_agent_structure": {
+      "schema_name": "agent.def.v1 (REQUIRED)",
+      "title": "Agent Name (REQUIRED)",
+      "description": "What the agent does (RECOMMENDED - top-level)",
+      "tags": ["agent:def", "agent:{id}", "workspace:agents"],
+      "context": {
+        "agent_id": "unique-identifier (REQUIRED)",
+        "llm_config_id": "null or UUID of tool.config.v1 (REQUIRED)",
+        "system_prompt": "Instructions for LLM (REQUIRED)",
+        "capabilities": {
+          "can_create_breadcrumbs": true,
+          "can_use_tools": true,
+          "can_update_own": false,
+          "can_delete_own": false,
+          "can_spawn_agents": false
+        },
+        "subscriptions": {
+          "selectors": [
+            {
+              "comment": "Primary trigger - pre-assembled context from context-builder",
+              "schema_name": "agent.context.v1",
+              "all_tags": ["consumer:{agent_id}"],
+              "role": "trigger",
+              "key": "assembled_context",
+              "fetch": {"method": "event_data"}
+            },
+            {
+              "comment": "Tool responses for continuation",
+              "schema_name": "tool.response.v1",
+              "all_tags": ["workspace:tools"],
+              "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "{agent_id}"}],
+              "role": "trigger",
+              "key": "tool_response",
+              "fetch": {"method": "event_data"}
+            }
+          ]
+        }
+      }
+    },
+    
+    "subscription_pattern": {
+      "description": "Agents MUST subscribe to agent.context.v1, NOT raw events",
+      "correct_pattern": {
+        "schema_name": "agent.context.v1",
+        "all_tags": ["consumer:my-agent"],
+        "role": "trigger"
+      },
+      "incorrect_pattern": {
+        "schema_name": "note.v1",
+        "role": "trigger",
+        "problem": "Bypasses context-builder, gets empty context, FAILS"
+      }
+    },
+    
+    "response_pattern": {
+      "description": "Agents create agent.response.v1 or domain-specific breadcrumbs",
+      "schema_name": "agent.response.v1 or note.tags.v1, note.summary.v1, etc.",
+      "required_tags": ["agent:response", "session:{session_id}"],
+      "required_context": {
+        "message": "Response text",
+        "creator": {"type": "agent", "agent_id": "{agent_id}"}
+      }
+    },
+    
+    "working_example": "default-chat-assistant",
+    "broken_counter_example": "note agents (bypass context-builder)",
+    
+    "best_practices": [
+      "Always use context-builder pattern (subscribe to agent.context.v1)",
+      "Use tool.response.v1 subscriptions for continuation",
+      "Include context_match to filter only your tool responses",
+      "Use fire-and-forget (create tool.request.v1, then EXIT)",
+      "Copy session tags from trigger to response (for conversation isolation)",
+      "Document agent purpose in description field (top-level)"
+    ]
+  }
+}
+

@@ -1,16 +1,17 @@
 {
   "schema_name": "agent.def.v1",
   "title": "Note Insights Agent",
-  "tags": ["agent:def", "agent:note-insights", "workspace:agents", "system:bootstrap"],
+  "tags": [
+    "agent:def",
+    "agent:note-insights",
+    "workspace:agents",
+    "system:bootstrap"
+  ],
   "context": {
     "agent_id": "note-insights",
-    "description": "Automatically extracts 3-5 key insights from saved notes",
-    
     "llm_config_id": null,
     "llm_config_comment": "Uses openrouter tool. Configure via tool.config.v1 breadcrumb.",
-    
     "system_prompt": "You are an expert at extracting actionable insights from content.\n\nYour task: Extract 3-5 key insights that:\n- Highlight important takeaways\n- Focus on actionable points\n- Are specific and concrete\n\nRespond with ONLY a valid JSON object:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"note.insights.v1\",\n    \"title\": \"Note Insights\",\n    \"tags\": [\"ai-generated\", \"note:NOTE_ID\"],\n    \"context\": {\n      \"note_id\": \"NOTE_ID\",\n      \"insights\": [\n        \"First key insight here\",\n        \"Second key insight here\",\n        \"Third key insight here\"\n      ]\n    }\n  }\n}\n\nExtract NOTE_ID from the trigger event.\nOutput ONLY the JSON.",
-    
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_use_tools": true,
@@ -18,7 +19,6 @@
       "can_delete_own": false,
       "can_spawn_agents": false
     },
-    
     "subscriptions": {
       "selectors": [
         {
@@ -26,10 +26,13 @@
           "schema_name": "note.v1",
           "role": "trigger",
           "key": "note",
-          "fetch": {"method": "latest", "limit": 1}
+          "fetch": {
+            "method": "latest",
+            "limit": 1
+          }
         }
       ]
     }
-  }
+  },
+  "description": "Automatically extracts 3-5 key insights from saved notes"
 }
-

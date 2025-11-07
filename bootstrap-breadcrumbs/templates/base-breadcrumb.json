@@ -1,0 +1,76 @@
+{
+  "schema_name": "template.base.v1",
+  "title": "Base Breadcrumb Template",
+  "description": "Standard structure for all RCRT breadcrumbs - use as reference when creating new breadcrumbs",
+  "tags": ["template:base", "guide:breadcrumbs", "workspace:templates", "system:bootstrap"],
+  "context": {
+    "template_type": "base",
+    "purpose": "Defines standard breadcrumb structure for LLM-assemblability",
+    
+    "standard_structure": {
+      "schema_name": "string (REQUIRED) - Schema identifier with version (e.g., 'tool.code.v1', 'agent.def.v1')",
+      "title": "string (REQUIRED) - Short human-readable name",
+      "description": "string (OPTIONAL) - Detailed description - NEW: Top-level for easier queries",
+      "semantic_version": "string (OPTIONAL) - Semantic version (e.g., '2.0.0') - NEW: Top-level for consistency",
+      "tags": "array (REQUIRED) - Categorization and routing tags",
+      "context": "object (REQUIRED) - Schema-specific data",
+      "llm_hints": "object (OPTIONAL) - Instance-level LLM optimization - NEW: Top-level, overrides schema defaults",
+      "ttl": "datetime (OPTIONAL) - Expiry timestamp",
+      "ttl_type": "string (OPTIONAL) - TTL type: never, datetime, duration, usage, hybrid",
+      "visibility": "string (OPTIONAL) - public, team, private (default: team)",
+      "sensitivity": "string (OPTIONAL) - low, pii, secret (default: low)"
+    },
+    
+    "llm_hints_structure": {
+      "description": "LLM optimization hints - controls how breadcrumb appears to LLMs",
+      "precedence": "Instance (breadcrumb.llm_hints) > Schema (schema.def.v1)",
+      "location": "Top-level ONLY - NOT in context (breaking change from v2.0)",
+      "example": {
+        "transform": {
+          "formatted": {
+            "type": "format",
+            "format": "User ({timestamp}): {content}"
+          }
+        },
+        "include": ["field1", "field2"],
+        "exclude": ["internal_data", "metadata"],
+        "mode": "replace"
+      },
+      "transform_types": ["format", "template", "extract", "literal"],
+      "modes": ["replace", "merge"]
+    },
+    
+    "best_practices": [
+      "Use semantic_version for component versioning (NEW: top-level, not in context)",
+      "Use description for detailed info (NEW: top-level for easy queries)",
+      "Use llm_hints at breadcrumb level to customize per-instance (NEW: overrides schema)",
+      "Keep context for schema-specific data only",
+      "Use meaningful tags for routing and discovery",
+      "Use schema_name to enable type-specific behavior",
+      "Set appropriate TTL for ephemeral data"
+    ],
+    
+    "field_locations": {
+      "top_level_metadata": ["schema_name", "title", "description", "semantic_version", "tags", "llm_hints"],
+      "top_level_system": ["ttl", "ttl_type", "visibility", "sensitivity"],
+      "context": "Schema-specific domain data only (no metadata)"
+    },
+    
+    "breaking_changes_v2.1": [
+      "description, semantic_version, llm_hints are TOP-LEVEL only",
+      "NO support for context.version, context.description, context.llm_hints",
+      "Old breadcrumbs need migration (use scripts/migrate-breadcrumb-structure.js)",
+      "Clean break - new structure is the ONLY structure"
+    ]
+  },
+  "llm_hints": {
+    "transform": {
+      "guide": {
+        "type": "format",
+        "format": "Base Breadcrumb Template: Standard structure with {llm_hints_structure.precedence}"
+      }
+    },
+    "mode": "replace"
+  }
+}
+

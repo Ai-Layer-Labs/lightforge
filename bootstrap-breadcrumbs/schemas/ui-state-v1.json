@@ -1,11 +1,13 @@
 {
   "schema_name": "schema.def.v1",
   "title": "UI State Schema Definition",
-  "tags": ["schema", "schema:ui.state.v1", "system:schema"],
+  "tags": [
+    "schema",
+    "schema:ui.state.v1",
+    "system:schema"
+  ],
   "context": {
     "schema_name": "ui.state.v1",
-    "version": "1.0.0",
-    "description": "Ephemeral UI state stored in breadcrumbs with automatic TTL cleanup",
     "purpose": "Store UI state that persists across refreshes but expires after a duration",
     "structure": {
       "title": {
@@ -17,12 +19,18 @@
         "type": "array",
         "required": true,
         "description": "Must include 'state', 'state:{name}', and 'ephemeral'",
-        "example": ["state", "state:quick-start-wizard", "ephemeral"]
+        "example": [
+          "state",
+          "state:quick-start-wizard",
+          "ephemeral"
+        ]
       },
       "ttl_type": {
         "type": "string",
         "required": true,
-        "enum": ["duration"],
+        "enum": [
+          "duration"
+        ],
         "description": "Always use duration for ephemeral state"
       },
       "ttl_config": {
@@ -62,9 +70,15 @@
         "breadcrumb": {
           "schema_name": "ui.state.v1",
           "title": "Quick Start Wizard State",
-          "tags": ["state", "state:quick-start-wizard", "ephemeral"],
+          "tags": [
+            "state",
+            "state:quick-start-wizard",
+            "ephemeral"
+          ],
           "ttl_type": "duration",
-          "ttl_config": { "duration": "2h" },
+          "ttl_config": {
+            "duration": "2h"
+          },
           "context": {
             "currentStep": 1,
             "selectedProvider": null,
@@ -83,9 +97,15 @@
         "breadcrumb": {
           "schema_name": "ui.state.v1",
           "title": "Settings Form State",
-          "tags": ["state", "state:settings-form", "ephemeral"],
+          "tags": [
+            "state",
+            "state:settings-form",
+            "ephemeral"
+          ],
           "ttl_type": "duration",
-          "ttl_config": { "duration": "1h" },
+          "ttl_config": {
+            "duration": "1h"
+          },
           "context": {
             "theme": "dark",
             "language": "en",
@@ -93,17 +113,18 @@
           }
         }
       }
-    ],
-    "llm_hints": {
-      "summary": "UI state schema - ephemeral state for interactive pages",
-      "when_to_use": "When pages need to track temporary state like form data, wizard progress, selections",
-      "key_concepts": [
-        "Always ephemeral with TTL",
-        "Referenced by tag from ui.page.v1",
-        "Updated via setState actions",
-        "Auto-cleanup prevents clutter"
-      ]
-    }
+    ]
+  },
+  "description": "Ephemeral UI state stored in breadcrumbs with automatic TTL cleanup",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "summary": "UI state schema - ephemeral state for interactive pages",
+    "when_to_use": "When pages need to track temporary state like form data, wizard progress, selections",
+    "key_concepts": [
+      "Always ephemeral with TTL",
+      "Referenced by tag from ui.page.v1",
+      "Updated via setState actions",
+      "Auto-cleanup prevents clutter"
+    ]
   }
 }
-

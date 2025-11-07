@@ -1,23 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "Agent Response Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:agent.response.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:agent.response.v1"
+  ],
   "context": {
     "defines_schema": "agent.response.v1",
-    "schema_version": "1.0.0",
     "category": "agents",
-    "description": "Agent chat responses and messages",
-    
-    "llm_hints": {
-      "transform": {
-        "formatted": {
-          "type": "format",
-          "format": "Assistant: {message}"
-        }
-      },
-      "mode": "replace"
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "duration",
@@ -28,7 +19,6 @@
         "allow_override": true
       }
     },
-    
     "field_definitions": {
       "message": {
         "type": "string",
@@ -55,6 +45,16 @@
         "llm_exclude": true
       }
     }
+  },
+  "description": "Agent chat responses and messages",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "format",
+        "format": "Assistant: {message}"
+      }
+    },
+    "mode": "replace"
   }
 }
-

@@ -1,11 +1,13 @@
 {
   "schema_name": "schema.def.v1",
   "title": "UI Component Schema Definition",
-  "tags": ["schema", "schema:ui.component.v1", "system:schema"],
+  "tags": [
+    "schema",
+    "schema:ui.component.v1",
+    "system:schema"
+  ],
   "context": {
     "schema_name": "ui.component.v1",
-    "version": "1.0.0",
-    "description": "Defines reusable UI components with props schema for composition",
     "purpose": "Create component libraries that can be referenced and reused across pages",
     "structure": {
       "title": {
@@ -17,7 +19,11 @@
         "type": "array",
         "required": true,
         "description": "Must include 'ui:component' and 'ui:{name}'",
-        "example": ["ui:component", "ui:provider-card", "workspace:ui"]
+        "example": [
+          "ui:component",
+          "ui:provider-card",
+          "workspace:ui"
+        ]
       },
       "context": {
         "type": "object",
@@ -78,7 +84,10 @@
         "breadcrumb": {
           "schema_name": "ui.component.v1",
           "title": "Provider Card Component",
-          "tags": ["ui:component", "ui:provider-card"],
+          "tags": [
+            "ui:component",
+            "ui:provider-card"
+          ],
           "context": {
             "props_schema": {
               "provider": "object",
@@ -90,20 +99,31 @@
                 "className": "hover:scale-105 transition-transform",
                 "onPress": {
                   "action": "{{props.onSelect}}",
-                  "args": { "providerId": "{{props.provider.id}}" }
+                  "args": {
+                    "providerId": "{{props.provider.id}}"
+                  }
                 },
                 "children": [
                   {
                     "CardHeader": {
                       "children": [
-                        { "div": { "className": "text-4xl", "children": "{{props.provider.icon}}" } }
+                        {
+                          "div": {
+                            "className": "text-4xl",
+                            "children": "{{props.provider.icon}}"
+                          }
+                        }
                       ]
                     }
                   },
                   {
                     "CardBody": {
                       "children": [
-                        { "h3": { "children": "{{props.provider.name}}" } }
+                        {
+                          "h3": {
+                            "children": "{{props.provider.name}}"
+                          }
+                        }
                       ]
                     }
                   }
@@ -113,17 +133,18 @@
           }
         }
       }
-    ],
-    "llm_hints": {
-      "summary": "UI component schema - reusable components with props",
-      "when_to_use": "When creating reusable UI patterns across multiple pages",
-      "key_concepts": [
-        "Props passed via {{props.x}} syntax",
-        "Actions can reference props",
-        "Composable in ui.page.v1 pages",
-        "DRY principle for UI"
-      ]
-    }
+    ]
+  },
+  "description": "Defines reusable UI components with props schema for composition",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "summary": "UI component schema - reusable components with props",
+    "when_to_use": "When creating reusable UI patterns across multiple pages",
+    "key_concepts": [
+      "Props passed via {{props.x}} syntax",
+      "Actions can reference props",
+      "Composable in ui.page.v1 pages",
+      "DRY principle for UI"
+    ]
   }
 }
-

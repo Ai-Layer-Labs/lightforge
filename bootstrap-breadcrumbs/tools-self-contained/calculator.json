@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Calculator Tool (Self-Contained)",
+  "description": "Perform mathematical calculations - supports basic arithmetic, parentheses, and common math functions",
+  "semantic_version": "2.0.0",
   "tags": ["tool", "tool:calculator", "workspace:tools", "self-contained"],
+  "llm_hints": {
+    "include": ["name", "description", "input_schema", "output_schema", "examples"],
+    "exclude": ["code", "permissions", "limits", "ui_schema"]
+  },
   "context": {
     "name": "calculator",
-    "description": "Perform mathematical calculations - supports basic arithmetic, parentheses, and common math functions",
-    "version": "2.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Calculator Tool - Self-Contained Deno Version\n * Performs mathematical calculations safely\n */\n\ninterface Input {\n  expression: string;\n}\n\ninterface Output {\n  result: number;\n  expression: string;\n  formatted: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  const { expression } = input;\n  \n  if (!expression) {\n    throw new Error('Missing required field: expression');\n  }\n  \n  try {\n    // Create a safer eval context with Math functions\n    const mathContext = {\n      // Basic Math constants\n      PI: Math.PI,\n      E: Math.E,\n      // Basic Math functions\n      abs: Math.abs,\n      acos: Math.acos,\n      asin: Math.asin,\n      atan: Math.atan,\n      atan2: Math.atan2,\n      ceil: Math.ceil,\n      cos: Math.cos,\n      exp: Math.exp,\n      floor: Math.floor,\n      log: Math.log,\n      max: Math.max,\n      min: Math.min,\n      pow: Math.pow,\n      random: Math.random,\n      round: Math.round,\n      sin: Math.sin,\n      sqrt: Math.sqrt,\n      tan: Math.tan\n    };\n    \n    // Build function with math context\n    const mathKeys = Object.keys(mathContext);\n    const mathValues = Object.values(mathContext);\n    \n    // Sanitize expression - remove potentially dangerous patterns\n    const sanitized = expression\n      .replace(/[^0-9+\\-*/().,\\s\\w]/g, '') // Only allow basic math chars\n      .replace(/\\bMath\\./g, ''); // Remove Math. prefix for cleaner syntax\n    \n    // Create function with math context\n    const evalFunction = new Function(...mathKeys, `\"use strict\"; return (${sanitized})`);\n    const result = evalFunction(...mathValues);\n    \n    // Validate result\n    if (typeof result !== 'number' || !isFinite(result)) {\n      throw new Error('Expression did not evaluate to a valid number');\n    }\n    \n    // Format result nicely\n    const formatted = result % 1 === 0 \n      ? result.toString() \n      : result.toFixed(10).replace(/\\.?0+$/, ''); // Remove trailing zeros\n    \n    return {\n      result,\n      expression,\n      formatted: `${expression} = ${formatted}`\n    };\n  } catch (error: any) {\n    throw new Error(`Failed to evaluate expression: ${error.message}`);\n  }\n}\n"

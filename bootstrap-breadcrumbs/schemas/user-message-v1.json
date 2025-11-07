@@ -1,23 +1,14 @@
 {
   "schema_name": "schema.def.v1",
   "title": "User Message Schema Definition",
-  "tags": ["schema:definition", "system:bootstrap", "defines:user.message.v1"],
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:user.message.v1"
+  ],
   "context": {
     "defines_schema": "user.message.v1",
-    "schema_version": "1.0.0",
     "category": "messaging",
-    "description": "User chat messages from various sources",
-    
-    "llm_hints": {
-      "transform": {
-        "formatted": {
-          "type": "format",
-          "format": "User ({timestamp}): {content}"
-        }
-      },
-      "mode": "replace"
-    },
-    
     "lifecycle": {
       "ttl_policy": {
         "type": "duration",
@@ -28,7 +19,6 @@
         "allow_override": true
       }
     },
-    
     "field_definitions": {
       "content": {
         "type": "string",
@@ -52,6 +42,16 @@
         "description": "Session identifier for conversation grouping"
       }
     }
+  },
+  "description": "User chat messages from various sources",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "format",
+        "format": "User ({timestamp}): {content}"
+      }
+    },
+    "mode": "replace"
   }
 }
-

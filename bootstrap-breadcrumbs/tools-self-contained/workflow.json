@@ -1,11 +1,14 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Workflow Orchestrator (Self-Contained)",
-  "tags": ["tool", "tool:workflow", "workspace:tools", "self-contained"],
+  "tags": [
+    "tool",
+    "tool:workflow",
+    "workspace:tools",
+    "self-contained"
+  ],
   "context": {
     "name": "workflow",
-    "description": "Orchestrate multi-step tool operations with dependencies and variable interpolation",
-    "version": "2.0.1",
     "code": {
       "language": "typescript",
       "source": "/**\n * Workflow Orchestrator - Self-Contained Deno Tool\n * Orchestrates multi-step tool operations with dependencies\n */\n\nasync function execute(input, context) {\n  const { steps, returnStep, continueOnError = false } = input;\n  \n  if (!Array.isArray(steps) || steps.length === 0) {\n    throw new Error('steps must be a non-empty array');\n  }\n  \n  const results = new Map();\n  const errors = new Map();\n  const executionOrder = [];\n  \n  // Auto-detect dependencies from variable references\n  const stepsWithDeps = steps.map(step => ({\n    ...step,\n    dependencies: step.dependencies || extractDependencies(step.input, steps.map(s => s.id))\n  }));\n  \n  // Topological sort to determine execution order\n  const levels = topologicalSort(stepsWithDeps);\n  \n  // Execute each dependency level\n  for (const level of levels) {\n    // Execute steps in parallel within each level\n    await Promise.all(level.map(async (step) => {\n      try {\n        // Check if dependencies have errors\n        if (!continueOnError && step.dependencies) {\n          for (const dep of step.dependencies) {\n            if (errors.has(dep)) {\n              throw new Error(`Dependency ${dep} failed`);\n            }\n          }\n        }\n        \n        // Interpolate variables from previous results\n        const interpolatedInput = interpolateVariables(\n          step.input,\n          Object.fromEntries(results)\n        );\n        \n        // Create tool request\n        const requestId = `workflow-${step.id}-${Date.now()}`;\n        await context.api.createBreadcrumb({\n          schema_name: 'tool.request.v1',\n          title: `Workflow Step: ${step.tool}`,\n          tags: ['tool:request', 'workflow:step', 'workspace:tools'],\n          context: {\n            tool: step.tool,\n            input: interpolatedInput,\n            requestId,\n            workflowId: context.request.request_id,\n            stepId: step.id\n          }\n        });\n        \n        // Wait for response (with 60s timeout)\n        const response = await waitForResponse(context, requestId, 60000);\n        \n        if (response.status === 'error') {\n          errors.set(step.id, response.error);\n          if (!continueOnError) {\n            throw new Error(`Step ${step.id} failed: ${response.error}`);\n          }\n        } else {\n          results.set(step.id, response.output);\n        }\n        \n        executionOrder.push(step.id);\n      } catch (error) {\n        errors.set(step.id, error.message);\n        if (!continueOnError) {\n          throw error;\n        }\n      }\n    }));\n  }\n  \n  // Return results\n  const output = {\n    results: Object.fromEntries(results),\n    executionOrder\n  };\n  \n  if (errors.size > 0) {\n    output.errors = Object.fromEntries(errors);\n  }\n  \n  if (returnStep) {\n    return results.has(returnStep)\n      ? results.get(returnStep)\n      : { error: `Step ${returnStep} not found or failed` };\n  }\n  \n  return output;\n}\n\n// Helper: Extract dependencies from variable references\nfunction extractDependencies(input, stepIds) {\n  const deps = new Set();\n  const jsonStr = JSON.stringify(input);\n  \n  for (const stepId of stepIds) {\n    // Match ${stepId} or ${stepId.field}\n    const regex = new RegExp(`\\\\\\\\\\$\\\\{\\\\s*${stepId}(?:\\\\.|\\\\[|\\\\})`, 'g');\n    if (regex.test(jsonStr)) {\n      deps.add(stepId);\n    }\n  }\n  \n  return Array.from(deps);\n}\n\n// Helper: Topological sort for dependency levels\nfunction topologicalSort(steps) {\n  const levels = [];\n  const completed = new Set();\n  const stepsMap = new Map(steps.map(s => [s.id, s]));\n  \n  while (completed.size < steps.length) {\n    const level = [];\n    \n    for (const step of steps) {\n      if (completed.has(step.id)) continue;\n      \n      // Check if all dependencies are completed\n      const deps = step.dependencies || [];\n      const allDepsCompleted = deps.every(dep => completed.has(dep));\n      \n      if (allDepsCompleted) {\n        level.push(step);\n      }\n    }\n    \n    if (level.length === 0) {\n      // Circular dependency or invalid state\n      const remaining = steps.filter(s => !completed.has(s.id));\n      throw new Error(`Circular dependency detected: ${remaining.map(s => s.id).join(', ')}`);\n    }\n    \n    level.forEach(s => completed.add(s.id));\n    levels.push(level);\n  }\n  \n  return levels;\n}\n\n// Helper: Interpolate variables like ${stepId.field}\nfunction interpolateVariables(input, results) {\n  const jsonStr = JSON.stringify(input);\n  \n  // Replace ${stepId.field.subfield} or ${stepId}\n  const interpolated = jsonStr.replace(/\\$\\{([^}]+)\\}/g, (match, path) => {\n    const parts = path.trim().split('.');\n    let value = results;\n    \n    for (const part of parts) {\n      // Handle array access like [0]\n      if (part.includes('[')) {\n        const [key, ...indices] = part.split(/[\\[\\]]/).filter(Boolean);\n        value = value?.[key];\n        for (const idx of indices) {\n          value = value?.[parseInt(idx)];\n        }\n      } else {\n        value = value?.[part];\n      }\n      \n      if (value === undefined) {\n        return match; // Keep original if not found\n      }\n    }\n    \n    return typeof value === 'object' ? JSON.stringify(value) : String(value);\n  });\n  \n  return JSON.parse(interpolated);\n}\n\n// Helper: Wait for tool response breadcrumb\nasync function waitForResponse(context, requestId, timeout) {\n  const startTime = Date.now();\n  \n  while (Date.now() - startTime < timeout) {\n    // Search for response breadcrumb with matching request tag\n    const responses = await context.api.searchBreadcrumbs({\n      schema_name: 'tool.response.v1',\n      tag: `request:${requestId}`\n    });\n    \n    if (responses.length > 0) {\n      // Get full breadcrumb to access context\n      const response = await context.api.getBreadcrumb(responses[0].id);\n      return {\n        status: response.context.status,\n        output: response.context.output,\n        error: response.context.error\n      };\n    }\n    \n    // Wait 100ms before retrying\n    await new Promise(resolve => setTimeout(resolve, 100));\n  }\n  \n  throw new Error(`Timeout waiting for response to ${requestId}`);\n}\n\nexport { execute };\n"
@@ -34,16 +37,31 @@
           "items": {
             "type": "object",
             "properties": {
-              "id": {"type": "string", "description": "Unique identifier for this step"},
-              "tool": {"type": "string", "description": "Name of the tool to execute"},
-              "input": {"type": "object", "description": "Input parameters for the tool"},
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this step"
+              },
+              "tool": {
+                "type": "string",
+                "description": "Name of the tool to execute"
+              },
+              "input": {
+                "type": "object",
+                "description": "Input parameters for the tool"
+              },
               "dependencies": {
                 "type": "array",
-                "items": {"type": "string"},
+                "items": {
+                  "type": "string"
+                },
                 "description": "Step IDs that must complete before this step"
               }
             },
-            "required": ["id", "tool", "input"]
+            "required": [
+              "id",
+              "tool",
+              "input"
+            ]
           }
         },
         "returnStep": {
@@ -56,14 +74,25 @@
           "default": false
         }
       },
-      "required": ["steps"]
+      "required": [
+        "steps"
+      ]
     },
     "output_schema": {
       "type": "object",
       "properties": {
-        "results": {"type": "object", "description": "Results from each step"},
-        "errors": {"type": "object", "description": "Any errors that occurred"},
-        "executionOrder": {"type": "array", "description": "Order in which steps were executed"}
+        "results": {
+          "type": "object",
+          "description": "Results from each step"
+        },
+        "errors": {
+          "type": "object",
+          "description": "Any errors that occurred"
+        },
+        "executionOrder": {
+          "type": "array",
+          "description": "Order in which steps were executed"
+        }
       }
     },
     "examples": [
@@ -71,13 +100,26 @@
         "title": "Sequential calculation with dependencies",
         "input": {
           "steps": [
-            {"id": "num1", "tool": "random", "input": {}},
-            {"id": "num2", "tool": "random", "input": {}},
+            {
+              "id": "num1",
+              "tool": "random",
+              "input": {}
+            },
+            {
+              "id": "num2",
+              "tool": "random",
+              "input": {}
+            },
             {
               "id": "sum",
               "tool": "calculator",
-              "input": {"expression": "${num1.numbers[0]} + ${num2.numbers[0]}"},
-              "dependencies": ["num1", "num2"]
+              "input": {
+                "expression": "${num1.numbers[0]} + ${num2.numbers[0]}"
+              },
+              "dependencies": [
+                "num1",
+                "num2"
+              ]
             }
           ]
         },
@@ -87,14 +129,47 @@
         "title": "Parallel execution",
         "input": {
           "steps": [
-            {"id": "task1", "tool": "timer", "input": {"seconds": 1}},
-            {"id": "task2", "tool": "echo", "input": {"message": "Parallel"}},
-            {"id": "task3", "tool": "random", "input": {}}
+            {
+              "id": "task1",
+              "tool": "timer",
+              "input": {
+                "seconds": 1
+              }
+            },
+            {
+              "id": "task2",
+              "tool": "echo",
+              "input": {
+                "message": "Parallel"
+              }
+            },
+            {
+              "id": "task3",
+              "tool": "random",
+              "input": {}
+            }
           ]
         },
         "explanation": "Steps without dependencies run in parallel for better performance."
       }
     ]
+  },
+  "description": "Orchestrate multi-step tool operations with dependencies and variable interpolation",
+  "semantic_version": "2.0.1",
+  "llm_hints": {
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema",
+      "bootstrap"
+    ]
   }
 }
-

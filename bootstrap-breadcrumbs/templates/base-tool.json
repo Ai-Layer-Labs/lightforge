@@ -1,0 +1,102 @@
+{
+  "schema_name": "template.tool.v1",
+  "title": "Base Tool Template",
+  "description": "Standard structure for tool.code.v1 breadcrumbs with common defaults",
+  "semantic_version": "1.0.0",
+  "tags": ["template:tool", "guide:tools", "workspace:templates", "system:bootstrap"],
+  "context": {
+    "template_type": "tool",
+    "extends": "base-breadcrumb",
+    "purpose": "Template for creating self-contained Deno tools",
+    
+    "standard_tool_structure": {
+      "schema_name": "tool.code.v1 (REQUIRED)",
+      "title": "Tool Name (REQUIRED)",
+      "description": "What the tool does (RECOMMENDED - top-level)",
+      "semantic_version": "2.0.0 (RECOMMENDED - top-level)",
+      "tags": ["tool", "tool:{name}", "workspace:tools", "self-contained"],
+      "llm_hints": {
+        "include": ["name", "description", "input_schema", "output_schema", "examples"],
+        "exclude": ["code", "permissions", "limits"]
+      },
+      "context": {
+        "name": "tool-identifier (REQUIRED - same as title, lowercase)",
+        "code": {
+          "language": "typescript (REQUIRED)",
+          "source": "export async function execute(input, context) {...}"
+        },
+        "input_schema": "JSON Schema (REQUIRED)",
+        "output_schema": "JSON Schema (REQUIRED)",
+        "permissions": "Deno permissions (see defaults below)",
+        "limits": "Resource limits (see defaults below)",
+        "required_secrets": "[] (array of secret names)",
+        "ui_schema": {"configurable": true/false},
+        "examples": "Array of usage examples"
+      }
+    },
+    
+    "default_permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false,
+      "note": "Override specific permissions as needed"
+    },
+    
+    "default_limits": {
+      "timeout_ms": 5000,
+      "memory_mb": 32,
+      "cpu_percent": 50,
+      "note": "Adjust based on tool requirements"
+    },
+    
+    "llm_hints_standard": {
+      "description": "Tools should hide implementation (code) from LLM context",
+      "recommended": {
+        "include": ["name", "description", "input_schema", "output_schema", "examples"],
+        "exclude": ["code", "permissions", "limits", "ui_schema", "bootstrap"]
+      },
+      "reason": "LLMs need to know WHAT tool does and HOW to call it, not implementation details"
+    },
+    
+    "example_minimal_tool": {
+      "schema_name": "tool.code.v1",
+      "title": "Echo Tool",
+      "description": "Returns input unchanged",
+      "semantic_version": "2.0.0",
+      "tags": ["tool", "tool:echo", "workspace:tools", "self-contained"],
+      "llm_hints": {
+        "include": ["name", "description", "input_schema", "output_schema"],
+        "exclude": ["code", "permissions", "limits"]
+      },
+      "context": {
+        "name": "echo",
+        "code": {
+          "language": "typescript",
+          "source": "export async function execute(input, context) { return { echo: input.message }; }"
+        },
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message": {"type": "string"}
+          },
+          "required": ["message"]
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "echo": {"type": "string"}
+          }
+        },
+        "permissions": "Use default_permissions object",
+        "limits": "Use default_limits object",
+        "required_secrets": [],
+        "ui_schema": {"configurable": false}
+      }
+    }
+  }
+}
+

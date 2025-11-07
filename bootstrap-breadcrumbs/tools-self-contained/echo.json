@@ -1,11 +1,15 @@
 {
   "schema_name": "tool.code.v1",
   "title": "Echo Tool (Self-Contained)",
+  "description": "Returns the input unchanged - useful for testing",
+  "semantic_version": "2.0.0",
   "tags": ["tool", "tool:echo", "workspace:tools", "self-contained"],
+  "llm_hints": {
+    "include": ["name", "description", "input_schema", "output_schema", "examples"],
+    "exclude": ["code", "permissions", "limits"]
+  },
   "context": {
     "name": "echo",
-    "description": "Returns the input unchanged - useful for testing",
-    "version": "2.0.0",
     "code": {
       "language": "typescript",
       "source": "/**\n * Echo Tool - Self-Contained Deno Version\n * Returns input unchanged for testing\n */\n\ninterface Input {\n  message: string;\n}\n\ninterface Output {\n  echo: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  if (!input.message) {\n    throw new Error('Missing required field: message');\n  }\n  \n  return {\n    echo: input.message\n  };\n}\n"

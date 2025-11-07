@@ -82,6 +82,7 @@ curl -X POST http://localhost:8081/breadcrumbs \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test Message",
+    "description": "A test user message for demonstration",
     "schema_name": "user.message.v1",
     "tags": ["user:message", "test"],
     "context": {
@@ -89,6 +90,12 @@ curl -X POST http://localhost:8081/breadcrumbs \
       "conversation_id": "conv-123"
     }
   }'
+```
+
+**New in v2.1.0:**
+- `description` (optional) - Top-level detailed description
+- `semantic_version` (optional) - Top-level version like "2.0.0"
+- `llm_hints` (optional) - Top-level LLM optimization overrides
 ```
 
 ### Search Breadcrumbs
@@ -208,17 +215,18 @@ curl -X PATCH http://localhost:8081/breadcrumbs/$ID \
 }
 ```
 
-### Agent Definition
+### Agent Definition (v2.1.0 Structure)
 ```json
 {
   "schema_name": "agent.def.v1",
   "title": "Chat Agent",
+  "description": "Helpful chat assistant with tool access",
+  "semantic_version": "1.0.0",
   "tags": ["workspace:agents"],
   "context": {
     "agent_id": "agent-uuid",
-    "model": "openrouter/anthropic/claude-3.5-sonnet",
+    "llm_config_id": "config-uuid",
     "system_prompt": "You are a helpful assistant.",
-    "temperature": 0.7,
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_update_own": true,
@@ -226,15 +234,39 @@ curl -X PATCH http://localhost:8081/breadcrumbs/$ID \
     },
     "subscriptions": {
       "selectors": [
-        {"any_tags": ["user:message"]},
-        {"schema_name": "tool.response.v1"}
+        {
+          "schema_name": "agent.context.v1",
+          "all_tags": ["consumer:my-agent"],
+          "role": "trigger"
+        }
       ]
     }
   }
 }
 ```
 
-### Tool Definition
+### Tool Definition (v2.1.0 Structure)
+```json
+{
+  "schema_name": "tool.code.v1",
+  "title": "Calculator Tool",
+  "description": "Perform mathematical calculations",
+  "semantic_version": "2.0.0",
+  "tags": ["tool", "tool:calculator", "workspace:tools"],
+  "llm_hints": {
+    "include": ["name", "description", "input_schema", "output_schema"],
+    "exclude": ["code", "permissions"]
+  },
+  "context": {
+    "name": "calculator",
+    "code": {"language": "typescript", "source": "..."},
+    "input_schema": {...},
+    "output_schema": {...}
+  }
+}
+```
+
+### Old Tool Definition (v1.0 - DEPRECATED)
 ```json
 {
   "schema_name": "tool.v1",
@@ -419,23 +451,30 @@ npm run dev
 
 ## Common Patterns
 
-### Create Agent
+### Create Agent (v2.1.0)
 ```typescript
 // 1. Create agent definition breadcrumb
 const agentDef = await client.createBreadcrumb({
   schema_name: 'agent.def.v1',
   title: 'My Chat Agent',
-  tags: ['workspace:agents'],
+  description: 'Helpful chat assistant with tool access',
+  semantic_version: '1.0.0',
+  tags: ['agent:def', 'workspace:agents'],
   context: {
     agent_id: uuidv4(),
-    model: 'openrouter/anthropic/claude-3.5-sonnet',
-    system_prompt: 'You are a helpful assistant.',
+    llm_config_id: null, // Set via Dashboard UI
+    system_prompt: 'You are a helpful assistant...',
     capabilities: {
-      can_create_breadcrumbs: true
+      can_create_breadcrumbs: true,
+      can_use_tools: true
     },
     subscriptions: {
       selectors: [
-        { any_tags: ['user:message'] }
+        {
+          schema_name: 'agent.context.v1',
+          all_tags: ['consumer:my-agent'],
+          role: 'trigger'
+        }
       ]
     }
   }
@@ -444,29 +483,31 @@ const agentDef = await client.createBreadcrumb({
 // 2. Agent-runner auto-loads and starts the agent
 ```
 
-### Create Tool
+### Create Tool (v2.1.0)
 ```typescript
-// 1. Implement tool (in tools-runner/src/tools/)
-class MyTool {
-  async execute(input, context) {
-    // Do work
-    return { result: '...' };
-  }
-}
-
-// 2. Create tool definition breadcrumb
+// 1. Create tool.code.v1 breadcrumb with Deno code
 const toolDef = await client.createBreadcrumb({
-  schema_name: 'tool.v1',
+  schema_name: 'tool.code.v1',
   title: 'My Tool',
-  tags: ['workspace:tools'],
+  description: 'Does something useful',
+  semantic_version: '2.0.0',
+  tags: ['tool', 'tool:my-tool', 'workspace:tools'],
+  llm_hints: {
+    include: ['name', 'description', 'input_schema', 'output_schema'],
+    exclude: ['code', 'permissions']
+  },
   context: {
     name: 'my-tool',
-    description: 'Does something useful',
-    parameters: { ... }
+    code: {
+      language: 'typescript',
+      source: 'export async function execute(input, context) { return {...}; }'
+    },
+    input_schema: {...},
+    output_schema: {...}
   }
 });
 
-// 3. Tools-runner auto-loads the tool
+// 2. Tools-runner auto-loads the tool
 ```
 
 ### Request-Response Pattern
