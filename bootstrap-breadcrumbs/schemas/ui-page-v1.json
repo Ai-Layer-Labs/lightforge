@@ -180,5 +180,8 @@
       "Templates {{}} for dynamic values",
       "No code required - pure JSON"
     ]
+  },
+  "llm_hints": {
+    "mode": "exclude"
   }
 }

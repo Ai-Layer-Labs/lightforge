@@ -39,6 +39,11 @@ impl VectorStore {
         }
     }
     
+    /// Get reference to database pool (for graph queries)
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+    
     /// Load blacklist from context.blacklist.v1 breadcrumb
     /// NO FALLBACKS - fails fast if configuration is missing
     pub async fn load_blacklist(&self) -> Result<()> {

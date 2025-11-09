@@ -48,8 +48,8 @@
   "llm_hints": {
     "transform": {
       "formatted": {
-        "type": "format",
-        "format": "User ({timestamp}): {content}"
+        "type": "template",
+        "template": "[{{timestamp}}] User:\n{{content}}"
       }
     },
     "mode": "replace"

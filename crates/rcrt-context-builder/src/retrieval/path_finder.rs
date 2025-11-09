@@ -111,6 +111,88 @@ impl PathFinder {
         results
     }
     
+    /// Find paths with token budget awareness
+    /// Stops when accumulated context exceeds target_tokens
+    pub fn find_paths_token_aware(
+        &self,
+        graph: &SessionGraph,
+        seed_nodes: Vec<Uuid>,
+        target_tokens: usize,
+    ) -> Vec<Uuid> {
+        let mut visited = HashSet::new();
+        let mut heap = BinaryHeap::new();
+        let mut results = Vec::new();
+        let mut token_count = 0;
+        
+        // Initialize with seed nodes
+        for seed_id in seed_nodes {
+            heap.push(PathNode {
+                id: seed_id,
+                cost: 0.0,
+                depth: 0,
+            });
+        }
+        
+        // Dijkstra-style exploration with token awareness
+        while let Some(PathNode { id, cost, depth }) = heap.pop() {
+            if visited.contains(&id) {
+                continue;
+            }
+            
+            visited.insert(id);
+            
+            // Estimate tokens for this node
+            if let Some(node) = graph.nodes.get(&id) {
+                let node_tokens = estimate_node_tokens(node);
+                
+                // Check if adding this node would exceed budget
+                if token_count + node_tokens > target_tokens && !results.is_empty() {
+                    tracing::info!("⏹️  Token budget reached: {} + {} > {}", 
+                        token_count, node_tokens, target_tokens);
+                    break;
+                }
+                
+                token_count += node_tokens;
+                results.push(id);
+                
+                tracing::debug!("  ✓ Added node {} ({} tokens, total: {})", 
+                    id, node_tokens, token_count);
+            }
+            
+            // Stop if max results
+            if results.len() >= self.max_results {
+                break;
+            }
+            
+            // Stop if max depth
+            if depth >= self.max_depth {
+                continue;
+            }
+            
+            // Explore neighbors
+            for (neighbor_id, edge_type, weight) in graph.neighbors(id) {
+                if !visited.contains(&neighbor_id) {
+                    let edge_cost = match edge_type {
+                        EdgeType::Causal => 0.1,
+                        EdgeType::TagRelated => 0.3,
+                        EdgeType::Temporal => 0.5,
+                        EdgeType::Semantic => 1.0 - weight,
+                    };
+                    
+                    heap.push(PathNode {
+                        id: neighbor_id,
+                        cost: cost + edge_cost,
+                        depth: depth + 1,
+                    });
+                }
+            }
+        }
+        
+        tracing::info!("✅ Path finding: {} nodes, ~{} tokens", results.len(), token_count);
+        
+        results
+    }
+    
     /// Get causal chains for all seed nodes
     pub fn get_causal_chains(
         &self,
@@ -126,5 +208,11 @@ impl PathFinder {
         
         all_nodes.into_iter().collect()
     }
+}
+
+/// Estimate token count for a breadcrumb node
+/// Rough estimate: context size / 3 (average 3 chars per token)
+fn estimate_node_tokens(node: &crate::graph::BreadcrumbNode) -> usize {
+    node.context.to_string().len() / 3
 }
 

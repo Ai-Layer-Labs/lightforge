@@ -49,6 +49,11 @@ ort = { version = "2.0.0-rc.9", features = ["half"] }  # ONNX Runtime
 tokenizers = "0.19"  # Tokenizer for text processing
 regex = "1"  # For simple keyword extraction
 
+# Deep learning (GNN for context retrieval)
+candle-core = "0.8"
+candle-nn = "0.8"
+safetensors = "0.4"  # For model serialization
+
 # Configuration (optional - not used in MVP)
 # config = "0.14"
 

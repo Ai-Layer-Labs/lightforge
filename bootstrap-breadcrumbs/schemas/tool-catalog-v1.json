@@ -33,13 +33,9 @@
   "semantic_version": "1.0.0",
   "llm_hints": {
     "transform": {
-      "tool_list": {
-        "type": "extract",
-        "value": "$.tools[*].name"
-      },
-      "tool_count": {
-        "type": "literal",
-        "literal": "Use tools by their name"
+      "formatted": {
+        "type": "template",
+        "template": "=== AVAILABLE TOOLS ===\n\n{{#each tools}}- {{name}} ({{category}})\n  {{description}}\n  Returns: {{returns}}\n\n{{/each}}"
       }
     },
     "mode": "replace"

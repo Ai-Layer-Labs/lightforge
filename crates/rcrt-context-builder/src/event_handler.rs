@@ -17,6 +17,7 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{info, warn, error};
+use petgraph::visit::EdgeRef;
 
 pub struct EventHandler {
     rcrt_client: Arc<RcrtClient>,
@@ -96,84 +97,190 @@ impl EventHandler {
         session_tag: &str,
         trigger_id: Option<uuid::Uuid>,
     ) -> Result<()> {
-        use crate::retrieval::{ContextConfig, SourceConfig, SourceMethod};
+        use crate::graph::load_graph_around_trigger;
+        use crate::retrieval::AssembledContext;
         
-        // Build sources list
-        let mut sources = vec![
-            SourceConfig {
-                method: SourceMethod::Recent {
-                    schema_name: None,  // ✅ Get EVERYTHING in session!
-                },
-                limit: 20,  // Increased limit since we're getting all types
-            },
-            // Always include tool catalog (not session-specific)
-            SourceConfig {
-                method: SourceMethod::Latest {
-                    schema_name: "tool.catalog.v1".to_string(),
-                },
-                limit: 1,
-            },
-        ];
+        let Some(trigger) = trigger_id else {
+            warn!("No trigger ID provided, skipping context assembly");
+            return Ok(());
+        };
         
-        // 🔍 HYBRID SEARCH: Extract entities from query and search with vector + keywords
-        if let Some(trigger) = trigger_id {
-            if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
-                // Extract query text from trigger breadcrumb
-                let query_text = trigger_bc.context
-                    .get("content")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                
-                // Extract entities from query using GLiNER
-                let query_entities = self.entity_extractor.extract(query_text)?;
-                
-                if let Some(embedding) = trigger_bc.embedding {
-                    info!("🔍 Hybrid search with keywords: {:?}", query_entities.keywords);
-                    sources.push(SourceConfig {
-                        method: SourceMethod::HybridGlobal {
-                            query_embedding: embedding,
-                            query_keywords: query_entities.keywords,
-                        },
-                        limit: 10,  // Can use lower limit with better accuracy!
-                    });
-                } else {
-                    warn!("⚠️  Trigger breadcrumb {} has no embedding, skipping hybrid search", trigger);
-                }
+        // 🎯 NEW APPROACH: Load graph and use PathFinder
+        // This replaces multiple SourceConfig strategies with single unified graph traversal
+        
+        // 1. Load graph around trigger (3 hops = ~500 nodes typically)
+        let loaded_graph = match load_graph_around_trigger(
+            trigger,
+            3,  // radius: 3 hops
+            &self.vector_store.pool(),
+        ).await {
+            Ok(graph) => graph,
+            Err(e) => {
+                error!("Failed to load graph: {}, falling back to direct fetch", e);
+                // Fallback: Just use trigger node
+                return self.assemble_fallback(session_tag, trigger).await;
+            }
+        };
+        
+        info!("📊 Loaded graph: {} nodes, {} edges", 
+            loaded_graph.graph.node_count(),
+            loaded_graph.graph.edge_count());
+        
+        // 2. Convert petgraph to SessionGraph for PathFinder
+        let mut session_graph = crate::graph::SessionGraph::new(session_tag.to_string());
+        
+        for node_idx in loaded_graph.graph.node_indices() {
+            let node = &loaded_graph.graph[node_idx];
+            session_graph.add_node(node.clone());
+        }
+        
+        for edge_ref in loaded_graph.graph.edge_references() {
+            let from_uuid = loaded_graph.graph[edge_ref.source()].id;
+            let to_uuid = loaded_graph.graph[edge_ref.target()].id;
+            let edge_features = edge_ref.weight();
+            
+            // Convert edge_type (i16) to EdgeType enum
+            let edge_type = match edge_features.edge_type {
+                0 => crate::graph::EdgeType::Causal,
+                1 => crate::graph::EdgeType::Temporal,
+                2 => crate::graph::EdgeType::TagRelated,
+                3 => crate::graph::EdgeType::Semantic,
+                _ => crate::graph::EdgeType::Semantic,
+            };
+            
+            session_graph.add_edge(crate::graph::Edge {
+                from: from_uuid,
+                to: to_uuid,
+                edge_type,
+                weight: edge_features.weight,
+            });
+        }
+        
+        // 3. Use PathFinder with token awareness
+        let path_finder = crate::retrieval::PathFinder::new(5, 50);
+        let relevant_node_ids = path_finder.find_paths_token_aware(
+            &session_graph,
+            vec![trigger],
+            4000,  // Target: 4000 tokens
+        );
+        
+        info!("🎯 PathFinder selected {} nodes from graph", relevant_node_ids.len());
+        
+        // 4. Fetch breadcrumbs (they're already in session_graph)
+        let mut breadcrumbs = Vec::new();
+        for node_id in relevant_node_ids {
+            if let Some(node) = session_graph.nodes.get(&node_id) {
+                breadcrumbs.push(node.clone());
             }
         }
         
-        let config = ContextConfig {
-            consumer_id: "default-chat-assistant".to_string(),
-            sources,
-        };
+        // Sort by priority (causal first, then temporal, then by created_at)
+        breadcrumbs.sort_by(|a, b| {
+            // Priority: messages > tools > knowledge
+            let a_priority = schema_priority(&a.schema_name);
+            let b_priority = schema_priority(&b.schema_name);
+            
+            if a_priority != b_priority {
+                a_priority.cmp(&b_priority)
+            } else {
+                b.created_at.cmp(&a.created_at)  // Most recent first within same priority
+            }
+        });
         
-        // Assemble context
-        let context = self.assembler.assemble(
-            &config,
-            Some(session_tag),
-            None, // TODO: Use session graph
-        ).await?;
+        // 5. Estimate tokens
+        let token_estimate: usize = breadcrumbs.iter()
+            .map(|bc| bc.context.to_string().len() / 3)
+            .sum();
         
         info!("✅ Context assembled: {} breadcrumbs, ~{} tokens", 
-            context.breadcrumbs.len(),
-            context.token_estimate
+            breadcrumbs.len(),
+            token_estimate
         );
         
-        // NOTE: Entity extraction is now handled by dedicated NATS JetStream worker
-        // (see entity_worker.rs). This ensures all breadcrumbs get entities automatically
-        // via durable work queue, with retries and horizontal scalability.
+        let context = AssembledContext {
+            breadcrumbs,
+            token_estimate,
+            sources_count: 1,  // Single source: graph traversal!
+        };
         
         // Publish context breadcrumb
         self.publisher.publish_context(
-            &config.consumer_id,
+            "default-chat-assistant",
             session_tag,
-            trigger_id,
+            Some(trigger),
             &context,
         ).await?;
         
-        info!("✅ Context published for {}", config.consumer_id);
+        info!("✅ Context published for default-chat-assistant");
         
         Ok(())
+    }
+    
+    /// Fallback assembly if graph loading fails
+    async fn assemble_fallback(
+        &self,
+        session_tag: &str,
+        trigger_id: uuid::Uuid,
+    ) -> Result<()> {
+        use crate::retrieval::AssembledContext;
+        
+        warn!("Using fallback context assembly (graph not available)");
+        
+        // Simple fallback: just get recent messages in session
+        let recent = self.vector_store.get_recent(
+            Some("user.message.v1"),
+            Some(session_tag),
+            10,
+        ).await?;
+        
+        let breadcrumbs: Vec<_> = recent.into_iter()
+            .map(|row| {
+                crate::graph::BreadcrumbNode {
+                    id: row.id,
+                    schema_name: row.schema_name,
+                    tags: row.tags,
+                    context: row.context,
+                    embedding: row.embedding,
+                    created_at: row.created_at,
+                    trigger_event_id: None,
+                }
+            })
+            .collect();
+        
+        let token_estimate = breadcrumbs.iter()
+            .map(|bc| bc.context.to_string().len() / 3)
+            .sum();
+        
+        let context = AssembledContext {
+            breadcrumbs,
+            token_estimate,
+            sources_count: 1,
+        };
+        
+        self.publisher.publish_context(
+            "default-chat-assistant",
+            session_tag,
+            Some(trigger_id),
+            &context,
+        ).await?;
+        
+        Ok(())
+    }
+}
+
+/// Determine priority order for schemas in context
+/// Lower number = higher priority (shown first)
+fn schema_priority(schema: &str) -> u8 {
+    match schema {
+        "tool.catalog.v1" => 0,               // Tools first
+        "browser.page.context.v1" => 1,       // Current page second
+        "browser.tab.context.v1" => 1,
+        "user.message.v1" => 2,               // Conversation
+        "agent.response.v1" => 2,
+        "tool.response.v1" => 3,              // Tool results
+        "knowledge.v1" => 4,                  // Knowledge base
+        "note.v1" => 4,
+        _ => 5,                                // Everything else last
     }
 }
 

@@ -118,13 +118,6 @@
   "description": "Ephemeral UI state stored in breadcrumbs with automatic TTL cleanup",
   "semantic_version": "1.0.0",
   "llm_hints": {
-    "summary": "UI state schema - ephemeral state for interactive pages",
-    "when_to_use": "When pages need to track temporary state like form data, wizard progress, selections",
-    "key_concepts": [
-      "Always ephemeral with TTL",
-      "Referenced by tag from ui.page.v1",
-      "Updated via setState actions",
-      "Auto-cleanup prevents clutter"
-    ]
+    "mode": "exclude"
   }
 }

@@ -51,8 +51,8 @@
   "llm_hints": {
     "transform": {
       "formatted": {
-        "type": "format",
-        "format": "Assistant: {message}"
+        "type": "template",
+        "template": "Assistant:\n{{message}}"
       }
     },
     "mode": "replace"

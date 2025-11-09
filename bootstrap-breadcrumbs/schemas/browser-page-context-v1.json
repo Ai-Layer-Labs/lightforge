@@ -48,8 +48,8 @@
   "llm_hints": {
     "transform": {
       "formatted": {
-        "type": "format",
-        "format": "Page: {title}\nURL: {url}\nInteractive: {dom.interactiveCount} elements"
+        "type": "template",
+        "template": "=== BROWSER CONTEXT ===\n\nPage: {{title}}\nURL: {{url}}\n{{#if dom.interactiveCount}}Interactive: {{dom.interactiveCount}} elements{{/if}}"
       }
     },
     "mode": "replace"

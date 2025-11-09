@@ -210,12 +210,6 @@
   "description": "Defines visual themes with colors, fonts, spacing, and other design tokens",
   "semantic_version": "1.0.0",
   "llm_hints": {
-    "summary": "Theme schema - define visual design tokens",
-    "when_to_use": "When creating or customizing visual themes",
-    "key_concepts": [
-      "colors use semantic names",
-      "CSS variables generated automatically",
-      "can extend other themes"
-    ]
+    "mode": "exclude"
   }
 }

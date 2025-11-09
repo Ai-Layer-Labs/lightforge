@@ -127,6 +127,20 @@ async fn main() -> Result<()> {
     );
     info!("✅ Event handler initialized");
 
+    // Initialize edge builder for graph construction
+    let edge_builder = Arc::new(graph::EdgeBuilder::new(
+        db_pool.clone(),
+        vector_store.clone(),
+    ));
+    info!("✅ Edge builder initialized");
+    
+    // Initialize edge builder service
+    let edge_builder_service = graph::EdgeBuilderService::new(
+        edge_builder.clone(),
+        rcrt_client.clone(),
+    );
+    info!("✅ Edge builder service initialized");
+
     // Start entity extraction worker (SSE)
     let entity_worker = entity_worker::EntityWorker::new(
         rcrt_client.clone(),
@@ -141,6 +155,29 @@ async fn main() -> Result<()> {
         }
     });
 
+    // Initialize cache updater
+    let cache_updater = graph::GraphCacheUpdater::new(
+        graph_cache.clone(),
+        rcrt_client.clone(),
+    );
+    info!("✅ Graph cache updater initialized");
+
+    // Start edge builder service (SSE stream for breadcrumb.created)
+    info!("🔧 Starting edge builder service...");
+    let edge_builder_handle = tokio::spawn(async move {
+        if let Err(e) = edge_builder_service.start().await {
+            error!("❌ Edge builder service failed: {}", e);
+        }
+    });
+
+    // Start cache updater service (SSE stream for breadcrumb.updated)
+    info!("♻️  Starting graph cache updater...");
+    let cache_updater_handle = tokio::spawn(async move {
+        if let Err(e) = cache_updater.start().await {
+            error!("❌ Cache updater failed: {}", e);
+        }
+    });
+
     // Start SSE event stream (for context assembly triggers)
     info!("📡 Starting SSE event stream for context assembly...");
     let event_handler_handle = tokio::spawn(async move {
@@ -152,6 +189,8 @@ async fn main() -> Result<()> {
     // Keep running until shutdown signal
     info!("💚 Context Builder is running");
     info!("   - Entity extraction: SSE stream");
+    info!("   - Edge builder: SSE stream");
+    info!("   - Cache updater: SSE stream");
     info!("   - Context assembly: SSE stream");
     
     tokio::select! {
@@ -160,6 +199,12 @@ async fn main() -> Result<()> {
         }
         _ = entity_worker_handle => {
             error!("❌ Entity worker stopped unexpectedly");
+        }
+        _ = edge_builder_handle => {
+            error!("❌ Edge builder stopped unexpectedly");
+        }
+        _ = cache_updater_handle => {
+            error!("❌ Cache updater stopped unexpectedly");
         }
         _ = event_handler_handle => {
             error!("❌ Event handler stopped unexpectedly");
