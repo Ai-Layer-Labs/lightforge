@@ -1,0 +1,146 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Complete Guide: RCRT Breadcrumb System",
+  "description": "Understanding breadcrumbs: structure, schemas, llm_hints, TTL, and why everything is a breadcrumb",
+  "semantic_version": "2.1.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "breadcrumbs",
+    "core-concepts",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Knowledge: Breadcrumb System v2.1.0 - Everything is a breadcrumb (versioned JSON packets). NEW: description, semantic_version, llm_hints at top-level (BREAKING from v2.0). See context.structure_v2_1 for current format."
+      }
+    },
+    "include": ["topic", "structure_v2_1", "llm_hints_system", "critical_changes"],
+    "exclude": ["examples", "migration_details", "historical_structure"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "breadcrumb-system",
+    "audience": "LLMs creating or manipulating breadcrumbs",
+    "last_updated": "2025-11-07",
+    
+    "core_concept": "Everything in RCRT is a breadcrumb - not just user data, but agents, tools, settings, sessions, schemas, templates. This enables versioning, observability, searchability, and collaboration.",
+    
+    "critical_changes": {
+      "v2_1_breaking_change": "v2.1.0 normalized structure - description, semantic_version, llm_hints moved to TOP-LEVEL",
+      "no_backward_compatibility": "Old structure (context.version, context.description, context.llm_hints) NOT SUPPORTED",
+      "migration_required": "Use scripts/migrate-breadcrumb-structure.js for old breadcrumbs"
+    },
+    
+    "structure_v2_1": {
+      "top_level_fields": {
+        "schema_name": "string (REQUIRED) - Type identifier with version (e.g., 'tool.code.v1')",
+        "title": "string (REQUIRED) - Short human-readable name",
+        "description": "string (OPTIONAL) - Detailed description - v2.1.0: TOP-LEVEL",
+        "semantic_version": "string (OPTIONAL) - Version like '2.0.0' - v2.1.0: TOP-LEVEL",
+        "tags": "array (REQUIRED) - Categorization and routing",
+        "llm_hints": "object (OPTIONAL) - LLM optimization - v2.1.0: TOP-LEVEL, overrides schema",
+        "context": "object (REQUIRED) - Schema-specific domain data ONLY",
+        "ttl": "datetime (OPTIONAL) - Expiry timestamp",
+        "visibility": "string (OPTIONAL) - public, team, private",
+        "sensitivity": "string (OPTIONAL) - low, pii, secret"
+      },
+      "example_v2_1": {
+        "schema_name": "note.v1",
+        "title": "Article Title",
+        "description": "Detailed article description",
+        "semantic_version": "1.0.0",
+        "tags": ["note", "saved-page"],
+        "llm_hints": {
+          "exclude": ["links", "images", "metadata"]
+        },
+        "context": {
+          "content": "Article content...",
+          "url": "https://example.com"
+        }
+      }
+    },
+    
+    "llm_hints_system": {
+      "purpose": "Optimize breadcrumbs for LLM consumption - reduce tokens, focus relevant data",
+      "location": "v2.1.0: Top-level (breadcrumb.llm_hints) OR schema default (schema.def.v1.llm_hints)",
+      "precedence": "Instance (breadcrumb.llm_hints) > Schema (schema.def.v1.llm_hints)",
+      "transform_types": {
+        "format": "Simple {field} replacement - 'User: {content}'",
+        "template": "Handlebars templates - complex formatting",
+        "extract": "JSONPath extraction - $.items[*].name",
+        "literal": "Static value - always return same thing"
+      },
+      "modes": {
+        "replace": "Replace entire context with transform output",
+        "merge": "Add transformed fields to existing context"
+      },
+      "example": {
+        "llm_hints": {
+          "transform": {
+            "formatted": {
+              "type": "format",
+              "format": "User ({timestamp}): {content}"
+            }
+          },
+          "exclude": ["internal_id", "metadata"],
+          "mode": "replace"
+        }
+      },
+      "impact": "Can reduce tokens by 60-90% while keeping relevant data"
+    },
+    
+    "ttl_system": {
+      "types": ["never", "datetime", "duration", "usage", "hybrid"],
+      "auto_apply": "Server automatically applies TTL based on schema and tags",
+      "hygiene_runner": "Cleanup every 5 minutes removes expired breadcrumbs",
+      "examples": {
+        "browser_tab": "5 minutes (ephemeral)",
+        "chat_message": "30 days",
+        "health_check": "5 minutes",
+        "knowledge": "never (permanent)"
+      }
+    },
+    
+    "common_schemas": {
+      "chat": ["user.message.v1", "agent.response.v1", "agent.context.v1"],
+      "agents": ["agent.def.v1", "agent.catalog.v1"],
+      "tools": ["tool.code.v1", "tool.request.v1", "tool.response.v1", "tool.config.v1"],
+      "notes": ["note.v1", "note.tags.v1", "note.summary.v1", "note.insights.v1", "note.eli5.v1"],
+      "browser": ["browser.tab.context.v1", "browser.page.context.v1"],
+      "system": ["schema.def.v1", "template.v1", "knowledge.v1", "system.bootstrap.v1"]
+    },
+    
+    "api_endpoints": {
+      "create": "POST /breadcrumbs - Create new breadcrumb",
+      "read_llm": "GET /breadcrumbs/{id} - LLM-optimized (llm_hints applied)",
+      "read_full": "GET /breadcrumbs/{id}/full - Raw data (NO transformation)",
+      "update": "PATCH /breadcrumbs/{id} - Update with version check",
+      "delete": "DELETE /breadcrumbs/{id} - Remove breadcrumb",
+      "search": "GET /breadcrumbs/search?q=text - Vector search",
+      "list": "GET /breadcrumbs?tag=X&schema_name=Y - List/filter"
+    },
+    
+    "best_practices": [
+      "Use meaningful schema_names with versions (tool.code.v1, not just tool)",
+      "Use tags for routing and discovery (workspace:X, agent:Y)",
+      "Add llm_hints to large breadcrumbs (reduce tokens)",
+      "Set TTL for ephemeral data (browser contexts, temp state)",
+      "Use description field for human/LLM understanding (v2.1.0: top-level)",
+      "Version your components with semantic_version (v2.1.0: top-level)",
+      "Keep context for domain data only (no metadata in v2.1.0)"
+    ],
+    
+    "why_everything_is_breadcrumb": {
+      "settings": "Cross-device sync, version history, observable",
+      "sessions": "Managed via agent.context.v1, only ONE active per consumer",
+      "agents": "Data-driven, dynamically loaded, no code deployment",
+      "tools": "Self-describing, auto-discovered by tools-runner",
+      "schemas": "Define behavior (llm_hints, TTL policies), stored as data",
+      "benefit": "Self-documenting system - introspect everything via breadcrumbs"
+    }
+  }
+}
+

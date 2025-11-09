@@ -1,0 +1,99 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Session Management: The RCRT Way",
+  "description": "How sessions work via agent.context.v1 breadcrumbs with timestamp-based IDs and consumer tags",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "sessions",
+    "chat",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Knowledge: Sessions - Managed via agent.context.v1 breadcrumbs. IDs are timestamp-based (session-{timestamp}). Only ONE active context per consumer (tag: consumer:agent-id). See context.session_pattern."
+      }
+    },
+    "include": ["topic", "session_pattern", "active_context_rule", "conversation_history"],
+    "exclude": ["implementation_code", "edge_cases"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "session-management",
+    "audience": "LLMs managing conversations and context",
+    "last_updated": "2025-11-07",
+    
+    "session_pattern": {
+      "session_ids": {
+        "format": "session-{timestamp}",
+        "example": "session-1762487849112",
+        "why_timestamp": "Chronologically sortable, human-readable, no UUID collisions"
+      },
+      "sessions_are_breadcrumbs": "Sessions managed via agent.context.v1 breadcrumbs (not Chrome storage)",
+      "session_tag": "Every message tagged with session:session-{timestamp}",
+      "benefits": [
+        "Cross-device sync (sessions in database)",
+        "Unlimited history (no 10MB limit)",
+        "Observable (can see all sessions)",
+        "Searchable (vector search across conversations)"
+      ]
+    },
+    
+    "active_context_rule": {
+      "rule": "Only ONE agent.context.v1 breadcrumb can have tag: consumer:default-chat-assistant at a time",
+      "enforcement": "Triple safeguards: startup check, new session, session switch",
+      "mechanism": "Deactivate all contexts, then activate target (remove/add consumer tag)",
+      "why": "Prevents duplicate agent processing, ensures clean conversation isolation"
+    },
+    
+    "conversation_history": {
+      "loading": "List all breadcrumbs with tag: session:{session_id}",
+      "filtering": "Filter to user.message.v1 and agent.response.v1",
+      "sorting": "Sort by created_at (chronological order)",
+      "endpoint": "Use /full to get complete messages (not LLM-optimized)",
+      "result": "Complete conversation history for display"
+    },
+    
+    "session_lifecycle": {
+      "create": {
+        "id": "session-${Date.now()}",
+        "context": "Created on first user message",
+        "breadcrumb": "agent.context.v1 created by context-builder on first message"
+      },
+      "activate": {
+        "action": "Add consumer:{agent_id} tag to target session's context",
+        "deactivate_others": "Remove consumer tag from all other sessions first",
+        "result": "Only target session is active"
+      },
+      "switch": {
+        "process": "Deactivate current, activate target",
+        "preserves": "All message history (in breadcrumbs)",
+        "ui_update": "Load target session's history, display"
+      }
+    },
+    
+    "message_tagging": {
+      "user_messages": ["user:message", "extension:chat", "session:{session_id}"],
+      "agent_responses": ["agent:response", "chat:output", "session:{session_id}"],
+      "critical": "Session tag MUST be copied from user message to agent response",
+      "isolation": "Session tags keep conversations separate"
+    },
+    
+    "browser_extension_pattern": {
+      "sessions_list": "Search for agent.context.v1 with tag: extension:chat",
+      "active_session": "Find context with tag: consumer:default-chat-assistant",
+      "create_new": "Generate session-{Date.now()}, deactivate all others",
+      "switch_session": "Update context tags to activate different session"
+    },
+    
+    "this_is_different_from": {
+      "local_storage": "Chrome storage (10MB limit, per-device)",
+      "in_memory": "Lost on restart, can't scale",
+      "database_sessions": "RCRT sessions are breadcrumbs (unlimited, cross-device, searchable)"
+    }
+  }
+}
+

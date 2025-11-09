@@ -1,0 +1,102 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "RCRT Event-Driven Architecture",
+  "description": "How SSE, NATS, and breadcrumb events enable real-time coordination without direct service calls",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "events",
+    "architecture",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Knowledge: Event-Driven Architecture - All communication via breadcrumbs + events. No direct service calls. SSE streams events, NATS does fanout, services react. See context.event_flow for pattern."
+      }
+    },
+    "include": ["topic", "event_flow", "sse_vs_nats", "selector_system"],
+    "exclude": ["implementation_details", "code_examples"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "event-driven-architecture",
+    "audience": "LLMs understanding system communication",
+    "last_updated": "2025-11-07",
+    
+    "core_principle": "Services communicate via events, not direct calls. This enables loose coupling, horizontal scaling, and observable operations.",
+    
+    "event_flow": {
+      "step_1": "Breadcrumb created or updated (POST /breadcrumbs or PATCH /breadcrumbs/{id})",
+      "step_2": "rcrt-server publishes to NATS (bc.{id}.updated topic)",
+      "step_3": "NATS does selector-based fanout (agents.{agent_id}.events topics)",
+      "step_4": "Services subscribe to their topics, receive filtered events",
+      "step_5": "Services process and create response breadcrumbs",
+      "step_6": "Repeat - new breadcrumb triggers new events",
+      "result": "Choreography (not orchestration) - no central controller"
+    },
+    
+    "sse_vs_nats": {
+      "sse": {
+        "purpose": "Server → Client push (one-way)",
+        "used_by": ["Browser extension", "Dashboard", "External clients"],
+        "endpoint": "GET /events/stream?token={jwt}",
+        "events": ["breadcrumb.created", "breadcrumb.updated", "ping"],
+        "filtering": "Server-side via selector subscriptions"
+      },
+      "nats": {
+        "purpose": "Internal service-to-service pub/sub",
+        "used_by": ["context-builder", "agent-runner", "tools-runner", "rcrt-server"],
+        "topics": ["bc.{id}.updated", "agents.{agent_id}.events"],
+        "filtering": "Two-stage: Server selectors + Agent subscriptions"
+      }
+    },
+    
+    "selector_system": {
+      "description": "How breadcrumb events are routed to interested services",
+      "selector_fields": {
+        "schema_name": "Filter by schema (e.g., 'user.message.v1')",
+        "any_tags": "Match if any tag overlaps",
+        "all_tags": "Match if all tags present",
+        "context_match": "JSONPath matching on context fields"
+      },
+      "example": {
+        "schema_name": "tool.response.v1",
+        "all_tags": ["workspace:tools"],
+        "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "my-agent"}]
+      },
+      "two_stage_filtering": {
+        "server": "Selectors in database → NATS topic fanout",
+        "agent": "Subscriptions in agent.def.v1 → final matching",
+        "benefit": "Reduce network traffic, fine-grained control"
+      }
+    },
+    
+    "event_types": {
+      "breadcrumb_created": "New breadcrumb",
+      "breadcrumb_updated": "Modified breadcrumb (also sent on create)",
+      "ping": "Keepalive every 5 seconds"
+    },
+    
+    "how_services_use_events": {
+      "context_builder": "Watches user.message.v1 → creates agent.context.v1",
+      "agent_runner": "Watches agent.context.v1 → creates tool.request.v1",
+      "tools_runner": "Watches tool.request.v1 → creates tool.response.v1",
+      "browser_extension": "Watches agent.response.v1 → displays in UI",
+      "pattern": "Each service reacts to specific events, creates new breadcrumbs, which trigger more events"
+    },
+    
+    "benefits": {
+      "loose_coupling": "Services don't know about each other, only breadcrumb schemas",
+      "extensibility": "Add new service by subscribing to events",
+      "resilience": "Service down? Events queue, process when back up",
+      "observability": "Every event visible in SSE stream",
+      "testability": "Inject events, observe breadcrumb trail"
+    },
+    
+    "this_enables": "Event-driven choreography allows complex multi-service workflows without central orchestrator. Each service does one thing well, reacts to events, creates new events."
+  }
+}
+

@@ -1,0 +1,191 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Complete Guide: How Agents Work in RCRT",
+  "description": "Deep dive into RCRT agent architecture: context-builder pattern, fire-and-forget execution, and why agents are context + reasoning",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "agents",
+    "architecture",
+    "patterns",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Knowledge: Agent Architecture - Agents = Context + Reasoning. CRITICAL: Agents MUST use context-builder (subscribe to agent.context.v1), MUST use fire-and-forget execution. See context.key_principles for essentials."
+      }
+    },
+    "include": ["topic", "key_principles", "critical_patterns", "working_example", "broken_example"],
+    "exclude": ["detailed_flow", "code_examples"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "agent-architecture",
+    "audience": "LLMs creating or understanding agents",
+    "last_updated": "2025-11-07",
+    
+    "key_principles": {
+      "definition": "Agents = Context + Reasoning (via LLM)",
+      "critical_requirements": [
+        "🔴 MUST use context-builder (for rich context)",
+        "🔴 MUST subscribe to agent.context.v1 (not raw events)",
+        "🔴 MUST use fire-and-forget (no waiting)",
+        "🔴 MUST orchestrate via tool.request.v1 (not execute code)"
+      ],
+      "why_context_builder_is_critical": "context-builder does vector search, assembles similar items, provides semantic understanding. Agents without it get EMPTY context and FAIL.",
+      "fire_and_forget": "Every agent invocation: Receive event → Process → Create breadcrumb → EXIT. Each trigger is SEPARATE invocation, not continuous loop."
+    },
+    
+    "critical_patterns": {
+      "context_builder_pattern": {
+        "description": "The ONLY correct pattern for intelligent agents",
+        "flow": [
+          "1. User action creates trigger (user.message.v1, note.v1, etc.)",
+          "2. context-builder sees trigger event",
+          "3. context-builder assembles rich context (vector search, recent items, tools)",
+          "4. context-builder creates agent.context.v1 with tag: consumer:{agent_id}",
+          "5. Agent receives agent.context.v1 (pre-assembled, LLM-optimized)",
+          "6. Agent reasons and creates tool.request.v1",
+          "7. Agent EXITS (fire-and-forget)",
+          "8. tool.response.v1 arrives (SEPARATE invocation)",
+          "9. Agent creates agent.response.v1",
+          "10. Agent EXITS"
+        ],
+        "proof_it_works": "default-chat-assistant uses this pattern and works perfectly"
+      },
+      
+      "broken_pattern": {
+        "description": "What NOT to do (proven to fail)",
+        "flow": [
+          "1. Agent subscribes directly to note.v1 (bypasses context-builder)",
+          "2. assembleContextFromSubscriptions() returns EMPTY (0 sources)",
+          "3. Agent has no data to reason about",
+          "4. Agent FAILS"
+        ],
+        "proof_it_fails": "note agents (note-tagger, note-summarizer, etc.) all fail this way",
+        "why_it_fails": "Subscription role:'trigger' is NOT fetched by assembleContextFromSubscriptions (only role:'context' is fetched)"
+      }
+    },
+    
+    "agent_structure": {
+      "schema_name": "agent.def.v1",
+      "required_fields": {
+        "agent_id": "Unique identifier",
+        "llm_config_id": "UUID of tool.config.v1 or null (set via Dashboard)",
+        "system_prompt": "Instructions for LLM reasoning",
+        "capabilities": "What agent can do (create_breadcrumbs, use_tools, etc.)",
+        "subscriptions": "Event subscriptions (MUST include agent.context.v1)"
+      },
+      "required_subscription_1": {
+        "comment": "Pre-assembled context from context-builder",
+        "schema_name": "agent.context.v1",
+        "all_tags": ["consumer:{agent_id}"],
+        "role": "trigger",
+        "key": "assembled_context",
+        "fetch": {"method": "event_data"}
+      },
+      "required_subscription_2": {
+        "comment": "Tool responses for continuation",
+        "schema_name": "tool.response.v1",
+        "all_tags": ["workspace:tools"],
+        "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "{agent_id}"}],
+        "role": "trigger",
+        "key": "tool_response",
+        "fetch": {"method": "event_data"}
+      }
+    },
+    
+    "working_example": {
+      "name": "default-chat-assistant",
+      "location": "bootstrap-breadcrumbs/system/default-chat-agent.json",
+      "why_it_works": [
+        "✅ Subscribes to agent.context.v1 (gets rich context)",
+        "✅ Uses fire-and-forget (creates tool.request.v1, exits)",
+        "✅ Handles tool.response.v1 (separate invocation)",
+        "✅ Copies session tags (conversation isolation)"
+      ]
+    },
+    
+    "broken_example": {
+      "names": ["note-tagger", "note-summarizer", "note-insights", "note-eli5"],
+      "location": "bootstrap-breadcrumbs/system/note-*-agent.json",
+      "why_they_fail": [
+        "❌ Subscribe directly to note.v1 (bypass context-builder)",
+        "❌ Get empty context (0 sources)",
+        "❌ No tool orchestration (can't call LLM)",
+        "❌ Create wrong schemas (agent.response.v1 instead of note.tags.v1)"
+      ],
+      "solution": "See docs/NOTE_AGENTS_SOLUTION.md - replace with single note-processor agent using context-builder"
+    },
+    
+    "response_format": {
+      "schema_name": "agent.response.v1 (or domain-specific like note.tags.v1)",
+      "required_structure": {
+        "action": "create",
+        "breadcrumb": {
+          "schema_name": "agent.response.v1",
+          "title": "Chat Response",
+          "tags": ["agent:response", "chat:output", "session:{SESSION_ID}"],
+          "context": {
+            "message": "Your response text",
+            "creator": {"type": "agent", "agent_id": "{agent_id}"},
+            "tool_requests": []
+          }
+        }
+      },
+      "critical": "MUST copy session tag from trigger to response for conversation isolation"
+    },
+    
+    "common_mistakes": [
+      {
+        "mistake": "Subscribing to raw events instead of agent.context.v1",
+        "why_wrong": "Bypasses context-builder, gets empty context",
+        "correct": "Always subscribe to agent.context.v1 with consumer:{agent_id} tag"
+      },
+      {
+        "mistake": "Trying to call LLM directly",
+        "why_wrong": "Agents can't execute code, only reason and orchestrate",
+        "correct": "Create tool.request.v1 for 'openrouter' tool, wait for tool.response.v1"
+      },
+      {
+        "mistake": "Waiting for responses in same invocation",
+        "why_wrong": "Violates fire-and-forget pattern, prevents scaling",
+        "correct": "Create request, EXIT, handle response in separate invocation"
+      },
+      {
+        "mistake": "Not copying session tags",
+        "why_wrong": "Breaks conversation isolation, responses go to wrong session",
+        "correct": "Extract session tag from trigger, add to response tags"
+      }
+    ],
+    
+    "quick_start_creating_agent": {
+      "step_1": "Use base-agent.json template as reference",
+      "step_2": "Define agent_id, system_prompt, capabilities",
+      "step_3": "Add subscription to agent.context.v1 with consumer:{agent_id}",
+      "step_4": "Add subscription to tool.response.v1 with context_match requestedBy",
+      "step_5": "Create breadcrumb (POST /breadcrumbs or use bootstrap)",
+      "step_6": "agent-runner auto-discovers and loads agent",
+      "step_7": "context-builder must be configured to create context for your agent"
+    },
+    
+    "troubleshooting": {
+      "agent_not_responding": [
+        "Check: Does agent.def.v1 breadcrumb exist?",
+        "Check: Is agent-runner running?",
+        "Check: Does agent subscribe to agent.context.v1?",
+        "Check: Is context-builder creating agent.context.v1 for your agent?",
+        "Check: Are tags matching correctly?"
+      ],
+      "empty_context": [
+        "Cause: Agent bypassing context-builder",
+        "Fix: Subscribe to agent.context.v1, not raw events",
+        "Check: Does context-builder watch your trigger event?"
+      ]
+    }
+  }
+}
+

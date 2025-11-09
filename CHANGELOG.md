@@ -128,6 +128,31 @@
   - Extensibility: Templates guide LLM-generated breadcrumbs
   - Foundation for meta-tools and LLM-assemblable system
 
+### Knowledge Base Expansion
+- **Created comprehensive knowledge base** (11 files total, 9 new)
+  - how-agents-work.json - Agent architecture, context-builder pattern
+  - breadcrumb-system.json - Structure, llm_hints, TTL (v2.1.0)
+  - fire-and-forget-pattern.json - Critical execution model
+  - context-builder-explained.json - Why agents need it
+  - event-driven-architecture.json - SSE, NATS, choreography
+  - llm-hints-deep-dive.json - Token optimization system
+  - session-management.json - Sessions via breadcrumbs
+  - vector-search-semantic.json - Hybrid search, blacklist
+  - common-patterns.json - Proven workflows
+  - rcrt-quick-start.json - Fast LLM orientation
+- **Updated context-blacklist** to exclude UI/theme breadcrumbs
+  - Added: ui.state.v1, ui.page.v1, theme.v1, template.* schemas
+  - Prevents UI metadata from appearing in chat context
+  - Reduces context from ~10,000 → ~1,000 tokens (90% reduction)
+- **All knowledge has llm_hints** for summarization
+  - Prevents knowledge base from bloating context
+  - Summaries instead of full content when not directly relevant
+- **Benefits**
+  - LLMs learn RCRT patterns from knowledge base
+  - Vector search finds relevant knowledge automatically
+  - Reduces need for external documentation
+  - Self-teaching system
+
 ---
 
 ## Recent Major Milestones (September-October 2025)

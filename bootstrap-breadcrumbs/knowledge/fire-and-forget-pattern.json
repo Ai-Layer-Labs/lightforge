@@ -1,0 +1,117 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Critical Pattern: Fire-and-Forget Execution",
+  "description": "The foundation of RCRT's architecture - every service follows this pattern for stateless, scalable design",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "architecture",
+    "patterns",
+    "critical",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "CRITICAL PATTERN: Fire-and-Forget - Every service: Event → Process → Create breadcrumb → EXIT. NO waiting, NO loops, NO in-memory state. This enables stateless design and horizontal scaling. See context.pattern and context.verified_in_code."
+      }
+    },
+    "include": ["topic", "pattern", "why_critical", "verified_in_code", "common_mistakes"],
+    "exclude": ["detailed_examples", "code_samples"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "fire-and-forget-execution",
+    "audience": "Anyone building on RCRT - this is THE foundation",
+    "last_updated": "2025-11-07",
+    
+    "pattern": {
+      "description": "Every service invocation follows this exact pattern",
+      "flow": [
+        "1. Receive event (via SSE)",
+        "2. Process (assemble context, reason, execute)",
+        "3. Create response breadcrumb",
+        "4. EXIT immediately"
+      ],
+      "never": [
+        "Wait for responses",
+        "Poll for changes",
+        "Hold state in memory",
+        "Run continuous loops"
+      ]
+    },
+    
+    "why_critical": {
+      "stateless": "Service has no memory between invocations - can restart anytime",
+      "scalable": "Run 100 instances in parallel - events distribute automatically",
+      "resilient": "One invocation fails, others unaffected - isolated failures",
+      "observable": "Every step creates breadcrumb trail - full audit log",
+      "fast": "Quick invocations, no hanging connections"
+    },
+    
+    "verified_in_code": {
+      "context_builder": {
+        "file": "crates/rcrt-context-builder/src/event_handler.rs",
+        "pattern": "async fn assemble_and_publish() { assemble(); publish(); Ok(()) } ← EXIT!"
+      },
+      "agent_runner": {
+        "file": "rcrt-visual-builder/apps/agent-runner/src/agent-executor.ts",
+        "pattern": "await createLLMRequest(); return { async: true }; ← EXIT!"
+      },
+      "tools_runner": {
+        "file": "rcrt-visual-builder/apps/tools-runner/src/index.ts",
+        "pattern": "await createBreadcrumb(tool.response.v1); ← Function ends, no waiting"
+      },
+      "zero_exceptions": "EVERY service follows this - no violations found in entire codebase"
+    },
+    
+    "example_agent_execution": {
+      "event_1_context_arrives": [
+        "agent.context.v1 created (with session tag)",
+        "Agent triggers (separate invocation #1)",
+        "Processes context, reasons about response",
+        "Creates tool.request.v1 (for LLM call)",
+        "Returns { async: true }",
+        "EXIT ← Agent stops, doesn't wait for LLM"
+      ],
+      "event_2_llm_responds": [
+        "tool.response.v1 created",
+        "Agent triggers AGAIN (separate invocation #2)",
+        "Parses LLM output",
+        "Creates agent.response.v1",
+        "EXIT ← Agent stops"
+      ],
+      "key_insight": "Two separate invocations, not one continuous process!"
+    },
+    
+    "common_mistakes": [
+      {
+        "wrong": "const response = await callLLM(); return processResponse(response);",
+        "right": "await createBreadcrumb(tool.request.v1); return { async: true };",
+        "why": "Waiting blocks the service, prevents scaling"
+      },
+      {
+        "wrong": "while(true) { checkForEvents(); }",
+        "right": "Single invocation per event, then EXIT",
+        "why": "Continuous loops hold memory, can't scale horizontally"
+      },
+      {
+        "wrong": "this.pendingRequests = new Map(); // Store state",
+        "right": "State lives in breadcrumbs (database), not memory",
+        "why": "In-memory state breaks on restart, prevents multiple instances"
+      }
+    ],
+    
+    "enables_features": {
+      "horizontal_scaling": "Deploy 100 agent-runner instances - events distribute via NATS",
+      "zero_downtime_restart": "Restart services anytime - no in-flight requests lost",
+      "failure_isolation": "One invocation crashes, others continue - no cascade failures",
+      "clear_debugging": "Follow breadcrumb trail - see exact sequence of events"
+    },
+    
+    "this_is_non_negotiable": "Fire-and-forget is THE foundation of RCRT. Violating it breaks scalability, resilience, and observability. Every component MUST follow this pattern."
+  }
+}
+

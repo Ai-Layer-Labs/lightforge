@@ -1,0 +1,97 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "RCRT Quick Start for LLMs",
+  "description": "Fast reference: key concepts, APIs, patterns for LLMs working with RCRT",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "quick-reference",
+    "cheat-sheet",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Quick Reference: RCRT v2.1.0 - Everything is breadcrumb. Fire-and-forget execution. Agents use context-builder. llm_hints at top-level. See context.quick_facts for essentials."
+      }
+    },
+    "include": ["topic", "quick_facts", "key_apis", "critical_rules"],
+    "exclude": ["detailed_guides"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "quick-start-reference",
+    "audience": "LLMs needing fast orientation",
+    "last_updated": "2025-11-07",
+    
+    "quick_facts": {
+      "what_is_rcrt": "Event-driven AI agent coordination platform",
+      "core_primitive": "Breadcrumbs (versioned JSON packets in PostgreSQL)",
+      "architecture": "9 microservices, event-driven choreography",
+      "communication": "SSE (push) + NATS (internal pub/sub)",
+      "storage": "PostgreSQL + pgvector (semantic search)",
+      "version": "v2.1.0 (breadcrumb structure optimized)"
+    },
+    
+    "critical_rules": {
+      "fire_and_forget": "Every service: Event → Process → Create → EXIT (NO waiting)",
+      "agents_need_context_builder": "MUST subscribe to agent.context.v1 (not raw events)",
+      "llm_hints_location": "v2.1.0: Top-level ONLY (not in context)",
+      "sessions_are_breadcrumbs": "Managed via agent.context.v1 with session tags",
+      "state_in_database": "No in-memory state, everything in breadcrumbs"
+    },
+    
+    "key_apis": {
+      "create": "POST /breadcrumbs {title, description, semantic_version, tags, context, llm_hints}",
+      "read_llm": "GET /breadcrumbs/{id} - LLM-optimized (llm_hints applied)",
+      "read_raw": "GET /breadcrumbs/{id}/full - Raw data (use this for SDK/tools)",
+      "update": "PATCH /breadcrumbs/{id} + If-Match: version",
+      "search": "GET /breadcrumbs/search?q=text&nn=10",
+      "list": "GET /breadcrumbs?tag=X&schema_name=Y",
+      "sse": "GET /events/stream?token={jwt}"
+    },
+    
+    "key_schemas": {
+      "chat": "user.message.v1, agent.response.v1, agent.context.v1",
+      "agents": "agent.def.v1 (agent definitions)",
+      "tools": "tool.code.v1 (Deno tools), tool.request.v1, tool.response.v1",
+      "system": "schema.def.v1 (schema definitions), knowledge.v1 (like this)"
+    },
+    
+    "agent_creation": {
+      "schema": "agent.def.v1",
+      "must_have": "agent_id, llm_config_id, system_prompt, subscriptions",
+      "must_subscribe_to": "agent.context.v1 with tag: consumer:{agent_id}",
+      "reference": "bootstrap-breadcrumbs/system/default-chat-agent.json (working example)"
+    },
+    
+    "tool_creation": {
+      "schema": "tool.code.v1",
+      "must_have": "name, code.source, input_schema, output_schema",
+      "location": "v2.1.0: description, semantic_version at top-level",
+      "llm_hints": "Exclude code/permissions (LLMs don't need implementation)",
+      "reference": "bootstrap-breadcrumbs/tools-self-contained/echo.json (minimal example)"
+    },
+    
+    "common_gotchas": [
+      "Don't bypass context-builder (agents will get empty context)",
+      "Don't wait for responses (violates fire-and-forget)",
+      "Don't put metadata in context (v2.1.0: use top-level fields)",
+      "Don't forget session tags (breaks conversation isolation)",
+      "Don't hardcode secrets (reference by ID from config)",
+      "Do use llm_hints (save tokens and cost)",
+      "Do set TTL for ephemeral data"
+    },
+    
+    "where_to_learn_more": {
+      "architecture": "docs/SYSTEM_ARCHITECTURE.md - comprehensive system design",
+      "agents": "knowledge.v1: how-agents-work.json",
+      "tools": "knowledge.v1: how-to-create-tools.json",
+      "breadcrumbs": "knowledge.v1: breadcrumb-system.json",
+      "patterns": "knowledge.v1: fire-and-forget-pattern.json"
+    }
+  }
+}
+

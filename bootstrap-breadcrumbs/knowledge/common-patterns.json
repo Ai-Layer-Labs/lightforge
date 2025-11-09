@@ -1,0 +1,144 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Common Patterns and Workflows in RCRT",
+  "description": "Proven patterns for chat, note processing, tool calls, multi-agent coordination",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "patterns",
+    "workflows",
+    "examples",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "Knowledge: Common Patterns - Proven workflows: chat (12 steps, 2-3s), tool calls (fire-and-forget), multi-agent (event choreography). See context.patterns for quick reference."
+      }
+    },
+    "include": ["topic", "patterns", "tool_invocation", "multi_agent"],
+    "exclude": ["detailed_flows", "code_samples"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "common-patterns",
+    "audience": "LLMs implementing workflows",
+    "last_updated": "2025-11-07",
+    
+    "patterns": {
+      "chat_message_flow": {
+        "description": "User message → Agent response (12 steps, 2-3 seconds)",
+        "steps": [
+          "1. user.message.v1 created (extension/API)",
+          "2. context-builder assembles context",
+          "3. agent.context.v1 created",
+          "4. Agent creates tool.request.v1 (LLM call)",
+          "5. tools-runner executes LLM",
+          "6. tool.response.v1 created",
+          "7. Agent creates agent.response.v1",
+          "8. UI receives via SSE, displays"
+        ],
+        "total_time": "2-3 seconds (mostly LLM API)",
+        "breadcrumbs_created": 4
+      },
+      
+      "tool_invocation": {
+        "description": "How agents call tools",
+        "pattern": [
+          "1. Agent creates tool.request.v1:",
+          "   - context.tool: 'calculator'",
+          "   - context.input: {expression: '2+2'}",
+          "   - context.requestId: unique ID",
+          "   - context.requestedBy: 'my-agent'",
+          "2. Agent EXITS (fire-and-forget)",
+          "3. tools-runner sees event, executes tool",
+          "4. tools-runner creates tool.response.v1",
+          "5. Agent receives tool.response.v1 (SEPARATE invocation)",
+          "6. Agent processes result"
+        ],
+        "return_to_llm": {
+          "false": "Tool result goes directly to user (for simple results)",
+          "true": "Tool result comes back to agent first (for reasoning)"
+        }
+      },
+      
+      "multi_agent_coordination": {
+        "description": "Agents coordinate via breadcrumb subscriptions",
+        "pattern": [
+          "Agent A creates result.v1 breadcrumb",
+          "Agent B subscribes to result.v1",
+          "Agent B processes when A's result arrives",
+          "Agent B creates next.step.v1",
+          "Agent C subscribes to next.step.v1",
+          "Continue chain..."
+        ],
+        "example": "note-processor creates note.tags.v1 → UI subscribes to note.tags.v1 → displays",
+        "no_direct_calls": "Agents never call each other, only react to breadcrumbs"
+      },
+      
+      "browser_context_capture": {
+        "description": "Multi-tab tracking pattern",
+        "pattern": [
+          "1. Tab activated (chrome.tabs.onActivated)",
+          "2. Extension captures page content",
+          "3. Creates browser.tab.context.v1 with TTL (5 minutes)",
+          "4. Tags: browser:tab, browser:active-tab",
+          "5. Updates other tabs (removes active-tab tag)",
+          "6. Agents subscribe to browser:active-tab (get current page)"
+        ],
+        "benefits": "Agents always see what user is looking at, context switches with tabs"
+      }
+    },
+    
+    "tool_invocation": {
+      "simple_tool": {
+        "description": "Tools that return results directly",
+        "example": "calculator, random, echo",
+        "pattern": "Create tool.request.v1 with return_to_llm: false → result to user"
+      },
+      "llm_tool": {
+        "description": "Tools that invoke LLMs",
+        "example": "openrouter, ollama",
+        "pattern": "Agent creates tool.request.v1 → tool calls API → tool.response.v1 → agent formats"
+      },
+      "chained_tools": {
+        "description": "Tool invokes another tool",
+        "pattern": "Tool creates tool.request.v1 for another tool → waits via EventBridge → processes"
+      }
+    },
+    
+    "multi_agent": {
+      "parallel_processing": {
+        "description": "Multiple agents process same trigger",
+        "example": "note.v1 → note-tagger, note-summarizer, note-insights, note-eli5 all trigger",
+        "coordination": "Via breadcrumb tags (note:{note_id})",
+        "ui_tracking": "Subscribe to note:{id} tags to see all results"
+      },
+      "sequential_workflow": {
+        "description": "Agent A → Agent B → Agent C chain",
+        "pattern": "Each agent subscribes to previous agent's output schema",
+        "example": "context-builder → agent → tools-runner → agent (chat flow)"
+      }
+    },
+    
+    "settings_as_breadcrumbs": {
+      "description": "Configuration stored as breadcrumbs for sync",
+      "schema": "extension.settings.v1",
+      "pattern": "Create/update settings breadcrumb → SSE streams to all devices → update UI",
+      "benefits": "Cross-device sync, version history, team collaboration"
+    },
+    
+    "best_practices": [
+      "Always use fire-and-forget (create breadcrumb, EXIT)",
+      "Tag breadcrumbs for routing (session:X, note:Y)",
+      "Use schemas for type-specific behavior",
+      "Subscribe to specific events (not everything)",
+      "Use context-builder for agents (not direct subscriptions)",
+      "Set TTL for ephemeral data (browser contexts, temp state)",
+      "Use llm_hints to optimize context (exclude metadata)"
+    ]
+  }
+}
+

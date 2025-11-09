@@ -1,0 +1,103 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Critical Service: context-builder - The Intelligence Multiplier",
+  "description": "Why context-builder makes agents intelligent through vector search and context assembly",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "knowledge",
+    "documentation",
+    "context-builder",
+    "architecture",
+    "critical",
+    "workspace:system"
+  ],
+  "llm_hints": {
+    "transform": {
+      "summary": {
+        "type": "format",
+        "format": "CRITICAL: context-builder is THE intelligence multiplier. Agents WITHOUT it get empty context and FAIL (proven by note agents). It does vector search, assembles rich context, applies llm_hints. NOT optional for intelligent agents. See context.why_critical."
+      }
+    },
+    "include": ["topic", "why_critical", "what_it_does", "current_limitation"],
+    "exclude": ["implementation_details", "code_references"],
+    "mode": "replace"
+  },
+  "context": {
+    "topic": "context-builder-service",
+    "audience": "Anyone creating agents",
+    "last_updated": "2025-11-07",
+    
+    "why_critical": {
+      "agents_dont_fetch_data": "Agents DON'T do vector search themselves",
+      "context_builder_does_it": "context-builder does semantic search, finds similar items, assembles context",
+      "provides_intelligence": "Rich context enables intelligent reasoning, pattern recognition, consistency",
+      "proof_positive": "default-chat-assistant WORKS because it uses context-builder",
+      "proof_negative": "note agents FAIL because they bypass context-builder (get empty context)"
+    },
+    
+    "what_it_does": {
+      "step_1": "Watches for trigger events (currently: user.message.v1 only)",
+      "step_2": "Extracts session tag or identifier",
+      "step_3": "Assembles context using multiple strategies",
+      "step_4": "Fetches breadcrumbs with llm_hints applied (server-side optimization)",
+      "step_5": "Creates agent.context.v1 with tag: consumer:{agent_id}",
+      "step_6": "Agent receives pre-built context and reasons",
+      "result": "Agent gets rich, LLM-optimized context without doing any data fetching"
+    },
+    
+    "context_assembly_strategies": {
+      "recent": "Get latest N breadcrumbs in session (temporal context)",
+      "vector": "Semantic similarity search (finds related content)",
+      "hybrid": "Vector + entity keywords (95% accuracy vs 70% vector-only)",
+      "latest": "Most recent of specific schema (tool catalog, etc.)",
+      "blacklist": "Excludes system internals (schemas, configs, UI state)"
+    },
+    
+    "current_limitation": {
+      "hardcoded_trigger": "Only watches user.message.v1 (event_handler.rs line 74)",
+      "hardcoded_consumer": "Only creates context for default-chat-assistant",
+      "impact": "Other agents can't use context-builder yet",
+      "solution_designed": "Generic context.request.v1 pattern (future enhancement)",
+      "workaround": "Modify context-builder to watch your trigger (requires Rust changes)"
+    },
+    
+    "with_vs_without": {
+      "with_context_builder": {
+        "agent_receives": [
+          "Vector-searched similar items (semantic understanding)",
+          "Recent conversation history (temporal context)",
+          "Tool catalog (available capabilities)",
+          "LLM-optimized content (llm_hints applied)",
+          "Token estimate (know context size)"
+        ],
+        "agent_can": [
+          "Make intelligent decisions",
+          "Recognize patterns",
+          "Maintain consistency",
+          "Adapt to context"
+        ],
+        "example": "default-chat-assistant - gets full conversation, tools, browser context"
+      },
+      "without_context_builder": {
+        "agent_receives": "Empty context (0 sources)",
+        "agent_can": "Nothing - has no data to reason about",
+        "result": "FAILS",
+        "example": "note agents - bypass context-builder, get empty, fail"
+      }
+    },
+    
+    "how_to_use": {
+      "requirement": "Your trigger event must be watched by context-builder",
+      "currently_supported": "user.message.v1 only",
+      "agent_subscription": {
+        "schema_name": "agent.context.v1",
+        "all_tags": ["consumer:your-agent-id"],
+        "role": "trigger"
+      },
+      "note": "context-builder creates agent.context.v1 when it sees user.message.v1"
+    },
+    
+    "this_is_not_optional": "For agents to be intelligent (not just execute hardcoded logic), they MUST use context-builder. This is proven by working vs broken agents in the system."
+  }
+}
+
