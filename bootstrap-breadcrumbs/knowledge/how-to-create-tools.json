@@ -570,20 +570,14 @@
         "9. Use descriptive error messages",
         "10. Test thoroughly before deploying"
       ],
-      "quick_checklist": [
-        "☐ Used correct structure with code.source?",
-        "☐ Tags include 'tool', 'tool:name', 'workspace:tools', 'self-contained'?",
-        "☐ Included required_secrets (even if empty array)?",
-        "☐ Included ui_schema (even if configurable: false)?",
-        "☐ Input schema matches what execute() expects?",
-        "☐ Output schema matches what execute() returns?",
-        "☐ Permissions are minimum needed?",
-        "☐ Limits are appropriate for task?",
-        "☐ Secrets loaded by ID, not by name?",
-        "☐ Exported execute function?",
-        "☐ Examples included with explanations?",
-        "☐ Tested upload and execution?"
-      ]
+      "validation_reference": {
+        "note": "For detailed validation rules and checklist, see tool-validation-rules.json knowledge guide",
+        "key_reminders": [
+          "All output properties must have 'type' field",
+          "Never use ffi: true",
+          "Browser tools need: net, read, write, run, env, hrtime"
+        ]
+      }
     }
   },
   "semantic_version": "1.0.0",

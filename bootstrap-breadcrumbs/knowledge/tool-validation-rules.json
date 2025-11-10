@@ -1,0 +1,208 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Tool Validation Rules - Quick Reference",
+  "tags": [
+    "knowledge",
+    "tool-validation",
+    "checklist",
+    "reference",
+    "workspace:system"
+  ],
+  "context": {
+    "topic": "tool-validation-rules",
+    "audience": "tool-creator and tool-debugger specialist agents",
+    "last_updated": "2025-11-10",
+    "content": {
+      "summary": "Focused validation rules and checklist for tool.code.v1 creation. Use this as your validation checklist BEFORE uploading tools.",
+      
+      "structure_requirements": {
+        "must_have": [
+          "schema_name = 'tool.code.v1'",
+          "tags = ['tool', 'tool:NAME', 'workspace:tools', 'self-contained']",
+          "context.code.source with 'export async function execute(input, context)'",
+          "context.name matches tool:NAME tag",
+          "All input_schema properties have 'type' field",
+          "All output_schema properties have 'type' field",
+          "required_secrets array (even if empty: [])",
+          "ui_schema object (even if {configurable: false})",
+          "examples array with description, input, output, explanation"
+        ]
+      },
+      
+      "permissions_by_tool_type": {
+        "browser_automation_tools": {
+          "description": "Astral, Puppeteer, Playwright",
+          "required": {
+            "net": true,
+            "read": true,
+            "write": true,
+            "run": true,
+            "env": true,
+            "hrtime": true,
+            "ffi": false
+          },
+          "explanation": {
+            "net": "Browser needs to make HTTP requests",
+            "read": "Read browser binaries and profile data",
+            "write": "Write cache and temporary files",
+            "run": "Spawn browser process",
+            "env": "Access XDG_CACHE_HOME and browser environment variables",
+            "hrtime": "Accurate performance timing",
+            "ffi": "NEVER - always blocked for security"
+          }
+        },
+        "api_integration_tools": {
+          "description": "OpenRouter, Venice, external APIs",
+          "required": {
+            "net": true,
+            "read": false,
+            "write": false,
+            "run": false,
+            "env": false,
+            "hrtime": false,
+            "ffi": false
+          },
+          "explanation": "Only network access needed for API calls"
+        },
+        "pure_logic_tools": {
+          "description": "Calculator, echo, timer, random",
+          "required": {
+            "net": false,
+            "read": false,
+            "write": false,
+            "run": false,
+            "env": false,
+            "hrtime": false,
+            "ffi": false
+          },
+          "explanation": "No external permissions needed"
+        },
+        "rcrt_tools": {
+          "description": "breadcrumb-create, breadcrumb-search, breadcrumb-update",
+          "required": {
+            "net": true,
+            "read": false,
+            "write": false,
+            "run": false,
+            "env": false,
+            "hrtime": false,
+            "ffi": false
+          },
+          "explanation": "Need network to call RCRT API"
+        }
+      },
+      
+      "never_allow": {
+        "ffi_true": {
+          "rule": "NEVER set ffi: true",
+          "reason": "FFI (Foreign Function Interface) is ALWAYS blocked, even for trusted tools",
+          "why": "Allows calling arbitrary C/C++ code - too dangerous",
+          "violation_message": "FFI (Foreign Function Interface) not allowed"
+        },
+        "eval_patterns": {
+          "rule": "NEVER use eval(), Function(), or new Function()",
+          "patterns_blocked": ["eval\\s*\\(", "Function\\s*\\(", "new\\s+Function"],
+          "reason": "Dynamic code execution is a security risk",
+          "violation_message": "Dangerous pattern detected: eval\\s*\\(",
+          "alternatives": "Use direct function calls, page.evaluate() with inline arrow functions"
+        }
+      },
+      
+      "output_schema_rules": {
+        "all_properties_need_type": {
+          "rule": "Every property in output_schema MUST have a 'type' field",
+          "correct": {"result": {"type": "string", "description": "The result"}},
+          "incorrect": {"result": {"description": "The result"}},
+          "violation_message": "Property 'result' must have a 'type'",
+          "valid_types": ["string", "number", "boolean", "object", "array", "any"]
+        },
+        "nested_properties": {
+          "rule": "Nested objects must also define types",
+          "example": {
+            "user": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "number"}
+              }
+            }
+          }
+        }
+      },
+      
+      "code_quality_rules": {
+        "export_required": "Must have: export async function execute(input, context)",
+        "input_validation": "Validate all required inputs at start of function",
+        "error_handling": "Use try/catch with descriptive error messages",
+        "type_safety": "Define TypeScript interfaces for Input, Output, Context",
+        "resource_cleanup": "Close connections, browsers, files in finally blocks"
+      },
+      
+      "quick_validation_checklist": [
+        "☐ schema_name = 'tool.code.v1'",
+        "☐ tags include: 'tool', 'tool:NAME', 'workspace:tools', 'self-contained'",
+        "☐ code has: export async function execute",
+        "☐ ALL output properties have 'type'",
+        "☐ Permissions match tool type (browser/API/logic/RCRT)",
+        "☐ NO ffi: true (always false)",
+        "☐ NO eval(), Function(), new Function()",
+        "☐ required_secrets = []",
+        "☐ ui_schema = {configurable: false}",
+        "☐ examples with description, input, output, explanation"
+      ],
+      
+      "common_validation_errors": [
+        {
+          "error": "Property 'result' must have a 'type'",
+          "fix": "Add \"type\": \"string\" or \"any\" or appropriate type to the property",
+          "where": "output_schema properties"
+        },
+        {
+          "error": "FFI (Foreign Function Interface) not allowed",
+          "fix": "Set ffi: false or remove ffi from permissions",
+          "where": "permissions object"
+        },
+        {
+          "error": "Dangerous pattern detected: eval\\s*\\(",
+          "fix": "Remove eval(), Function(), new Function() from code",
+          "alternative": "Use page.evaluate() with inline arrow functions for browser tools",
+          "where": "code.source"
+        },
+        {
+          "error": "Filesystem read access not allowed for user-created tools",
+          "fix": "Tool needs to be in trusted whitelist (only: astral, puppeteer, playwright, workflow, scheduler)",
+          "where": "permissions.read"
+        },
+        {
+          "error": "Subprocess execution not allowed for user-created tools",
+          "fix": "Tool needs to be in trusted whitelist (browser tools only)",
+          "where": "permissions.run"
+        },
+        {
+          "error": "Requires env access to 'XDG_CACHE_HOME'",
+          "fix": "Set env: true in permissions (for browser tools)",
+          "where": "permissions.env"
+        }
+      ],
+      
+      "debugging_workflow": {
+        "step_1": "Read validation error message",
+        "step_2": "Find error in common_validation_errors list above",
+        "step_3": "Apply the documented fix",
+        "step_4": "Use breadcrumb-update tool to fix the breadcrumb",
+        "step_5": "Verify tools-runner loads tool successfully"
+      }
+    }
+  },
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "# {{title}}\n\n## Quick Validation Checklist\n{{#each context.content.quick_validation_checklist}}{{this}}\n{{/each}}\n\n## Permissions by Tool Type\n{{#each context.content.permissions_by_tool_type}}\n### {{@key}}\n{{this.description}}\nRequired: {{#each this.required}}{{@key}}={{this}}{{#unless @last}}, {{/unless}}{{/each}}\n{{/each}}\n\n## NEVER Allow\n{{#each context.content.never_allow}}• {{this.rule}}: {{this.reason}}\n{{/each}}\n\n## Common Errors & Fixes\n{{#each context.content.common_validation_errors}}• Error: {{this.error}}\n  Fix: {{this.fix}}\n{{/each}}"
+      }
+    },
+    "mode": "replace"
+  }
+}
+

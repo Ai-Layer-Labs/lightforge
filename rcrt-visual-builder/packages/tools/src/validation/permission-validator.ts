@@ -126,7 +126,7 @@ export class PermissionValidator {
     // Filesystem read (allowed for trusted tools)
     if (permissions.read) {
       if (!toolName || !this.isTrustedForPermission(toolName, 'read')) {
-        errors.push('Filesystem read access not allowed for user-created tools');
+      errors.push('Filesystem read access not allowed for user-created tools');
       } else {
         warnings.push(`Trusted tool '${toolName}' has filesystem read access (per security policy)`);
       }
@@ -135,7 +135,7 @@ export class PermissionValidator {
     // Filesystem write (allowed for trusted tools)
     if (permissions.write) {
       if (!toolName || !this.isTrustedForPermission(toolName, 'write')) {
-        errors.push('Filesystem write access not allowed for user-created tools');
+      errors.push('Filesystem write access not allowed for user-created tools');
       } else {
         warnings.push(`Trusted tool '${toolName}' has filesystem write access (per security policy)`);
       }
@@ -144,7 +144,7 @@ export class PermissionValidator {
     // Environment variables (should use context.secrets)
     if (permissions.env) {
       if (!toolName || !this.isTrustedForPermission(toolName, 'env')) {
-        warnings.push('Environment variable access detected. Use context.secrets instead.');
+      warnings.push('Environment variable access detected. Use context.secrets instead.');
       } else {
         warnings.push(`Trusted tool '${toolName}' has environment access (per security policy)`);
       }
@@ -153,7 +153,7 @@ export class PermissionValidator {
     // Subprocess execution (allowed for trusted tools like browser automation)
     if (permissions.run) {
       if (!toolName || !this.isTrustedForPermission(toolName, 'run')) {
-        errors.push('Subprocess execution not allowed for user-created tools');
+      errors.push('Subprocess execution not allowed for user-created tools');
       } else {
         warnings.push(`Trusted tool '${toolName}' can execute subprocesses (per security policy)`);
       }
@@ -167,7 +167,7 @@ export class PermissionValidator {
     // High-resolution timing (allowed for trusted tools)
     if (permissions.hrtime) {
       if (!toolName || !this.isTrustedForPermission(toolName, 'hrtime')) {
-        errors.push('High-resolution timing not allowed (security risk)');
+      errors.push('High-resolution timing not allowed (security risk)');
       } else {
         warnings.push(`Trusted tool '${toolName}' has hrtime access (per security policy)`);
       }
