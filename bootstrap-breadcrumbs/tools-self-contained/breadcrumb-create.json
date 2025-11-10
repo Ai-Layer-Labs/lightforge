@@ -83,7 +83,7 @@
       ]
     },
     "permissions": {
-      "net": false,
+      "net": true,
       "read": false,
       "write": false,
       "env": false,
