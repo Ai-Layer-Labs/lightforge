@@ -70,7 +70,7 @@ impl EventHandler {
     }
     
     async fn handle_event(&self, event: BreadcrumbEvent) -> Result<()> {
-        // For MVP, we only process user.message.v1 events
+        // Process user.message.v1 and tool.creation.request.v1 events
         if let Some(schema) = &event.schema_name {
             if schema == "user.message.v1" {
                 info!("📨 Processing user message event");
@@ -85,6 +85,21 @@ impl EventHandler {
                     // For MVP, use simple recent retrieval
                     // TODO: Load context.config.v1 and use dynamic retrieval
                     self.assemble_and_publish(&session, event.breadcrumb_id).await?;
+                }
+            } else if schema == "tool.creation.request.v1" {
+                info!("🔧 Processing tool creation request event");
+                
+                // Extract session from tags (same pattern as user.message.v1)
+                let session_tag = event.tags
+                    .as_ref()
+                    .and_then(|tags| tags.iter().find(|t| t.starts_with("session:")))
+                    .map(|s| s.to_string());
+                
+                if let Some(session) = session_tag {
+                    // Assemble context for tool-creator specialist agent
+                    self.assemble_and_publish_for_tool_creator(&session, event.breadcrumb_id).await?;
+                } else {
+                    warn!("tool.creation.request.v1 without session tag - skipping");
                 }
             }
         }
@@ -329,7 +344,149 @@ impl EventHandler {
         Ok(())
     }
     
-    /// Fallback assembly if graph loading fails
+    /// Fallback assembly if graph loading fails    
+    async fn assemble_and_publish_for_tool_creator(
+        &self,
+        session_tag: &str,
+        trigger_id: Option<uuid::Uuid>,
+    ) -> Result<()> {
+        use crate::retrieval::AssembledContext;
+        use crate::agent_config::load_agent_definition;
+        
+        let Some(trigger) = trigger_id else {
+            warn!("No trigger ID provided, skipping tool-creator context assembly");
+            return Ok(());
+        };
+        
+        info!("🔧 Assembling context for tool-creator specialist agent");
+        
+        // Load tool-creator agent definition
+        let consumer_id = "tool-creator";
+        let agent_def = load_agent_definition(consumer_id, self.vector_store.pool()).await?;
+        
+        info!("📋 Loaded agent definition for {}", consumer_id);
+        
+        // SIMPLIFIED APPROACH for tool-creator (doesn't need full graph exploration)
+        // Tool-creator needs: trigger request + existing tools + knowledge guides
+        
+        let mut seed_ids = vec![trigger];  // The tool creation request
+        
+        // Add configured "always" sources (tool.catalog.v1, etc.)
+        if let Some(context_sources) = &agent_def.context_sources {
+            if let Some(always) = &context_sources.always {
+                for source in always {
+                    let nodes_result = match source.source_type.as_str() {
+                        "schema" => {
+                            if let Some(schema_name) = &source.schema_name {
+                                self.fetch_by_schema(schema_name, source.method.as_deref(), source.limit).await
+                            } else {
+                                continue;
+                            }
+                        },
+                        "tag" => {
+                            if let Some(tag) = &source.tag {
+                                self.fetch_by_tag(tag, source.limit.unwrap_or(1)).await
+                            } else {
+                                continue;
+                            }
+                        },
+                        _ => continue,
+                    };
+                    
+                    if let Ok(nodes) = nodes_result {
+                        for node in nodes {
+                            if !seed_ids.contains(&node.id) {
+                                seed_ids.push(node.id);
+                                info!("  + Source: {} for tool-creator", 
+                                    source.schema_name.as_deref().or(source.tag.as_deref()).unwrap_or("unknown"));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Semantic search for knowledge guides about tool creation
+            if let Some(semantic) = &context_sources.semantic {
+                if semantic.enabled {
+                    info!("  🔍 Semantic search for tool creation knowledge...");
+                    
+                    if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
+                        // Extract tool name and description from request
+                        let query_text = format!("{} {}",
+                            trigger_bc.context.get("description").and_then(|v| v.as_str()).unwrap_or(""),
+                            trigger_bc.context.get("tool_name").and_then(|v| v.as_str()).unwrap_or("")
+                        );
+                        
+                        let entities = self.entity_extractor.extract(&query_text)?;
+                        
+                        if !entities.keywords.is_empty() {
+                            if let Some(ref embedding) = trigger_bc.embedding {
+                                let limit = semantic.limit.unwrap_or(5);
+                                
+                                let knowledge = self.vector_store.find_similar_hybrid(
+                                    embedding,
+                                    &entities.keywords,
+                                    limit,
+                                    None,
+                                ).await?;
+                                
+                                for k in knowledge {
+                                    if semantic.schemas.contains(&k.schema_name) {
+                                        if !seed_ids.contains(&k.id) {
+                                            seed_ids.push(k.id);
+                                            info!("  + Knowledge: {} (semantic)", k.title.as_deref().unwrap_or("unknown"));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        info!("✅ Collected {} sources for tool-creator", seed_ids.len());
+        
+        // Convert seeds to breadcrumb nodes (simplified, no graph traversal needed)
+        let mut breadcrumbs = Vec::new();
+        for seed_id in &seed_ids {
+            if let Ok(Some(row)) = self.vector_store.get_by_id(*seed_id).await {
+                breadcrumbs.push(crate::graph::BreadcrumbNode {
+                    id: row.id,
+                    schema_name: row.schema_name,
+                    tags: row.tags,
+                    context: row.context,
+                    embedding: row.embedding,
+                    created_at: row.created_at,
+                    trigger_event_id: None,
+                });
+            }
+        }
+        
+        let token_estimate = breadcrumbs.iter()
+            .map(|bc| bc.context.to_string().len() / 3)
+            .sum();
+        
+        let context = AssembledContext {
+            breadcrumbs,
+            token_estimate,
+            sources_count: seed_ids.len(),
+        };
+        
+        // Publish to tool-creator agent
+        self.publisher.publish_context(
+            "tool-creator",
+            session_tag,
+            Some(trigger),
+            &context,
+        ).await?;
+        
+        info!("✅ Published context for tool-creator with {} breadcrumbs (~{} tokens)", 
+            context.breadcrumbs.len(), token_estimate);
+        
+        Ok(())
+    }
+    
     async fn assemble_fallback(
         &self,
         session_tag: &str,

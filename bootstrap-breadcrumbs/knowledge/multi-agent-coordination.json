@@ -1,0 +1,557 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Multi-Agent Coordination: Coordinator and Specialist Pattern",
+  "tags": [
+    "knowledge",
+    "multi-agent",
+    "coordination",
+    "architecture",
+    "workspace:system"
+  ],
+  "context": {
+    "topic": "multi-agent-coordination",
+    "audience": "LLM agents and system architects",
+    "last_updated": "2025-11-10",
+    "content": {
+      "summary": "Complete guide to multi-agent coordination in RCRT using the coordinator-specialist pattern. One coordinator agent routes requests to multiple specialist agents, enabling true division of labor and specialized expertise.",
+      
+      "architecture_overview": {
+        "description": "RCRT supports multiple agents running simultaneously, each specialized in different domains",
+        "core_pattern": "Coordinator → Specialist → Result → Coordinator → User",
+        "why_this_works": [
+          "Fire-and-forget execution: Each agent processes and exits",
+          "Event-driven: Breadcrumbs trigger appropriate agents via subscriptions",
+          "Session tags: Route responses back to original conversation",
+          "Context-builder: Assembles rich context for each agent type",
+          "ModernAgentRegistry: Loads and manages all agents automatically"
+        ],
+        "agent_types": {
+          "coordinator": {
+            "role": "Router and orchestrator",
+            "examples": ["default-chat-assistant"],
+            "responsibilities": [
+              "Understand user intent",
+              "Route to appropriate tools or agents",
+              "Maintain conversation flow",
+              "Communicate with user",
+              "Decide when to delegate vs handle directly"
+            ]
+          },
+          "specialist": {
+            "role": "Deep expertise in specific domain",
+            "examples": ["tool-creator", "data-analyst", "researcher"],
+            "responsibilities": [
+              "Process specialized requests",
+              "Generate high-quality domain-specific output",
+              "Validate results against domain standards",
+              "Return results to coordinator or user"
+            ]
+          }
+        }
+      },
+      
+      "coordinator_specialist_flow": {
+        "description": "Complete flow from user request to specialist execution",
+        
+        "step_by_step": [
+          "1. USER: Sends message → user.message.v1 with session tag",
+          "2. CONTEXT-BUILDER: Assembles context for coordinator → agent.context.v1 (consumer:default-chat-assistant)",
+          "3. COORDINATOR: Receives context, sees AVAILABLE AGENTS, decides to delegate",
+          "4. COORDINATOR: Creates request breadcrumb (e.g., tool.creation.request.v1) with session tag + assigned-to tag",
+          "5. COORDINATOR: Responds to user: 'Delegating to specialist...'",
+          "6. CONTEXT-BUILDER: Sees specialist request, assembles specialized context → agent.context.v1 (consumer:specialist-id)",
+          "7. SPECIALIST: Receives rich context (guides, examples, catalogs)",
+          "8. SPECIALIST: Processes request using domain expertise",
+          "9. SPECIALIST: Creates result breadcrumb (via tools or direct creation)",
+          "10. SPECIALIST: Creates response breadcrumb with session tag",
+          "11. COORDINATOR: Receives specialist response (via session tag routing)",
+          "12. COORDINATOR: Informs user of completion with details"
+        ],
+        
+        "total_breadcrumbs": "~8-10 per delegation (request, context, specialist context, work products, responses)",
+        "total_agents_invoked": "2 (coordinator + specialist)",
+        "total_time": "15-30 seconds (depends on specialist task complexity)",
+        
+        "critical_elements": {
+          "session_tags": {
+            "description": "MUST propagate through entire chain",
+            "pattern": "session:session-1762288119864",
+            "appears_in": [
+              "user.message.v1 (origin)",
+              "tool.creation.request.v1 (delegation)",
+              "agent.context.v1 (both coordinator and specialist)",
+              "tool.response.v1 (specialist work)",
+              "agent.response.v1 (all responses)",
+              "Any work products created"
+            ],
+            "why_critical": "Without session tags, responses won't route back to user's conversation"
+          },
+          
+          "assignment_tags": {
+            "description": "Route requests to specific specialists",
+            "pattern": "assigned-to:specialist-id",
+            "example": "assigned-to:tool-creator",
+            "how_it_works": "Specialist's subscriptions filter for this tag"
+          },
+          
+          "consumer_tags": {
+            "description": "Target specific agent for context assembly",
+            "pattern": "consumer:agent-id",
+            "example": "consumer:tool-creator",
+            "how_it_works": "context-builder creates agent.context.v1 with this tag, specialist subscribes to it"
+          }
+        }
+      },
+      
+      "coordinator_agent_requirements": {
+        "description": "What coordinator agents need to function properly",
+        
+        "context_sources": {
+          "required": [
+            "tool.catalog.v1 - Know what tools are available",
+            "agent.catalog.v1 - Know what specialists are available",
+            "knowledge.v1 - Semantic search for relevant guides"
+          ],
+          "optional": [
+            "browser:active-tab - User's current context",
+            "note.v1 - User's saved knowledge"
+          ]
+        },
+        
+        "capabilities": {
+          "can_create_breadcrumbs": true,
+          "can_update_own": true,
+          "can_delete_own": false,
+          "can_spawn_agents": false
+        },
+        
+        "system_prompt_must_include": [
+          "Role definition: 'You are a COORDINATOR'",
+          "Decision tree: When to handle vs delegate",
+          "Delegation examples: How to create specialist requests",
+          "Response pattern: How to inform user during delegation",
+          "Available resources: Reference to AVAILABLE AGENTS"
+        ],
+        
+        "subscriptions": [
+          {
+            "schema_name": "agent.context.v1",
+            "all_tags": ["consumer:coordinator-id"],
+            "role": "trigger",
+            "comment": "Main trigger for coordinator"
+          },
+          {
+            "schema_name": "tool.response.v1",
+            "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "coordinator-id"}],
+            "role": "trigger",
+            "comment": "Tool responses for coordinator's requests"
+          }
+        ]
+      },
+      
+      "specialist_agent_requirements": {
+        "description": "What specialist agents need to function properly",
+        
+        "context_sources": {
+          "required": [
+            "tool.catalog.v1 - Know available tools for work",
+            "Domain-specific knowledge - Guides for their specialty"
+          ],
+          "optional": [
+            "Existing work products - Learn from past examples",
+            "Session history - Understand conversation context"
+          ]
+        },
+        
+        "capabilities": {
+          "can_create_breadcrumbs": true,
+          "can_update_own": true,
+          "can_delete_own": false,
+          "can_spawn_agents": false
+        },
+        
+        "system_prompt_must_include": [
+          "Role definition: 'You are a SPECIALIST in [domain]'",
+          "Domain expertise: Deep knowledge of specialty",
+          "Quality standards: Validation checklists",
+          "Output format: Exact structure requirements",
+          "Tool usage: How to use breadcrumb-create and other tools",
+          "Session tag propagation: CRITICAL reminder"
+        ],
+        
+        "subscriptions": [
+          {
+            "schema_name": "agent.context.v1",
+            "all_tags": ["consumer:specialist-id"],
+            "role": "trigger",
+            "comment": "Specialist-specific context from context-builder"
+          },
+          {
+            "schema_name": "tool.response.v1",
+            "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "specialist-id"}],
+            "role": "trigger",
+            "comment": "Tool responses for specialist's work"
+          }
+        ]
+      },
+      
+      "request_schema_pattern": {
+        "description": "Standardized schemas for delegation requests",
+        
+        "naming_convention": "[domain].request.v1",
+        "examples": [
+          "tool.creation.request.v1 - Request to create new tool",
+          "analysis.request.v1 - Request for data analysis",
+          "research.request.v1 - Request for research",
+          "synthesis.request.v1 - Request for information synthesis"
+        ],
+        
+        "required_fields": {
+          "description": "What the request is about",
+          "requirements": "Specific capabilities or deliverables needed",
+          "requestedBy": "Coordinator agent ID",
+          "conversationContext": "Optional context from conversation",
+          "priority": "Optional: low, normal, high",
+          "deadline": "Optional: time constraint"
+        },
+        
+        "required_tags": [
+          "Session tag (session:xxx) - CRITICAL for routing",
+          "Assignment tag (assigned-to:specialist-id) - Routes to specialist",
+          "Domain tag (tool:creation, analysis:request, etc.) - Categorization"
+        ],
+        
+        "llm_hints": {
+          "description": "Request schemas should have llm_hints for clear display",
+          "purpose": "Specialist sees formatted request, not raw JSON",
+          "pattern": "Template that extracts key fields and formats clearly"
+        }
+      },
+      
+      "context_builder_integration": {
+        "description": "How context-builder enables specialist agents",
+        
+        "event_handler_pattern": {
+          "file": "crates/rcrt-context-builder/src/event_handler.rs",
+          "handles": "Each specialist request schema (tool.creation.request.v1, etc.)",
+          "creates": "Specialized context for that agent type"
+        },
+        
+        "specialist_context_assembly": {
+          "description": "What context specialists receive",
+          "always_sources": [
+            "The trigger request (tool.creation.request.v1)",
+            "Configured always sources from agent.def.v1",
+            "Tool catalog (what tools are available)"
+          ],
+          "semantic_sources": [
+            "Domain-specific knowledge guides",
+            "Similar past work products",
+            "Reference implementations"
+          ],
+          "result": "Rich context with everything specialist needs to succeed"
+        },
+        
+        "consumer_id_routing": {
+          "description": "How context gets to the right agent",
+          "pattern": "context-builder creates agent.context.v1 with tags: ['consumer:specialist-id']",
+          "specialist_subscribes": "Specialist has subscription matching consumer:specialist-id",
+          "result": "Only the targeted specialist receives the context"
+        }
+      },
+      
+      "example_use_cases": {
+        "tool_creation": {
+          "coordinator": "default-chat-assistant",
+          "specialist": "tool-creator",
+          "request_schema": "tool.creation.request.v1",
+          "flow": "User asks for new tool → Coordinator delegates → Specialist generates → Tool available",
+          "knowledge_used": ["how-to-create-tools.json", "astral-browser-automation.json"],
+          "result": "New tool.code.v1 created and immediately usable"
+        },
+        
+        "data_analysis": {
+          "coordinator": "default-chat-assistant",
+          "specialist": "data-analyst (future)",
+          "request_schema": "analysis.request.v1 (future)",
+          "flow": "User uploads data → Coordinator delegates → Specialist analyzes → Charts/insights created",
+          "knowledge_used": ["data-analysis-guide.json", "visualization-patterns.json"],
+          "result": "Analysis breadcrumbs with charts and insights"
+        },
+        
+        "research": {
+          "coordinator": "default-chat-assistant",
+          "specialist": "researcher (future)",
+          "request_schema": "research.request.v1 (future)",
+          "flow": "User asks question → Coordinator delegates → Specialist researches → Synthesized answer",
+          "knowledge_used": ["research-methods.json", "source-evaluation.json"],
+          "result": "Research report with sources and citations"
+        }
+      },
+      
+      "best_practices": [
+        "Coordinator stays lightweight - delegates complex tasks",
+        "Specialists focus deeply - one domain each",
+        "Session tags ALWAYS propagate through chain",
+        "Use specific request schemas (not generic)",
+        "Specialists use return_to_llm: true for validation",
+        "Coordinator informs user during delegation",
+        "Knowledge guides enable specialist expertise",
+        "Tool catalog prevents duplicate tool creation",
+        "Agent catalog enables dynamic specialist discovery"
+      ],
+      
+      "anti_patterns": {
+        "description": "What NOT to do in multi-agent systems",
+        "mistakes": [
+          {
+            "mistake": "Coordinator tries to do specialist work",
+            "why_bad": "Coordinator lacks deep context and expertise",
+            "solution": "Always delegate to specialist when available"
+          },
+          {
+            "mistake": "Specialist tries to coordinate",
+            "why_bad": "Specialists should focus on their domain only",
+            "solution": "Specialists create work products and responses, don't route"
+          },
+          {
+            "mistake": "Missing session tags in delegation chain",
+            "why_bad": "Responses get lost, don't route back to user",
+            "solution": "ALWAYS copy session tag to every breadcrumb in chain"
+          },
+          {
+            "mistake": "Hardcoding specialist names in coordinator prompt",
+            "why_bad": "Not dynamic, breaks when specialists change",
+            "solution": "Reference AVAILABLE AGENTS from context"
+          },
+          {
+            "mistake": "Specialists don't validate their output",
+            "why_bad": "Low-quality results, errors in production",
+            "solution": "Use checklists, validation, and quality standards"
+          },
+          {
+            "mistake": "Not using return_to_llm appropriately",
+            "why_bad": "Specialists can't confirm success before informing user",
+            "solution": "Specialists use return_to_llm: true for validation steps"
+          }
+        ]
+      },
+      
+      "scaling_pattern": {
+        "description": "How to add new specialists to the system",
+        
+        "steps_to_add_specialist": [
+          "1. Create agent.def.v1 breadcrumb with specialist configuration",
+          "2. Define request schema (e.g., analysis.request.v1)",
+          "3. Add event handler in context-builder for request schema",
+          "4. Create knowledge guides for specialist's domain",
+          "5. Update coordinator's system prompt with delegation pattern",
+          "6. Test delegation flow end-to-end",
+          "7. Document pattern in multi-agent-coordination.json"
+        ],
+        
+        "no_code_changes_needed": {
+          "description": "ModernAgentRegistry automatically discovers new agents",
+          "how": "Loads all agent.def.v1 breadcrumbs from database",
+          "result": "New specialist available immediately after bootstrap/deployment"
+        },
+        
+        "coordination_matrix": {
+          "description": "Which specialists handle which requests",
+          "examples": {
+            "tool_creation": "tool-creator",
+            "data_analysis": "data-analyst (future)",
+            "research": "researcher (future)",
+            "synthesis": "synthesizer (future)",
+            "code_review": "code-reviewer (future)",
+            "testing": "test-engineer (future)"
+          }
+        }
+      },
+      
+      "benefits_of_specialization": {
+        "quality": "Deep expertise produces better results than generalist",
+        "maintainability": "Easier to update one specialist than one mega-agent",
+        "scalability": "Add specialists without changing coordinator",
+        "clarity": "Clear responsibilities and expectations",
+        "testing": "Can test each specialist independently",
+        "evolution": "System can add capabilities by adding specialists",
+        "knowledge_management": "Each specialist has focused knowledge base",
+        "model_selection": "Use best model for each task (fast for coordination, smart for specialists)"
+      },
+      
+      "session_tag_deep_dive": {
+        "description": "Understanding session tag propagation in multi-agent flows",
+        
+        "format": "session:session-TIMESTAMP",
+        "example": "session:session-1762288119864",
+        
+        "propagation_rules": [
+          "Coordinator receives from user message",
+          "Coordinator MUST copy to delegation request",
+          "context-builder includes in agent.context.v1 for specialist",
+          "Specialist MUST copy to all created breadcrumbs",
+          "Specialist MUST copy to tool requests",
+          "Tool responses inherit from request (automatic)",
+          "Final responses MUST include session tag"
+        ],
+        
+        "what_happens_if_missing": [
+          "User doesn't see specialist's response",
+          "Conversation flow breaks",
+          "Responses appear in different sessions",
+          "Chat history becomes incoherent",
+          "User thinks system is broken"
+        ],
+        
+        "validation": "Check every breadcrumb in chain has matching session tag"
+      },
+      
+      "fire_and_forget_in_multi_agent": {
+        "description": "How fire-and-forget pattern works with multiple agents",
+        
+        "coordinator_pattern": [
+          "1. Receive agent.context.v1",
+          "2. Decide to delegate",
+          "3. Create delegation request",
+          "4. Create user response ('delegating...')",
+          "5. EXIT - Don't wait for specialist!"
+        ],
+        
+        "specialist_pattern": [
+          "1. Receive agent.context.v1 (separate invocation)",
+          "2. Process request",
+          "3. Create work products via tools",
+          "4. EXIT - Don't wait for tool responses!",
+          "5. (Later) Receive tool.response.v1 (separate invocation)",
+          "6. Create final response",
+          "7. EXIT"
+        ],
+        
+        "no_waiting": "Each agent exits immediately after creating breadcrumbs",
+        "no_blocking": "SSE events trigger next agent when ready",
+        "no_state": "All state in breadcrumbs, not in agent memory",
+        "scalable": "Can run 100 instances of each agent type"
+      },
+      
+      "debugging_multi_agent": {
+        "description": "How to debug delegation flows",
+        
+        "breadcrumb_trail": {
+          "description": "Follow breadcrumb chain to see what happened",
+          "query_by_session": "List all breadcrumbs with session tag",
+          "expected_schemas": [
+            "user.message.v1 (origin)",
+            "agent.context.v1 (coordinator)",
+            "agent.response.v1 (coordinator delegation message)",
+            "tool.creation.request.v1 (delegation)",
+            "agent.context.v1 (specialist)",
+            "tool.request.v1 (specialist work)",
+            "tool.response.v1 (tool results)",
+            "agent.response.v1 (specialist confirmation)",
+            "agent.response.v1 (coordinator final message)"
+          ]
+        },
+        
+        "log_analysis": {
+          "context_builder_logs": [
+            "Look for: Processing tool.creation.request.v1",
+            "Verify: Assembled context for tool-creator",
+            "Check: Number of breadcrumbs and token estimate"
+          ],
+          "agent_runner_logs": [
+            "Look for: tool-creator agent triggered",
+            "Verify: Agent created tool requests",
+            "Check: No errors in agent execution"
+          ],
+          "tools_runner_logs": [
+            "Look for: breadcrumb-create tool executed",
+            "Verify: Tool creation succeeded",
+            "Check: New tool loaded into catalog"
+          ]
+        },
+        
+        "common_issues": [
+          {
+            "issue": "Specialist never triggers",
+            "likely_cause": "Missing consumer tag or wrong tag in agent.context.v1",
+            "solution": "Check context-builder creates consumer:specialist-id tag"
+          },
+          {
+            "issue": "Response doesn't reach user",
+            "likely_cause": "Session tag missing in chain",
+            "solution": "Verify session tag in all breadcrumbs"
+          },
+          {
+            "issue": "Specialist lacks context",
+            "likely_cause": "context-builder not handling request schema",
+            "solution": "Add schema handler in event_handler.rs"
+          },
+          {
+            "issue": "Infinite delegation loop",
+            "likely_cause": "Coordinator delegates to itself or circular routing",
+            "solution": "Clear specialization, coordinator checks AVAILABLE AGENTS"
+          }
+        ]
+      },
+      
+      "future_enhancements": {
+        "dynamic_specialist_discovery": "Coordinator queries agent.catalog.v1 to find best specialist",
+        "specialist_capabilities": "Agents advertise capabilities in catalog",
+        "load_balancing": "Multiple instances of same specialist type",
+        "priority_queues": "High-priority requests processed first",
+        "specialist_chains": "Specialist A → Specialist B → Coordinator",
+        "consensus_mechanisms": "Multiple specialists vote on best approach",
+        "learning_from_delegation": "Track which delegations succeed/fail, improve routing"
+      },
+      
+      "proven_implementations": {
+        "description": "Multi-agent patterns validated in RCRT",
+        
+        "tool_creation_flow": {
+          "status": "✅ Implemented and ready for testing",
+          "coordinator": "default-chat-assistant",
+          "specialist": "tool-creator",
+          "request_schema": "tool.creation.request.v1",
+          "context_handler": "event_handler.rs handles tool.creation.request.v1",
+          "knowledge_base": [
+            "how-to-create-tools.json",
+            "astral-browser-automation.json",
+            "creating-tools-with-agent.json"
+          ],
+          "expected_result": "User requests tool → Tool created and available in <30 seconds"
+        },
+        
+        "note_processing_flow": {
+          "status": "🔴 Broken (documented in NOTE_AGENTS_SOLUTION.md)",
+          "issue": "Bypassed context-builder, no specialist pattern",
+          "solution": "Implement note-processor specialist with context-builder support",
+          "learning": "Proves context-builder is CRITICAL for specialist agents"
+        }
+      },
+      
+      "key_insights": [
+        "Multi-agent coordination IS coordination through breadcrumbs, not direct calls",
+        "Each agent is stateless - state lives in breadcrumbs",
+        "Session tags are the routing mechanism",
+        "context-builder enables each agent type with specialized context",
+        "Knowledge guides make specialists intelligent",
+        "Fire-and-forget enables true asynchronous coordination",
+        "ModernAgentRegistry handles all agents uniformly",
+        "This pattern scales infinitely - add specialists without limits",
+        "The system can truly specialize and evolve!"
+      ]
+    }
+  },
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "# {{title}}\n\n## Summary\n{{context.content.summary}}\n\n## Core Pattern\n{{context.content.architecture_overview.core_pattern}}\n\n## Complete Flow (12 Steps)\n{{#each context.content.coordinator_specialist_flow.step_by_step}}{{this}}\n{{/each}}\n\n## Critical Elements\n\n### Session Tags\n{{context.content.coordinator_specialist_flow.critical_elements.session_tags.description}}\nFormat: {{context.content.coordinator_specialist_flow.critical_elements.session_tags.pattern}}\nMust appear in:\n{{#each context.content.coordinator_specialist_flow.critical_elements.session_tags.appears_in}}• {{this}}\n{{/each}}\n\n### Assignment Tags\n{{context.content.coordinator_specialist_flow.critical_elements.assignment_tags.description}}\nPattern: {{context.content.coordinator_specialist_flow.critical_elements.assignment_tags.pattern}}\n\n### Consumer Tags\n{{context.content.coordinator_specialist_flow.critical_elements.consumer_tags.description}}\nPattern: {{context.content.coordinator_specialist_flow.critical_elements.consumer_tags.pattern}}\n\n## Coordinator Requirements\n\nContext Sources:\n{{#each context.content.coordinator_agent_requirements.context_sources.required}}• {{this}}\n{{/each}}\n\nSystem Prompt Must Include:\n{{#each context.content.coordinator_agent_requirements.system_prompt_must_include}}• {{this}}\n{{/each}}\n\n## Specialist Requirements\n\nContext Sources:\n{{#each context.content.specialist_agent_requirements.context_sources.required}}• {{this}}\n{{/each}}\n\nSystem Prompt Must Include:\n{{#each context.content.specialist_agent_requirements.system_prompt_must_include}}• {{this}}\n{{/each}}\n\n## Best Practices\n{{#each context.content.best_practices}}• {{this}}\n{{/each}}\n\n## Common Mistakes\n{{#each context.content.anti_patterns.mistakes}}• {{this.mistake}} → {{this.solution}}\n{{/each}}\n\n## Key Insights\n{{#each context.content.key_insights}}• {{this}}\n{{/each}}"
+      }
+    },
+    "mode": "replace"
+  }
+}
+

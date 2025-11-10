@@ -287,7 +287,29 @@ export class ModernAgentRegistry {
         agents: [],
         totalAgents: 0,
         activeAgents: 0,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        llm_hints: {
+          transform: {
+            agent_list: {
+              type: 'template',
+              template: `Available agents in system ({{context.activeAgents}} active / {{context.totalAgents}} total):
+
+{{#each context.agents}}
+• {{this.name}}: {{this.description}}
+  Status: {{this.status}}
+  Agent ID: {{this.agent_id}}
+  Last Activity: {{this.lastActivity}}
+{{/each}}
+
+To delegate tasks to specialist agents, create a task request breadcrumb with the appropriate tags targeting the specialist agent.`
+            },
+            available_agents: {
+              type: 'extract',
+              value: '$.agents[*].agent_id'
+            }
+          },
+          mode: 'merge'
+        }
       }
     });
     
@@ -324,7 +346,29 @@ export class ModernAgentRegistry {
             agents,
             totalAgents: agents.length,
             activeAgents: agents.filter(a => a.status === 'idle' || a.status === 'processing').length,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            llm_hints: {
+              transform: {
+                agent_list: {
+                  type: 'template',
+                  template: `Available agents in system ({{context.activeAgents}} active / {{context.totalAgents}} total):
+
+{{#each context.agents}}
+• {{this.name}}: {{this.description}}
+  Status: {{this.status}}
+  Agent ID: {{this.agent_id}}
+  Last Activity: {{this.lastActivity}}
+{{/each}}
+
+To delegate tasks to specialist agents, create a task request breadcrumb with the appropriate tags targeting the specialist agent.`
+                },
+                available_agents: {
+                  type: 'extract',
+                  value: '$.agents[*].agent_id'
+                }
+              },
+              mode: 'merge'
+            }
           }
         }
       );

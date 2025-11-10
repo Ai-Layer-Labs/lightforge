@@ -1,0 +1,536 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Agent-Powered Tool Creation: Complete Workflow",
+  "tags": [
+    "knowledge",
+    "tool-creation",
+    "multi-agent",
+    "coordination",
+    "meta-guide",
+    "workspace:system"
+  ],
+  "context": {
+    "topic": "agent-tool-creation-workflow",
+    "audience": "LLM agents (especially coordinator agents)",
+    "last_updated": "2025-11-10",
+    "content": {
+      "summary": "Complete workflow for agents to create new tools autonomously. Teaches coordinator agents when to delegate tool creation to specialist agents, and teaches specialist agents how to generate valid tool.code.v1 breadcrumbs.",
+      
+      "when_to_create_tools": {
+        "description": "Decision tree for tool creation vs using existing tools",
+        "check_existing_first": [
+          "1. Review AVAILABLE TOOLS section in your context",
+          "2. Check if any existing tool can fulfill the requirement",
+          "3. Check if combining existing tools via workflow can work",
+          "4. Only create new tool if truly needed"
+        ],
+        
+        "good_reasons_to_create": [
+          "User requests specific external API integration not available",
+          "User needs browser automation capabilities (Astral, Puppeteer)",
+          "User requires custom data transformation logic",
+          "User needs specialized algorithm implementation",
+          "New protocol or service integration needed"
+        ],
+        
+        "bad_reasons_to_create": [
+          "Tool exists but agent doesn't know how to use it (read the examples!)",
+          "Can be achieved with workflow combining existing tools",
+          "Simple logic that could be in agent reasoning",
+          "One-time operation that doesn't need persistence"
+        ]
+      },
+      
+      "coordinator_agent_workflow": {
+        "description": "How coordinator agents (like default-chat-assistant) delegate tool creation",
+        "role": "Coordinator agents DON'T create tools themselves - they delegate to specialists",
+        
+        "step_by_step": [
+          "1. User requests: 'Create a browser automation tool'",
+          "2. Check AVAILABLE TOOLS: See if similar tool exists",
+          "3. Check AVAILABLE AGENTS: See if tool-creator specialist is available",
+          "4. Create delegation breadcrumb targeting specialist",
+          "5. Inform user: 'I've delegated this to the tool-creator specialist'",
+          "6. Wait for tool.creation.response.v1 (via SSE/events)",
+          "7. Inform user when tool is ready"
+        ],
+        
+        "delegation_pattern": {
+          "description": "How to delegate to tool-creator specialist agent",
+          "breadcrumb_format": {
+            "action": "create",
+            "breadcrumb": {
+              "schema_name": "tool.creation.request.v1",
+              "title": "Tool Request: [Tool Name]",
+              "tags": ["tool:creation", "assigned-to:tool-creator", "session:SESSION_ID"],
+              "context": {
+                "tool_name": "lowercase-hyphenated-name",
+                "description": "What the tool should do",
+                "requirements": [
+                  "Specific capability 1",
+                  "Specific capability 2"
+                ],
+                "examples": [
+                  {
+                    "scenario": "Use case description",
+                    "expected_behavior": "What should happen"
+                  }
+                ],
+                "references": [
+                  "Library or API to use (e.g., jsr:@astral/astral)",
+                  "Documentation URL if available"
+                ],
+                "requestedBy": "coordinator-agent-id",
+                "conversationContext": "Optional context from user conversation"
+              }
+            }
+          },
+          "important_notes": [
+            "Include session tag so responses route back to user",
+            "Be specific about requirements (don't just say 'browser automation')",
+            "Include library references (jsr:@astral/astral, npm packages, etc.)",
+            "Add examples to help specialist understand use cases"
+          ]
+        },
+        
+        "coordinator_response": {
+          "description": "How coordinator responds to user during delegation",
+          "pattern": {
+            "action": "create",
+            "breadcrumb": {
+              "schema_name": "agent.response.v1",
+              "tags": ["agent:response", "chat:output", "session:SESSION_ID"],
+              "context": {
+                "message": "I'm delegating this to our tool-creator specialist agent who will generate a browser automation tool using the Astral library. This will take a moment as the specialist needs to write the complete tool code. I'll let you know when it's ready!"
+              }
+            }
+          },
+          "tone": "Confident, informative, sets expectations"
+        }
+      },
+      
+      "specialist_agent_workflow": {
+        "description": "How tool-creator specialist agent generates tools",
+        "role": "Specialist agent receives rich context and generates valid tool.code.v1 breadcrumbs",
+        
+        "context_received": {
+          "description": "context-builder assembles rich context for specialist",
+          "included_sections": [
+            "AVAILABLE TOOLS - Tool catalog showing existing tools (learn from patterns)",
+            "RELEVANT KNOWLEDGE - how-to-create-tools.json + specific guides (Astral, etc.)",
+            "CONVERSATION HISTORY - Original user request and coordinator's delegation",
+            "EXISTING TOOL EXAMPLES - Similar tools for pattern matching"
+          ],
+          "why_this_matters": "Specialist sees how existing tools are structured, can reuse patterns, and avoid mistakes"
+        },
+        
+        "generation_steps": [
+          "1. Parse tool.creation.request.v1 from trigger context",
+          "2. Review RELEVANT KNOWLEDGE for structure requirements",
+          "3. Review AVAILABLE TOOLS for similar tool patterns",
+          "4. Generate complete tool.code.v1 definition",
+          "5. Validate structure against checklist",
+          "6. Create tool using breadcrumb-create tool",
+          "7. Create tool.creation.response.v1 to inform user"
+        ],
+        
+        "validation_checklist": [
+          "✅ schema_name = 'tool.code.v1'",
+          "✅ tags include: ['tool', 'tool:NAME', 'workspace:tools', 'self-contained']",
+          "✅ context.code.source contains valid TypeScript with export async function execute",
+          "✅ context.name matches tool:NAME tag",
+          "✅ input_schema defines all accepted parameters",
+          "✅ output_schema defines all return fields",
+          "✅ permissions include required permissions (net, run, etc.)",
+          "✅ limits are appropriate (timeout_ms, memory_mb, cpu_percent)",
+          "✅ required_secrets is array (even if empty)",
+          "✅ ui_schema is object with configurable field",
+          "✅ examples include at least 2-3 use cases with explanations",
+          "✅ llm_hints exclude code/permissions/limits"
+        ],
+        
+        "using_breadcrumb_create_tool": {
+          "description": "Specialist uses breadcrumb-create tool to upload generated tool",
+          "pattern": {
+            "tool_requests": [
+              {
+                "tool": "breadcrumb-create",
+                "input": {
+                  "schema_name": "tool.code.v1",
+                  "title": "Tool Name (Self-Contained)",
+                  "tags": ["tool", "tool:toolname", "workspace:tools", "self-contained"],
+                  "context": {
+                    "name": "toolname",
+                    "description": "What it does",
+                    "version": "1.0.0",
+                    "code": {"language": "typescript", "source": "export async function execute..."},
+                    "input_schema": {},
+                    "output_schema": {},
+                    "permissions": {},
+                    "limits": {},
+                    "required_secrets": [],
+                    "ui_schema": {},
+                    "examples": []
+                  }
+                },
+                "requestId": "create-tool-xyz",
+                "return_to_llm": true
+              }
+            ]
+          },
+          "why_return_to_llm_true": "Specialist wants to see if creation succeeded before informing user"
+        },
+        
+        "response_to_coordinator": {
+          "description": "After tool creation, specialist creates response breadcrumb",
+          "pattern": {
+            "action": "create",
+            "breadcrumb": {
+              "schema_name": "tool.creation.response.v1",
+              "tags": ["tool:creation", "response", "session:SESSION_ID"],
+              "context": {
+                "tool_name": "created-tool-name",
+                "status": "success",
+                "breadcrumb_id": "id-of-created-tool",
+                "message": "Successfully created [tool name]. The tool is now available in the tool catalog and can be used immediately.",
+                "examples": [
+                  {
+                    "description": "How to use the new tool",
+                    "tool_request": {"tool": "toolname", "input": {...}}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      
+      "multi_agent_communication": {
+        "description": "How agents coordinate purely through breadcrumbs",
+        
+        "event_flow": [
+          "1. User → user.message.v1 (to chat agent)",
+          "2. Chat Agent → tool.creation.request.v1 (to specialist)",
+          "3. context-builder → agent.context.v1 (for specialist)",
+          "4. Tool Creator → tool.code.v1 (via breadcrumb-create)",
+          "5. Tool Creator → tool.creation.response.v1 (back to chat)",
+          "6. Chat Agent → agent.response.v1 (to user)",
+          "7. User → tool.request.v1 (using new tool!)"
+        ],
+        
+        "fire_and_forget": {
+          "description": "Each agent processes and exits - no waiting",
+          "chat_agent": "Creates request → EXIT (doesn't wait for response)",
+          "specialist": "Receives request → Creates tool → Responds → EXIT",
+          "coordination": "SSE events trigger each agent at the right time"
+        },
+        
+        "session_tag_propagation": {
+          "description": "Critical: Session tags must propagate through delegation chain",
+          "rule": "Every breadcrumb in the chain must include the original session tag",
+          "why": "Ensures all responses route back to the user who made the request",
+          "example": "session:session-1762288119864 appears in: request → context → tool → response → chat"
+        }
+      },
+      
+      "quality_standards": {
+        "description": "What makes a good tool",
+        
+        "code_quality": [
+          "Clear input validation at start of execute()",
+          "Comprehensive error handling with descriptive messages",
+          "Type safety with TypeScript interfaces",
+          "Efficient algorithms (avoid unnecessary iterations)",
+          "Proper resource cleanup (close files, connections)",
+          "Comments explaining complex logic"
+        ],
+        
+        "schema_quality": [
+          "Detailed descriptions for every field",
+          "Appropriate validation (min/max, enum, pattern)",
+          "Realistic examples that actually work",
+          "Clear explanation of how to use output fields",
+          "Correct categorization (category field)"
+        ],
+        
+        "integration_quality": [
+          "Works with workflow tool (supports ${variable} interpolation in input)",
+          "Can be called by any agent",
+          "Returns deterministic output (same input → same output)",
+          "Doesn't have side effects on system state",
+          "Fast execution within timeout limits"
+        ]
+      },
+      
+      "testing_new_tools": {
+        "description": "How to test generated tools before declaring success",
+        
+        "validation_steps": [
+          "1. Wait for tools-runner to load tool (check logs or wait 5 seconds)",
+          "2. Create simple tool.request.v1 with minimal input",
+          "3. Wait for tool.response.v1",
+          "4. Verify response has success: true",
+          "5. Check output matches output_schema",
+          "6. If errors: analyze and regenerate"
+        ],
+        
+        "simple_test_pattern": {
+          "tool_requests": [
+            {
+              "tool": "newly-created-tool",
+              "input": {"minimal_valid_input": "value"},
+              "requestId": "test-new-tool-001",
+              "return_to_llm": true
+            }
+          ]
+        }
+      },
+      
+      "example_complete_workflow": {
+        "description": "End-to-end example of tool creation through multi-agent coordination",
+        
+        "scenario": "User requests Astral browser automation tool",
+        
+        "step_1_user_request": {
+          "user_message": "Create a browser automation tool that can take screenshots using Astral",
+          "becomes": "user.message.v1 breadcrumb with session tag"
+        },
+        
+        "step_2_coordinator_analysis": {
+          "agent": "default-chat-assistant",
+          "receives": "agent.context.v1 with tools, agents, knowledge",
+          "reasoning": "No existing Astral tool → tool-creator agent available → Delegate",
+          "creates": "tool.creation.request.v1 breadcrumb",
+          "response_to_user": "I'm delegating to the tool-creator specialist..."
+        },
+        
+        "step_3_specialist_processing": {
+          "agent": "tool-creator",
+          "receives": "agent.context.v1 with Astral knowledge + how-to guide + examples",
+          "generates": "Complete tool.code.v1 with 9 action handlers",
+          "validates": "Checks against checklist",
+          "creates_via_tool": "Uses breadcrumb-create to upload tool",
+          "confirms": "Creates tool.creation.response.v1"
+        },
+        
+        "step_4_coordinator_inform": {
+          "agent": "default-chat-assistant",
+          "receives": "tool.creation.response.v1",
+          "response_to_user": "Great news! The Astral browser automation tool is now available. You can use it to launch browsers, navigate, take screenshots, and more. Would you like me to demonstrate?"
+        },
+        
+        "step_5_immediate_usage": {
+          "user_followup": "Yes, take a screenshot of github.com",
+          "coordinator_creates": "tool.request.v1 using the newly created astral tool",
+          "success": "Screenshot captured and returned to user"
+        },
+        
+        "total_time": "~15-30 seconds",
+        "total_breadcrumbs": "~8 (request, context, tool, response, user response, tool request, tool response, agent response)",
+        "agents_involved": 2,
+        "proof_of_concept": "System can evolve itself!"
+      },
+      
+      "coordinator_responsibilities": {
+        "description": "What coordinator agents should do",
+        
+        "do": [
+          "Route requests to appropriate specialists",
+          "Provide context and requirements to specialists",
+          "Communicate with user about delegation",
+          "Validate specialist responses before showing to user",
+          "Decide which agent/tool is best for each task",
+          "Maintain conversation flow and user engagement"
+        ],
+        
+        "dont": [
+          "Generate tool code yourself (you're not the specialist!)",
+          "Try to handle everything alone",
+          "Create tools without consulting specialist",
+          "Skip delegation when specialist is available",
+          "Ignore the AVAILABLE AGENTS context"
+        ]
+      },
+      
+      "specialist_responsibilities": {
+        "description": "What specialist agents should do",
+        
+        "do": [
+          "Generate complete, production-ready code",
+          "Follow tool.code.v1 schema exactly",
+          "Include comprehensive examples",
+          "Validate before submission",
+          "Reference knowledge guides for accuracy",
+          "Test the tool after creation",
+          "Create detailed response with usage instructions"
+        ],
+        
+        "dont": [
+          "Skip validation steps",
+          "Generate partial or incomplete tools",
+          "Forget required fields (required_secrets, ui_schema)",
+          "Use deprecated patterns from old examples",
+          "Create tools that bypass RCRT patterns",
+          "Hardcode secrets or API keys"
+        ]
+      },
+      
+      "breadcrumb_create_tool_usage": {
+        "description": "How to use the breadcrumb-create tool for uploading generated tools",
+        
+        "tool_overview": {
+          "name": "breadcrumb-create",
+          "purpose": "Create any breadcrumb with any schema",
+          "perfect_for": "Uploading tool.code.v1, agent.def.v1, or any structured data"
+        },
+        
+        "basic_usage": {
+          "tool": "breadcrumb-create",
+          "input": {
+            "schema_name": "desired.schema.v1",
+            "title": "Breadcrumb Title",
+            "tags": ["tag1", "tag2"],
+            "context": {"any": "data"}
+          }
+        },
+        
+        "for_tool_creation": {
+          "description": "Specific pattern for creating tool.code.v1",
+          "complete_request": {
+            "tool": "breadcrumb-create",
+            "input": {
+              "schema_name": "tool.code.v1",
+              "title": "Tool Name (Self-Contained)",
+              "tags": ["tool", "tool:name", "workspace:tools", "self-contained"],
+              "context": {
+                "name": "name",
+                "description": "description",
+                "version": "1.0.0",
+                "code": {
+                  "language": "typescript",
+                  "source": "complete source code here"
+                },
+                "input_schema": {},
+                "output_schema": {},
+                "permissions": {},
+                "limits": {},
+                "required_secrets": [],
+                "ui_schema": {"configurable": false},
+                "examples": []
+              }
+            },
+            "requestId": "create-tool-xyz",
+            "return_to_llm": true
+          },
+          "critical": "The entire tool definition goes in the 'context' field of breadcrumb-create input"
+        },
+        
+        "return_to_llm_true": {
+          "description": "Why specialists should use return_to_llm: true",
+          "reason": "Specialist needs to see if tool creation succeeded before informing coordinator",
+          "flow": "breadcrumb-create executes → tool.response.v1 created → Specialist receives response → Specialist creates success/failure message"
+        }
+      },
+      
+      "knowledge_references": {
+        "description": "Related knowledge breadcrumbs to consult",
+        
+        "required_reading": [
+          "how-to-create-tools.json - Complete tool.code.v1 structure and requirements",
+          "astral-browser-automation.json - Specific to Astral tools (if creating browser tool)",
+          "fire-and-forget-pattern.json - Understanding RCRT execution model"
+        ],
+        
+        "helpful_reading": [
+          "common-patterns.json - RCRT patterns and best practices",
+          "how-agents-work.json - Understanding agent capabilities",
+          "breadcrumb-system.json - How breadcrumbs work"
+        ],
+        
+        "reference_tools": [
+          "openrouter.json - Example of API integration with secrets",
+          "workflow.json - Example of complex orchestration tool",
+          "timer.json - Example of simple, clean tool",
+          "breadcrumb-create.json - Example of RCRT API tool"
+        ]
+      },
+      
+      "error_handling": {
+        "description": "What to do when tool creation fails",
+        
+        "common_failures": [
+          {
+            "error": "breadcrumb-create returns success: false",
+            "likely_cause": "Invalid structure, missing required fields",
+            "solution": "Review validation error, fix structure, retry"
+          },
+          {
+            "error": "tools-runner doesn't load tool",
+            "likely_cause": "Code syntax error, invalid TypeScript",
+            "solution": "Validate TypeScript syntax, check for missing exports"
+          },
+          {
+            "error": "Tool execution fails on first test",
+            "likely_cause": "Logic error, incorrect permissions, missing dependencies",
+            "solution": "Review logs, fix code, update and retry"
+          }
+        ],
+        
+        "retry_strategy": {
+          "description": "How to handle failures gracefully",
+          "pattern": "If creation fails, analyze error → fix issue → create updated version",
+          "max_retries": 2,
+          "inform_user": "If all retries fail, inform user of the issue and suggest manual creation or alternative approaches"
+        }
+      },
+      
+      "future_enhancements": {
+        "description": "Potential improvements to tool creation workflow",
+        "ideas": [
+          "Tool validation service that checks code before deployment",
+          "Tool testing framework that auto-runs examples",
+          "Tool versioning system (v1, v2, etc.)",
+          "Tool deprecation workflow",
+          "Tool marketplace where agents share creations",
+          "Automated documentation generation from tool schemas",
+          "Performance profiling for tools",
+          "Security scanning for malicious code"
+        ]
+      },
+      
+      "success_criteria": {
+        "description": "How to know if tool creation succeeded",
+        "checks": [
+          "✅ breadcrumb-create tool.response.v1 has success: true",
+          "✅ tools-runner logs show 'Loaded tool: toolname'",
+          "✅ tool.catalog.v1 includes the new tool",
+          "✅ Simple tool.request.v1 test succeeds",
+          "✅ tool.response.v1 has success: true and expected output",
+          "✅ User can immediately use the tool in conversation"
+        ]
+      },
+      
+      "key_insights": [
+        "Multi-agent coordination REQUIRES clear breadcrumb schemas for each step",
+        "Coordinator agents are routers, not doers",
+        "Specialist agents focus deeply on one domain (tool creation)",
+        "Knowledge semantic search is CRITICAL - specialists need examples",
+        "breadcrumb-create is the universal upload mechanism",
+        "Session tags enable responses to route back to users",
+        "This pattern can extend to ANY specialty (not just tool creation)",
+        "The system can truly evolve itself through this pattern!"
+      ]
+    }
+  },
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "# {{title}}\n\n## Summary\n{{context.content.summary}}\n\n## When to Create New Tools\n{{#each context.content.when_to_create_tools.check_existing_first}}{{this}}\n{{/each}}\n\nGood reasons:\n{{#each context.content.when_to_create_tools.good_reasons_to_create}}• {{this}}\n{{/each}}\n\n## Coordinator Agent Workflow\nRole: {{context.content.coordinator_agent_workflow.role}}\n\nSteps:\n{{#each context.content.coordinator_agent_workflow.step_by_step}}{{this}}\n{{/each}}\n\n### Delegation Pattern\n```json\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"tool.creation.request.v1\",\n    \"tags\": [\"tool:creation\", \"assigned-to:tool-creator\", \"session:SESSION_ID\"],\n    \"context\": {\n      \"tool_name\": \"lowercase-hyphenated\",\n      \"description\": \"What it does\",\n      \"requirements\": [\"capability1\", \"capability2\"],\n      \"references\": [\"library or API\"]\n    }\n  }\n}\n```\n\n## Specialist Agent Workflow\nRole: {{context.content.specialist_agent_workflow.role}}\n\nSteps:\n{{#each context.content.specialist_agent_workflow.generation_steps}}{{this}}\n{{/each}}\n\n### Validation Checklist\n{{#each context.content.specialist_agent_workflow.validation_checklist}}{{this}}\n{{/each}}\n\n### Using breadcrumb-create Tool\n```json\n{\n  \"tool_requests\": [{\n    \"tool\": \"breadcrumb-create\",\n    \"input\": {\n      \"schema_name\": \"tool.code.v1\",\n      \"title\": \"Tool Name (Self-Contained)\",\n      \"tags\": [\"tool\", \"tool:name\", \"workspace:tools\"],\n      \"context\": { /* complete tool definition */ }\n    },\n    \"return_to_llm\": true\n  }]\n}\n```\n\n## Multi-Agent Communication Flow\n{{#each context.content.multi_agent_communication.event_flow}}{{this}}\n{{/each}}\n\n## Key Insights\n{{#each context.content.key_insights}}• {{this}}\n{{/each}}"
+      }
+    },
+    "mode": "replace"
+  }
+}
+

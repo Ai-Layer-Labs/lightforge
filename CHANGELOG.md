@@ -1,5 +1,127 @@
 # RCRT Changelog
 
+## [3.1.0] - 2025-11-10 - Self-Creating Tools & Multi-Agent Coordination
+
+### Added - Autonomous Tool Creation System 🚀
+
+**The Big Moment:** RCRT can now create its own tools through multi-agent coordination!
+
+**Tool-Creator Specialist Agent:**
+- New specialist agent: `tool-creator` (agent.def.v1)
+- System prompt with tool.code.v1 generation expertise
+- Context sources: tool.catalog.v1 + knowledge guides + existing tool examples
+- Subscriptions: tool.creation.request.v1 → context-builder → specialist
+- Output: Complete, production-ready tool.code.v1 breadcrumbs
+
+**Coordinator Pattern:**
+- `default-chat-assistant` upgraded to COORDINATOR role
+- System prompt includes delegation decision tree
+- Receives AVAILABLE AGENTS in context (new: agent.catalog.v1)
+- Creates tool.creation.request.v1 when user requests new functionality
+- Informs user during delegation flow
+
+**Context-Builder Support:**
+- New handler: `tool.creation.request.v1` schema processing
+- Specialized context assembly for tool-creator agent
+- Semantic search for relevant knowledge (Astral, how-to-create-tools)
+- Lower similarity threshold (0.7) for broader knowledge retrieval
+
+**Knowledge Base Expansion:**
+- `astral-browser-automation.json` - Complete guide to Astral library integration
+- `creating-tools-with-agent.json` - Meta-guide for autonomous tool creation
+- `multi-agent-coordination.json` - Coordinator-specialist pattern documentation
+- Total: 3 new knowledge guides with semantic search optimization
+
+**Schema Definitions:**
+- `tool.creation.request.v1` - Standardized tool creation requests
+- Includes fields: tool_name, description, requirements, references, examples
+- llm_hints for clear specialist consumption
+
+**Agent Catalog Enhancement:**
+- Added llm_hints to agent.catalog.v1 (matches tool.catalog.v1 pattern)
+- Template format for AVAILABLE AGENTS section in LLM context
+- Enables dynamic specialist discovery by coordinator agents
+
+**Test Schema: `tool.creation.response.v1`** (implicit):
+- Specialists respond with creation status
+- Includes: tool_name, breadcrumb_id, success/failure, usage examples
+
+### Changed - Agent Architecture
+
+**default-chat-assistant:**
+- Role: General purpose chat → COORDINATOR agent
+- Context sources: Added agent.catalog.v1 to "always" sources
+- System prompt: +200 lines on delegation patterns and specialist coordination
+- Capabilities: Now aware it can delegate to specialists
+
+**Agent Catalog:**
+- Now has llm_hints (was missing!)
+- Formatted list of available agents for LLM consumption
+- Updates automatically when agents added/removed
+- Matches tool.catalog.v1 pattern
+
+### Expected Workflow
+
+**User Request → Self-Creating Tool:**
+```
+1. User: "Create a browser automation tool using Astral"
+2. Coordinator: Creates tool.creation.request.v1 with requirements
+3. Coordinator: "Delegating to tool-creator specialist..."
+4. context-builder: Assembles rich context (Astral guide + how-to + examples)
+5. tool-creator: Generates complete tool.code.v1
+6. tool-creator: Validates against checklist
+7. tool-creator: Uses breadcrumb-create tool to upload
+8. tool-creator: Confirms success
+9. Coordinator: "Tool is ready! You can use it now."
+10. User: "Take a screenshot of github.com" (uses new tool!)
+```
+
+**Total Time:** ~15-30 seconds  
+**Agents Involved:** 2 (coordinator + specialist)  
+**Breadcrumbs Created:** ~8-10  
+**Proof:** System evolves itself!
+
+### Validation Status
+
+**Multi-Agent Infrastructure:**
+- ✅ ModernAgentRegistry loads all agent.def.v1 breadcrumbs
+- ✅ Routes events to ALL agents (self-filtering)
+- ✅ Can run multiple specialists simultaneously
+- ✅ Fire-and-forget pattern in all agents
+- 🟡 UNTESTED in production (only 1 working agent previously)
+- 🔵 NOW TESTING with tool-creator specialist
+
+**Ready for Testing:**
+- [ ] Coordinator delegates to specialist
+- [ ] Specialist receives rich context
+- [ ] Specialist generates valid tool.code.v1
+- [ ] breadcrumb-create tool uploads successfully
+- [ ] tools-runner auto-loads new tool
+- [ ] User can immediately use new tool
+
+### Files Added
+1. `bootstrap-breadcrumbs/knowledge/astral-browser-automation.json`
+2. `bootstrap-breadcrumbs/knowledge/creating-tools-with-agent.json`
+3. `bootstrap-breadcrumbs/knowledge/multi-agent-coordination.json`
+4. `bootstrap-breadcrumbs/system/tool-creator-agent.json`
+5. `bootstrap-breadcrumbs/schemas/tool-creation-request-v1.json`
+
+### Files Modified
+1. `rcrt-visual-builder/apps/agent-runner/src/index.ts` - Added llm_hints to agent catalog
+2. `bootstrap-breadcrumbs/system/default-chat-agent.json` - Coordinator role + agent.catalog.v1 source
+3. `crates/rcrt-context-builder/src/event_handler.rs` - tool.creation.request.v1 handler
+
+### Breaking Changes
+None - This is purely additive. Existing single-agent workflows unaffected.
+
+### Migration Notes
+- Rebootstrap required: `cd bootstrap-breadcrumbs && node bootstrap.js`
+- Rebuild context-builder: `docker compose up --build context-builder -d`
+- Restart agent-runner: `docker compose restart agent-runner`
+- New specialist will auto-load on startup
+
+---
+
 ## [3.0.0] - 2025-11-10 - Context-Builder: Complete Transformation
 
 ### Added - Graph-Based Context System
