@@ -11,6 +11,7 @@ use sqlx::PgPool;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentDefinition {
     pub agent_id: String,
+    pub llm_config_id: Option<String>,
     pub context_sources: Option<ContextSources>,
 }
 
@@ -61,6 +62,7 @@ pub async fn load_agent_definition(
         tracing::warn!("Agent {} not found, using empty context_sources", agent_id);
         return Ok(AgentDefinition {
             agent_id: agent_id.to_string(),
+            llm_config_id: None,
             context_sources: None,
         });
     };
@@ -70,8 +72,15 @@ pub async fn load_agent_definition(
         .get("context_sources")
         .and_then(|v| serde_json::from_value(v.clone()).ok());
     
+    // Parse llm_config_id if present
+    let llm_config_id = context
+        .get("llm_config_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    
     Ok(AgentDefinition {
         agent_id: agent_id.to_string(),
+        llm_config_id,
         context_sources,
     })
 }

@@ -32,10 +32,14 @@ pub async fn load_llm_config(
         return Ok(None);
     };
     
-    let config_uuid = Uuid::parse_str(&config_uuid_str)?;
+    // Try to parse as UUID, return None if not valid
+    let Ok(config_uuid) = Uuid::parse_str(&config_uuid_str) else {
+        tracing::warn!("Invalid UUID for llm_config_id: {}", config_uuid_str);
+        return Ok(None);
+    };
     
     let row = sqlx::query_as::<_, (serde_json::Value,)>(
-        "SELECT context->>'config' as config
+        "SELECT context->'config' as config
          FROM breadcrumbs
          WHERE id = $1
            AND schema_name = 'tool.config.v1'

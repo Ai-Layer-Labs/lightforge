@@ -256,10 +256,7 @@ impl EventHandler {
         
         // PHASE 3: Calculate context budget (model-aware)
         let llm_config = crate::llm_config::load_llm_config(
-            agent_def.context_sources.as_ref()
-                .and_then(|cs| cs.always.as_ref())
-                .and_then(|a| a.first())
-                .and_then(|s| s.schema_name.clone()), // TODO: Get from agent.llm_config_id
+            agent_def.llm_config_id.clone(),
             self.vector_store.pool()
         ).await?;
         
