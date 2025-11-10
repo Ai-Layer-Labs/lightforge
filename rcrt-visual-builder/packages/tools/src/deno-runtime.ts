@@ -98,6 +98,10 @@ export class DenoToolRuntime {
     const version = await this.executor.getDenoVersion();
     console.log(`[DenoToolRuntime] Deno version: ${version}`);
     
+    // Load security policy from breadcrumbs (THE RCRT WAY)
+    console.log('[DenoToolRuntime] Loading tool security policy...');
+    await PermissionValidator.loadTrustedTools(this.client);
+    
     // Load tool definitions from breadcrumbs
     await this.loadTools();
     
@@ -125,7 +129,7 @@ export class DenoToolRuntime {
             continue;
           }
 
-          const validation = await this.validateTool(tool);
+          const validation = await this.validateTool(tool, tool.context.name);
           if (!validation.valid) {
             console.error(`[DenoToolRuntime] Invalid tool ${tool.context.name}:`, validation.errors);
             continue;
@@ -333,7 +337,7 @@ export class DenoToolRuntime {
   /**
    * Validate a tool
    */
-  async validateTool(tool: ToolCodeBreadcrumb): Promise<{
+  async validateTool(tool: ToolCodeBreadcrumb, toolName?: string): Promise<{
     valid: boolean;
     errors: string[];
     warnings: string[];
@@ -341,10 +345,13 @@ export class DenoToolRuntime {
     const errors: string[] = [];
     const warnings: string[] = [];
     
+    // Use provided toolName or extract from tool context
+    const name = toolName || tool.context.name;
+    
     // Validate code
     const codeValidation = CodeValidator.validate(
       tool.context.code.source,
-      tool.context.name
+      name
     );
     errors.push(...codeValidation.errors);
     warnings.push(...codeValidation.warnings);
@@ -363,9 +370,10 @@ export class DenoToolRuntime {
     );
     errors.push(...outputValidation.errors);
     
-    // Validate permissions
+    // Validate permissions (pass tool name for whitelist check)
     const permissionValidation = PermissionValidator.validate(
-      tool.context.permissions
+      tool.context.permissions,
+      name
     );
     errors.push(...permissionValidation.errors);
     warnings.push(...permissionValidation.warnings);

@@ -1,7 +1,10 @@
 /**
  * Permission Validator
  * Validates tool permissions for security
+ * THE RCRT WAY: Loads trusted tools from breadcrumb (like context-builder's blacklist)
  */
+
+import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 
 export interface ToolPermissions {
   net?: boolean | string[];
@@ -31,10 +34,75 @@ export class PermissionValidator {
   
   private static MAX_NET_DOMAINS = 5;
   
+  // Trusted tools cache (loaded from tool.security.policy.v1 breadcrumb)
+  private static trustedToolsCache: Map<string, Set<string>> = new Map();
+  private static policyLoaded: boolean = false;
+  
   /**
-   * Validate tool permissions
+   * Load trusted tools from breadcrumb (THE RCRT WAY)
+   * Pattern: Same as context-builder's blacklist loader
    */
-  static validate(permissions: ToolPermissions): ValidationResult {
+  static async loadTrustedTools(client: RcrtClientEnhanced): Promise<void> {
+    try {
+      const policies = await client.searchBreadcrumbs({
+        schema_name: 'tool.security.policy.v1',
+        tag: 'system:bootstrap'
+      });
+      
+      if (policies.length === 0) {
+        console.warn('⚠️  No tool.security.policy.v1 found - all tools restricted to default sandbox');
+        this.policyLoaded = true;
+        return;
+      }
+      
+      const policy = await client.getBreadcrumb(policies[0].id);
+      const trustedTools = policy.context.trusted_tools || [];
+      
+      this.trustedToolsCache.clear();
+      for (const entry of trustedTools) {
+        const allowed = new Set<string>();
+        const perms = entry.allowed_permissions || {};
+        
+        if (perms.net) allowed.add('net');
+        if (perms.read) allowed.add('read');
+        if (perms.write) allowed.add('write');
+        if (perms.run) allowed.add('run');
+        if (perms.hrtime) allowed.add('hrtime');
+        if (perms.env) allowed.add('env');
+        
+        this.trustedToolsCache.set(entry.tool_name, allowed);
+      }
+      
+      this.policyLoaded = true;
+      console.log(`✅ Tool security policy loaded: ${trustedTools.length} trusted tools`);
+      
+      if (trustedTools.length > 0) {
+        const toolNames = trustedTools.map((t: any) => t.tool_name).join(', ');
+        console.log(`   Trusted: ${toolNames}`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to load tool security policy:', error);
+      this.policyLoaded = true; // Mark as loaded to prevent retry loops
+    }
+  }
+  
+  /**
+   * Check if tool is trusted for specific permission
+   */
+  private static isTrustedForPermission(toolName: string, permission: string): boolean {
+    if (!this.policyLoaded) {
+      // Policy not loaded yet - deny by default
+      return false;
+    }
+    
+    const allowed = this.trustedToolsCache.get(toolName);
+    return allowed ? allowed.has(permission) : false;
+  }
+  
+  /**
+   * Validate tool permissions (with breadcrumb-based whitelist)
+   */
+  static validate(permissions: ToolPermissions, toolName?: string): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
     
@@ -55,33 +123,54 @@ export class PermissionValidator {
       }
     }
     
-    // Filesystem permissions (generally not allowed)
+    // Filesystem read (allowed for trusted tools)
     if (permissions.read) {
-      errors.push('Filesystem read access not allowed for user-created tools');
+      if (!toolName || !this.isTrustedForPermission(toolName, 'read')) {
+        errors.push('Filesystem read access not allowed for user-created tools');
+      } else {
+        warnings.push(`Trusted tool '${toolName}' has filesystem read access (per security policy)`);
+      }
     }
     
+    // Filesystem write (allowed for trusted tools)
     if (permissions.write) {
-      errors.push('Filesystem write access not allowed for user-created tools');
+      if (!toolName || !this.isTrustedForPermission(toolName, 'write')) {
+        errors.push('Filesystem write access not allowed for user-created tools');
+      } else {
+        warnings.push(`Trusted tool '${toolName}' has filesystem write access (per security policy)`);
+      }
     }
     
     // Environment variables (should use context.secrets)
     if (permissions.env) {
-      warnings.push('Environment variable access detected. Use context.secrets instead.');
+      if (!toolName || !this.isTrustedForPermission(toolName, 'env')) {
+        warnings.push('Environment variable access detected. Use context.secrets instead.');
+      } else {
+        warnings.push(`Trusted tool '${toolName}' has environment access (per security policy)`);
+      }
     }
     
-    // Subprocess execution (not allowed)
+    // Subprocess execution (allowed for trusted tools like browser automation)
     if (permissions.run) {
-      errors.push('Subprocess execution not allowed for user-created tools');
+      if (!toolName || !this.isTrustedForPermission(toolName, 'run')) {
+        errors.push('Subprocess execution not allowed for user-created tools');
+      } else {
+        warnings.push(`Trusted tool '${toolName}' can execute subprocesses (per security policy)`);
+      }
     }
     
-    // FFI (never allowed)
+    // FFI (never allowed, even for trusted tools)
     if (permissions.ffi) {
       errors.push('FFI (Foreign Function Interface) not allowed');
     }
     
-    // High-resolution timing (side-channel attack vector)
+    // High-resolution timing (allowed for trusted tools)
     if (permissions.hrtime) {
-      errors.push('High-resolution timing not allowed (security risk)');
+      if (!toolName || !this.isTrustedForPermission(toolName, 'hrtime')) {
+        errors.push('High-resolution timing not allowed (security risk)');
+      } else {
+        warnings.push(`Trusted tool '${toolName}' has hrtime access (per security policy)`);
+      }
     }
     
     return {

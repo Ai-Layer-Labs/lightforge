@@ -20,6 +20,9 @@ const globalEventBridge = new EventBridge();
 // Global Deno runtime for self-contained tools (Phase 1)
 let globalDenoRuntime: DenoToolRuntime | null = null;
 
+// Debounce for tool auto-reload (prevents 14 reloads during bootstrap)
+let toolReloadDebounce: {timer: NodeJS.Timeout, count: number} | null = null;
+
 // 🎯 CLEAN CENTRALIZED SSE DISPATCHER
 // Single SSE connection that routes to individual tools (more efficient than 14 connections)
 async function startCentralizedSSEDispatcher(
@@ -118,6 +121,40 @@ async function startCentralizedSSEDispatcher(
                     globalEventBridge.handleEvent(eventData, breadcrumb);
                   } catch (e) {
                     console.warn('[EventBridge] Failed to feed event:', e);
+                  }
+                  
+                  // 🔥 AUTO-RELOAD: Detect new/updated tools (debounced)
+                  if (eventData.schema_name === 'tool.code.v1' && 
+                      eventData.tags?.includes(workspace)) {
+                    
+                    // Debounce to handle bootstrap (14 tools created rapidly)
+                    if (!toolReloadDebounce) {
+                      console.log(`🔄 New tool detected: ${eventData.breadcrumb_id}`);
+                      toolReloadDebounce = {
+                        timer: setTimeout(async () => {
+                          console.log(`🔄 Reloading tools (${toolReloadDebounce!.count} new/updated)...`);
+                          
+                          if (globalDenoRuntime) {
+                            try {
+                              await globalDenoRuntime.reloadTools();
+                              console.log(`✅ Tools reloaded: ${globalDenoRuntime.getAllTools().length} tools available`);
+                              
+                              // Update catalog after reload
+                              await bootstrapTools(client, workspace);
+                              console.log('📊 Tool catalog updated');
+                            } catch (error) {
+                              console.error('❌ Failed to reload tools:', error);
+                            }
+                          }
+                          
+                          toolReloadDebounce = null;
+                        }, 2000), // Wait 2 seconds for batching
+                        count: 1
+                      };
+                    } else {
+                      toolReloadDebounce.count++;
+                      console.log(`🔄 Tool update batched (${toolReloadDebounce.count} total)`);
+                    }
                   }
                 }
                 

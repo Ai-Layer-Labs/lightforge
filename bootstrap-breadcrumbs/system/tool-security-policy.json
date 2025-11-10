@@ -1,0 +1,171 @@
+{
+  "schema_name": "tool.security.policy.v1",
+  "title": "Tool Security Policy",
+  "tags": [
+    "tool:security",
+    "system:bootstrap",
+    "system:internal"
+  ],
+  "context": {
+    "last_updated": "2025-11-10T00:00:00Z",
+    "version": "1.0.0",
+    
+    "trusted_tools": [
+      {
+        "tool_name": "astral",
+        "reason": "Browser automation using Astral library - requires browser process spawning and filesystem access",
+        "allowed_permissions": {
+          "net": true,
+          "read": true,
+          "write": true,
+          "run": true,
+          "hrtime": true,
+          "env": false,
+          "ffi": false
+        },
+        "granted_by": "system",
+        "granted_at": "2025-11-10",
+        "reviewed_by": "admin",
+        "use_cases": [
+          "Headless browser automation",
+          "Web scraping and data extraction",
+          "Screenshot capture",
+          "Form automation and testing"
+        ]
+      },
+      {
+        "tool_name": "puppeteer",
+        "reason": "Browser automation using Puppeteer - future tool for browser control",
+        "allowed_permissions": {
+          "net": true,
+          "read": true,
+          "write": true,
+          "run": true,
+          "hrtime": true,
+          "env": false,
+          "ffi": false
+        },
+        "granted_by": "system",
+        "granted_at": "2025-11-10"
+      },
+      {
+        "tool_name": "playwright",
+        "reason": "Browser automation using Playwright - future tool for cross-browser testing",
+        "allowed_permissions": {
+          "net": true,
+          "read": true,
+          "write": true,
+          "run": true,
+          "hrtime": true,
+          "env": false,
+          "ffi": false
+        },
+        "granted_by": "system",
+        "granted_at": "2025-11-10"
+      },
+      {
+        "tool_name": "workflow",
+        "reason": "Workflow orchestration - may need to spawn subprocesses for complex workflows",
+        "allowed_permissions": {
+          "net": true,
+          "read": false,
+          "write": false,
+          "run": true,
+          "hrtime": true,
+          "env": false,
+          "ffi": false
+        },
+        "granted_by": "system",
+        "granted_at": "2025-11-10",
+        "note": "Limited permissions - only run and hrtime for orchestration"
+      },
+      {
+        "tool_name": "scheduler",
+        "reason": "Scheduled task execution - needs accurate timing for cron-like functionality",
+        "allowed_permissions": {
+          "net": true,
+          "read": false,
+          "write": false,
+          "run": false,
+          "hrtime": true,
+          "env": false,
+          "ffi": false
+        },
+        "granted_by": "system",
+        "granted_at": "2025-11-10",
+        "note": "Limited permissions - only hrtime for accurate scheduling"
+      }
+    ],
+    
+    "default_restrictions": {
+      "description": "Default security restrictions for all user-created tools",
+      "max_net_domains": 5,
+      "blocked_domains": [
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "10.",
+        "172.16.",
+        "192.168."
+      ],
+      "never_allow_ffi": true,
+      "require_justification_for": [
+        "run",
+        "write",
+        "env",
+        "hrtime"
+      ]
+    },
+    
+    "audit_log": [
+      {
+        "date": "2025-11-10",
+        "action": "created_policy",
+        "description": "Initial security policy created for multi-agent tool creation system",
+        "approved_by": "system-admin"
+      },
+      {
+        "date": "2025-11-10",
+        "action": "added_trusted_tool",
+        "tool": "astral",
+        "reason": "Browser automation capability required for self-creating tools system",
+        "approved_by": "system-admin"
+      },
+      {
+        "date": "2025-11-10",
+        "action": "added_trusted_tool",
+        "tool": "workflow",
+        "reason": "Workflow orchestration may require subprocess execution",
+        "approved_by": "system-admin"
+      },
+      {
+        "date": "2025-11-10",
+        "action": "added_trusted_tool",
+        "tool": "scheduler",
+        "reason": "Accurate timing required for scheduled tasks",
+        "approved_by": "system-admin"
+      }
+    ],
+    
+    "notes": [
+      "Trusted tools are explicitly allowed elevated permissions based on their requirements",
+      "All other tools are sandboxed (network-only with domain restrictions)",
+      "Update via PATCH /breadcrumbs/{id} with version check for audit trail",
+      "tools-runner loads this at startup and caches in memory",
+      "Restart tools-runner or wait for auto-reload after policy updates",
+      "FFI is NEVER allowed for any tool (too dangerous)",
+      "Private network access is blocked for all tools"
+    ],
+    
+    "policy_principles": [
+      "Principle of least privilege - grant minimum permissions needed",
+      "Explicit over implicit - all trusted tools must be listed",
+      "Audit everything - track all permission grants with reason and date",
+      "Defense in depth - multiple validation layers (schema + permissions + execution)",
+      "Fail secure - unknown tools get restrictive defaults"
+    ]
+  },
+  "description": "Security policy defining which tools can have elevated Deno permissions beyond the default sandbox",
+  "semantic_version": "1.0.0"
+}
+
