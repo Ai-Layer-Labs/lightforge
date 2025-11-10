@@ -97,7 +97,6 @@ impl EventHandler {
         session_tag: &str,
         trigger_id: Option<uuid::Uuid>,
     ) -> Result<()> {
-        use crate::graph::load_graph_around_trigger;
         use crate::retrieval::AssembledContext;
         use crate::agent_config::load_agent_definition;
         
@@ -106,22 +105,112 @@ impl EventHandler {
             return Ok(());
         };
         
-        // 🎯 UNIFIED APPROACH: Graph + Agent-Declared Sources
-        // Single source of truth: context_sources in agent.def.v1
+        // 🌱 MULTI-SEED APPROACH: Seeds = Entry Points, PathFinder = Exploration
+        // Vector search finds entry points, graph traversal expands context
         
         // 1. Load agent definition to get context_sources
-        let consumer_id = "default-chat-assistant";  // Hardcoded for now
+        let consumer_id = "default-chat-assistant";
         let agent_def = load_agent_definition(consumer_id, self.vector_store.pool()).await?;
         
         info!("📋 Loaded agent definition for {}", consumer_id);
-        if agent_def.context_sources.is_some() {
-            info!("  ✓ Has context_sources configuration");
+        
+        // PHASE 1: COLLECT SEEDS (entry points for graph exploration)
+        let mut seed_ids = vec![trigger];  // Always start with trigger
+        
+        info!("🌱 Collecting seed nodes for graph exploration...");
+        info!("  + Seed: trigger node");
+        
+        // Seed 2: Configured "always" sources
+        if let Some(context_sources) = &agent_def.context_sources {
+            if let Some(always) = &context_sources.always {
+                for source in always {
+                    let nodes_result = match source.source_type.as_str() {
+                        "schema" => {
+                            if let Some(schema_name) = &source.schema_name {
+                                self.fetch_by_schema(schema_name, source.method.as_deref(), source.limit).await
+                            } else {
+                                continue;
+                            }
+                        },
+                        "tag" => {
+                            if let Some(tag) = &source.tag {
+                                self.fetch_by_tag(tag, source.limit.unwrap_or(1)).await
+                            } else {
+                                continue;
+                            }
+                        },
+                        _ => continue,
+                    };
+                    
+                    if let Ok(nodes) = nodes_result {
+                        for node in nodes {
+                            if !seed_ids.contains(&node.id) {
+                                seed_ids.push(node.id);
+                                info!("  + Seed: {} (always: {})", 
+                                    source.schema_name.as_deref().or(source.tag.as_deref()).unwrap_or("unknown"),
+                                    source.reason.as_deref().unwrap_or(""));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Seed 3: Semantic search (entry points via vector similarity)
+            if let Some(semantic) = &context_sources.semantic {
+                if semantic.enabled {
+                    info!("  🔍 Semantic search for additional seeds...");
+                    
+                    if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
+                        let query_text = trigger_bc.context
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        
+                        let entities = self.entity_extractor.extract(query_text)?;
+                        
+                        if !entities.keywords.is_empty() {
+                            if let Some(ref embedding) = trigger_bc.embedding {
+                                let limit = semantic.limit.unwrap_or(5);
+                                
+                                let knowledge = self.vector_store.find_similar_hybrid(
+                                    embedding,
+                                    &entities.keywords,
+                                    limit,
+                                    None,
+                                ).await?;
+                                
+                                for k in knowledge {
+                                    if semantic.schemas.contains(&k.schema_name) {
+                                        if !seed_ids.contains(&k.id) {
+                                            seed_ids.push(k.id);
+                                            info!("  + Seed: {} (semantic)", k.schema_name);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            info!("  ⏭️  No keywords extracted");
+                        }
+                    }
+                }
+            }
         }
         
-        // 2. Load graph around trigger (3 hops)
-        let loaded_graph = match load_graph_around_trigger(
-            trigger,
-            3,  // radius: 3 hops
+        // Seed 4: Session messages (tag search for conversation history)
+        let session_breadcrumbs = self.vector_store.get_by_tag(session_tag, 20).await?;
+        for bc in session_breadcrumbs {
+            if !seed_ids.contains(&bc.id) {
+                seed_ids.push(bc.id);
+                info!("  + Seed: {} (session)", bc.schema_name);
+            }
+        }
+        
+        info!("🌱 Collected {} seed nodes", seed_ids.len());
+        
+        // PHASE 2: Load graph around ALL seeds
+        let loaded_graph = match crate::graph::load_graph_around_seeds(
+            seed_ids.clone(),
+            2,  // radius: 2 hops from any seed
             &self.vector_store.pool(),
         ).await {
             Ok(graph) => graph,
@@ -131,11 +220,12 @@ impl EventHandler {
             }
         };
         
-        info!("📊 Loaded graph: {} nodes, {} edges", 
+        info!("📊 Loaded graph around {} seeds: {} nodes, {} edges", 
+            seed_ids.len(),
             loaded_graph.graph.node_count(),
             loaded_graph.graph.edge_count());
         
-        // 3. Convert petgraph to SessionGraph for PathFinder
+        // Convert petgraph to SessionGraph
         let mut session_graph = crate::graph::SessionGraph::new(session_tag.to_string());
         
         for node_idx in loaded_graph.graph.node_indices() {
@@ -148,7 +238,6 @@ impl EventHandler {
             let to_uuid = loaded_graph.graph[edge_ref.target()].id;
             let edge_features = edge_ref.weight();
             
-            // Convert edge_type (i16) to EdgeType enum
             let edge_type = match edge_features.edge_type {
                 0 => crate::graph::EdgeType::Causal,
                 1 => crate::graph::EdgeType::Temporal,
@@ -165,134 +254,36 @@ impl EventHandler {
             });
         }
         
-        // 4. AUGMENT graph with agent-declared context_sources
-        if let Some(context_sources) = &agent_def.context_sources {
-            info!("🔧 Augmenting graph with agent context_sources...");
-            
-            // 4a. Always-include sources
-            if let Some(always) = &context_sources.always {
-                for source in always {
-                    let optional = source.optional.unwrap_or(false);
-                    
-                    let nodes_result = match source.source_type.as_str() {
-                        "schema" => {
-                            if let Some(schema_name) = &source.schema_name {
-                                self.fetch_by_schema(schema_name, source.method.as_deref(), source.limit).await
-                            } else {
-                                warn!("  ⚠️  Schema source missing schema_name");
-                                continue;
-                            }
-                        },
-                        "tag" => {
-                            if let Some(tag) = &source.tag {
-                                self.fetch_by_tag(tag, source.limit.unwrap_or(1)).await
-                            } else {
-                                warn!("  ⚠️  Tag source missing tag");
-                                continue;
-                            }
-                        },
-                        _ => {
-                            warn!("  ⚠️  Unknown source type: {}", source.source_type);
-                            continue;
-                        }
-                    };
-                    
-                    match nodes_result {
-                        Ok(nodes) => {
-                            for node_row in nodes {
-                                let node_id = node_row.id;
-                                if !session_graph.nodes.contains_key(&node_id) {
-                                    let node = breadcrumb_row_to_node(node_row);
-                                    session_graph.add_node(node);
-                                    info!("  + Augmented: {} ({})", 
-                                        source.schema_name.as_deref().or(source.tag.as_deref()).unwrap_or("unknown"),
-                                        source.reason.as_deref().unwrap_or(""));
-                                }
-                            }
-                        },
-                        Err(e) if !optional => {
-                            warn!("  ⚠️  Required source failed: {}", e);
-                        },
-                        Err(_) => {
-                            // Optional source, ignore failure
-                        }
-                    }
-                }
-            }
-            
-            // 4b. Semantic search (if enabled)
-            if let Some(semantic) = &context_sources.semantic {
-                if semantic.enabled {
-                    info!("  🔍 Semantic search enabled");
-                    
-                    // Get trigger breadcrumb for semantic search
-                    if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
-                        let query_text = trigger_bc.context
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
-                        
-                        let entities = self.entity_extractor.extract(query_text)?;
-                        
-                        if !entities.keywords.is_empty() {
-                            if let Some(ref embedding) = trigger_bc.embedding {
-                                let limit = semantic.limit.unwrap_or(3);
-                                let min_sim = semantic.min_similarity.unwrap_or(0.75);
-                                
-                                // Hybrid search on specified schemas
-                                let knowledge = self.vector_store.find_similar_hybrid(
-                                    &embedding,
-                                    &entities.keywords,
-                                    limit,
-                                    None,  // Global search
-                                ).await?;
-                                
-                                let mut added_count = 0;
-                                for k in knowledge {
-                                    // Filter by allowed schemas
-                                    if semantic.schemas.contains(&k.schema_name) {
-                                        // Check similarity threshold
-                                        let similarity = k.embedding.as_ref()
-                                            .and_then(|e| trigger_bc.embedding.as_ref().map(|te| {
-                                                // Rough cosine similarity
-                                                1.0 / (1.0 + vector_distance(te, e))
-                                            }))
-                                            .unwrap_or(0.0);
-                                        
-                                        if similarity >= min_sim {
-                                            if !session_graph.nodes.contains_key(&k.id) {
-                                                let node = breadcrumb_row_to_node(k);
-                                                session_graph.add_node(node);
-                                                added_count += 1;
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                if added_count > 0 {
-                                    info!("  + Augmented: {} knowledge breadcrumbs", added_count);
-                                }
-                            }
-                        } else {
-                            info!("  ⏭️  No keywords extracted, skipping semantic search");
-                        }
-                    }
-                }
-            }
-        }
+        // PHASE 3: Calculate context budget (model-aware)
+        let llm_config = crate::llm_config::load_llm_config(
+            agent_def.context_sources.as_ref()
+                .and_then(|cs| cs.always.as_ref())
+                .and_then(|a| a.first())
+                .and_then(|s| s.schema_name.clone()), // TODO: Get from agent.llm_config_id
+            self.vector_store.pool()
+        ).await?;
         
-        // 5. Use PathFinder with token awareness
+        let context_budget_info = crate::llm_config::calculate_context_budget(
+            &llm_config,
+            self.vector_store.pool()
+        ).await?;
+        
+        info!("💰 Context budget: {} tokens ({})", 
+            context_budget_info.tokens, context_budget_info.source);
+        
+        // PHASE 4: PathFinder explores from ALL seeds
         let path_finder = crate::retrieval::PathFinder::new(5, 50);
+        let seed_count = seed_ids.len();
         let relevant_node_ids = path_finder.find_paths_token_aware(
             &session_graph,
-            vec![trigger],
-            4000,  // Target: 4000 tokens
+            seed_ids,  // Multiple seeds!
+            context_budget_info.tokens,
         );
         
-        info!("🎯 PathFinder selected {} nodes from graph (augmented from {} total)", 
-            relevant_node_ids.len(), session_graph.nodes.len());
+        info!("🎯 PathFinder explored from {} seeds → {} nodes selected", 
+            seed_count, relevant_node_ids.len());
         
-        // 6. Fetch breadcrumbs (they're already in session_graph)
+        // Fetch breadcrumbs
         let mut breadcrumbs = Vec::new();
         for node_id in relevant_node_ids {
             if let Some(node) = session_graph.nodes.get(&node_id) {
@@ -300,25 +291,24 @@ impl EventHandler {
             }
         }
         
-        // Sort by priority (causal first, then temporal, then by created_at)
+        // Sort by priority
         breadcrumbs.sort_by(|a, b| {
-            // Priority: messages > tools > knowledge
             let a_priority = schema_priority(&a.schema_name);
             let b_priority = schema_priority(&b.schema_name);
             
             if a_priority != b_priority {
                 a_priority.cmp(&b_priority)
             } else {
-                b.created_at.cmp(&a.created_at)  // Most recent first within same priority
+                b.created_at.cmp(&a.created_at)
             }
         });
         
-        // 5. Estimate tokens
+        // Estimate tokens
         let token_estimate: usize = breadcrumbs.iter()
             .map(|bc| bc.context.to_string().len() / 3)
             .sum();
         
-        info!("✅ Context assembled: {} breadcrumbs, ~{} tokens", 
+        info!("✅ Multi-seed context assembled: {} breadcrumbs, ~{} tokens", 
             breadcrumbs.len(),
             token_estimate
         );
@@ -326,10 +316,10 @@ impl EventHandler {
         let context = AssembledContext {
             breadcrumbs,
             token_estimate,
-            sources_count: 1,  // Single source: graph traversal!
+            sources_count: seed_count,  // Number of seeds
         };
         
-        // Publish context breadcrumb
+        // Publish context
         self.publisher.publish_context(
             "default-chat-assistant",
             session_tag,

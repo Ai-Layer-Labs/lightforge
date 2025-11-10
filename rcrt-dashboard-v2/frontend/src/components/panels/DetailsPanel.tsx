@@ -864,14 +864,35 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
         if (isAgent) {
           console.log('🤖 Loading agent configuration...');
           
-          // For agents, the node IS the agent.def.v1 breadcrumb
-          // Load current config from the breadcrumb context
-          setToolBreadcrumb(node.data);
-          
-          // Agent config IS the agent context (not a separate breadcrumb)
-          if (node.data?.context) {
-            console.log('📥 Loaded agent config from context');
-            setConfig(node.data.context);
+          // FIXED: Fetch full agent.def.v1 breadcrumb to get ui_schema
+          try {
+            const fullAgentResponse = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`);
+            
+            if (fullAgentResponse.ok) {
+              const fullAgentBreadcrumb = await fullAgentResponse.json();
+              console.log('✅ Loaded full agent breadcrumb with ui_schema');
+              setToolBreadcrumb(fullAgentBreadcrumb);
+              
+              // Agent config IS the agent context
+              if (fullAgentBreadcrumb.context) {
+                console.log('📥 Loaded agent config from full breadcrumb');
+                setConfig(fullAgentBreadcrumb.context);
+              }
+            } else {
+              console.warn('Failed to fetch full agent breadcrumb, using node.data');
+              // Fallback to node.data
+              setToolBreadcrumb(node.data);
+              if (node.data?.context) {
+                setConfig(node.data.context);
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to load full agent breadcrumb:', error);
+            // Fallback to node.data
+            setToolBreadcrumb(node.data);
+            if (node.data?.context) {
+              setConfig(node.data.context);
+            }
           }
           
           return; // Skip tool-specific loading

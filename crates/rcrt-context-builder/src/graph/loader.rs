@@ -21,22 +21,25 @@ pub struct LoadedGraph {
     pub trigger_idx: NodeIndex,
 }
 
-/// Load a subgraph centered around a trigger breadcrumb
-/// Uses recursive SQL to find all connected nodes within radius hops
-pub async fn load_graph_around_trigger(
-    trigger_id: Uuid,
+/// Load a subgraph centered around MULTIPLE seed nodes
+/// Uses recursive SQL to find all connected nodes within radius hops from ANY seed
+pub async fn load_graph_around_seeds(
+    seed_ids: Vec<Uuid>,
     radius: usize,
     db_pool: &PgPool,
 ) -> Result<LoadedGraph> {
-    info!("📊 Loading graph around trigger {} (radius: {})", trigger_id, radius);
+    info!("📊 Loading graph around {} seeds (radius: {})", seed_ids.len(), radius);
     
-    // Step 1: Get all nodes within radius hops using recursive CTE
+    let first_seed = seed_ids.first().copied()
+        .ok_or_else(|| anyhow::anyhow!("No seeds provided"))?;
+    
+    // Step 1: Get all nodes within radius hops using recursive CTE starting from ALL seeds
     let nodes = sqlx::query_as::<_, BreadcrumbRow>(
         "WITH RECURSIVE graph_walk AS (
-             -- Start from trigger node
+             -- Start from ALL seed nodes
              SELECT id, 0 as depth
              FROM breadcrumbs
-             WHERE id = $1
+             WHERE id = ANY($1)
              
              UNION
              
@@ -65,7 +68,7 @@ pub async fn load_graph_around_trigger(
          FROM graph_walk gw
          JOIN breadcrumbs b ON b.id = gw.id"
     )
-    .bind(trigger_id)
+    .bind(&seed_ids)
     .bind(radius as i32)
     .fetch_all(db_pool).await?;
     
@@ -120,8 +123,8 @@ pub async fn load_graph_around_trigger(
         }
     }
     
-    let trigger_idx = *node_map.get(&trigger_id)
-        .ok_or_else(|| anyhow::anyhow!("Trigger node not found in graph"))?;
+    let trigger_idx = *node_map.get(&first_seed)
+        .ok_or_else(|| anyhow::anyhow!("First seed not found in graph"))?;
     
     info!("✅ Graph loaded: {} nodes, {} edges", 
         graph.node_count(), graph.edge_count());
@@ -131,6 +134,15 @@ pub async fn load_graph_around_trigger(
         node_map,
         trigger_idx,
     })
+}
+
+/// Load a subgraph centered around a single trigger (convenience wrapper)
+pub async fn load_graph_around_trigger(
+    trigger_id: Uuid,
+    radius: usize,
+    db_pool: &PgPool,
+) -> Result<LoadedGraph> {
+    load_graph_around_seeds(vec![trigger_id], radius, db_pool).await
 }
 
 /// Convert BreadcrumbRow to BreadcrumbNode

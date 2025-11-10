@@ -580,5 +580,14 @@
       ]
     }
   },
-  "semantic_version": "1.0.0"
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "# {{title}}\n\nTopic: {{context.topic}}\nAudience: {{context.audience}}\n\nSummary: {{context.content.summary}}\n\nKey Sections: Quick Start, Required Structure, Code Examples, Schemas, Permissions, Secrets Management, UI Schema, Testing, Best Practices"
+      }
+    },
+    "mode": "replace"
+  }
 }

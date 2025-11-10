@@ -279,7 +279,7 @@ impl VectorStore {
     ) -> Result<Vec<BreadcrumbRow>> {
         let results = sqlx::query_as::<_, BreadcrumbRow>(
             r#"
-            SELECT id, schema_name, title, tags, context, embedding, created_at, updated_at
+            SELECT id, schema_name, title, tags, context, embedding, entities, entity_keywords, created_at, updated_at
             FROM breadcrumbs
             WHERE $1 = ANY(tags)
             ORDER BY created_at DESC

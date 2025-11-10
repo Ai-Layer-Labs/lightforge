@@ -15,6 +15,6 @@ pub use types::{BreadcrumbNode, EdgeType, SessionGraph, Edge};
 pub use cache::SessionGraphCache;
 pub use edge_builder::{EdgeBuilder, EdgeFeatures};
 pub use builder_service::EdgeBuilderService;
-pub use loader::{LoadedGraph, load_graph_around_trigger};
+pub use loader::{LoadedGraph, load_graph_around_trigger, load_graph_around_seeds};
 pub use cache_updater::GraphCacheUpdater;
 

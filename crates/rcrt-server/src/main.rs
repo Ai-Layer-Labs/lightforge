@@ -318,18 +318,51 @@ async fn vector_search(State(state): State<AppState>, auth: AuthContext, Query(q
 }
 
 fn extract_text_for_embedding(bc: &rcrt_core::models::Breadcrumb) -> String {
-    // Simple concat of title + compact context
-    let mut s = bc.title.clone();
-    s.push_str(" ");
-    s.push_str(&serde_json::to_string(&bc.context).unwrap_or_default());
-    s
+    let mut text = bc.title.clone();
+    
+    // Add description if present
+    if let Some(desc) = &bc.description {
+        text.push_str(" ");
+        text.push_str(desc);
+    }
+    
+    // Try to apply llm_hints transform for human-readable text
+    if let Some(hints_value) = &bc.llm_hints {
+        if let Ok(hints) = serde_json::from_value::<transforms::LlmHints>(hints_value.clone()) {
+            if let Ok(transformed) = transforms::TransformEngine::new().apply_llm_hints(&bc.context, &hints) {
+                text.push_str(" ");
+                text.push_str(&transformed.to_string());
+                return text;
+            }
+        }
+    }
+    
+    // Fallback: title + description only (avoid embedding raw JSON)
+    text
 }
 
 fn extract_text_for_embedding_struct(req: &CreateReq) -> String {
-    let mut s = req.title.clone();
-    s.push_str(" ");
-    s.push_str(&serde_json::to_string(&req.context).unwrap_or_default());
-    s
+    let mut text = req.title.clone();
+    
+    // Add description if present
+    if let Some(desc) = &req.description {
+        text.push_str(" ");
+        text.push_str(desc);
+    }
+    
+    // Try to apply llm_hints transform for human-readable text
+    if let Some(hints_value) = &req.llm_hints {
+        if let Ok(hints) = serde_json::from_value::<transforms::LlmHints>(hints_value.clone()) {
+            if let Ok(transformed) = transforms::TransformEngine::new().apply_llm_hints(&req.context, &hints) {
+                text.push_str(" ");
+                text.push_str(&transformed.to_string());
+                return text;
+            }
+        }
+    }
+    
+    // Fallback: title + description only (avoid embedding raw JSON)
+    text
 }
 
 #[cfg(feature = "embed-onnx")]
