@@ -13,14 +13,14 @@
     "trusted_tools": [
       {
         "tool_name": "astral",
-        "reason": "Browser automation using Astral library - requires browser process spawning and filesystem access",
+        "reason": "Browser automation using Astral library - requires browser process spawning, filesystem access, and environment variables for cache paths",
         "allowed_permissions": {
           "net": true,
           "read": true,
           "write": true,
           "run": true,
           "hrtime": true,
-          "env": false,
+          "env": true,
           "ffi": false
         },
         "granted_by": "system",
@@ -42,7 +42,7 @@
           "write": true,
           "run": true,
           "hrtime": true,
-          "env": false,
+          "env": true,
           "ffi": false
         },
         "granted_by": "system",
@@ -57,7 +57,7 @@
           "write": true,
           "run": true,
           "hrtime": true,
-          "env": false,
+          "env": true,
           "ffi": false
         },
         "granted_by": "system",

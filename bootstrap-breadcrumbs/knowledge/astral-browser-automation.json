@@ -67,7 +67,7 @@
           "read": true,
           "write": true,
           "run": true,
-          "env": false,
+          "env": true,
           "ffi": false,
           "hrtime": true
         },
@@ -76,7 +76,15 @@
           "read": "Required for reading browser binaries and cache",
           "write": "Required for temporary files and cache",
           "run": "Required to spawn browser process",
+          "env": "Required for XDG_CACHE_HOME and other browser environment variables",
           "hrtime": "Required for accurate timing and performance metrics"
+        },
+        "critical_permission_rules": {
+          "NEVER_INCLUDE_FFI": "🔴 CRITICAL: NEVER set ffi: true! FFI is ALWAYS blocked, even for trusted tools. It's a security risk.",
+          "ALWAYS_FALSE_OR_OMIT": "ffi must be false or omitted entirely from permissions object",
+          "WHY_BLOCKED": "FFI (Foreign Function Interface) allows calling arbitrary C/C++ code, which is too dangerous",
+          "WHAT_YOU_NEED_INSTEAD": "For browser automation: net, read, write, run, hrtime (NOT ffi!)",
+          "COMMON_MISTAKE": "LLMs sometimes include ffi: true thinking it's needed for browser processes - IT IS NOT"
         }
       },
       

@@ -142,6 +142,7 @@
           "✅ input_schema defines all accepted parameters",
           "✅ output_schema defines all return fields",
           "✅ permissions include required permissions (net, run, etc.)",
+          "🔴 permissions.ffi = false OR omitted (NEVER true - always blocked!)",
           "✅ limits are appropriate (timeout_ms, memory_mb, cpu_percent)",
           "✅ required_secrets is array (even if empty)",
           "✅ ui_schema is object with configurable field",
@@ -243,6 +244,15 @@
           "Efficient algorithms (avoid unnecessary iterations)",
           "Proper resource cleanup (close files, connections)",
           "Comments explaining complex logic"
+        ],
+        
+        "permission_quality": [
+          "🔴 NEVER set ffi: true (always blocked, even for trusted tools)",
+          "Use minimum necessary permissions (principle of least privilege)",
+          "Browser tools need: net, read, write, run, env, hrtime (env for XDG_CACHE_HOME and browser paths)",
+          "API tools need: net only",
+          "Pure logic tools need: no permissions",
+          "If unsure, check existing tool examples for similar functionality"
         ],
         
         "schema_quality": [

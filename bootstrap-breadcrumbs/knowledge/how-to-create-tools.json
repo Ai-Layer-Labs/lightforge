@@ -132,12 +132,18 @@
         "description": "Deno permissions control what the tool can access",
         "available_permissions": {
           "net": "Network access (true for all, false for none, or array of domains)",
-          "read": "File system read (true/false or array of paths)",
-          "write": "File system write (true/false or array of paths)",
-          "env": "Environment variables (true/false or array of var names)",
-          "run": "Run subprocesses (true/false or array of commands)",
-          "ffi": "Foreign function interface (true/false)",
-          "hrtime": "High-resolution time (true/false)"
+          "read": "File system read (true/false or array of paths) - ONLY for trusted tools",
+          "write": "File system write (true/false or array of paths) - ONLY for trusted tools",
+          "env": "Environment variables (true/false or array of var names) - Use context.secrets instead",
+          "run": "Run subprocesses (true/false or array of commands) - ONLY for trusted tools (browser automation)",
+          "ffi": "🔴 NEVER USE! Always blocked, even for trusted tools. Too dangerous.",
+          "hrtime": "High-resolution time (true/false) - ONLY for trusted tools (timing-sensitive tasks)"
+        },
+        "critical_security_rules": {
+          "NEVER_FFI": "🔴 NEVER set ffi: true - it's ALWAYS blocked for security. FFI allows calling arbitrary C/C++ code.",
+          "TRUSTED_ONLY": "read, write, run, hrtime are ONLY allowed for explicitly trusted tools (astral, workflow, scheduler)",
+          "DEFAULT_SANDBOX": "Most tools should only use net: true (or net: ['specific-domains'])",
+          "CHECK_WHITELIST": "Only astral, puppeteer, playwright, workflow, scheduler have elevated permissions"
         },
         "examples": {
           "api_only": {
