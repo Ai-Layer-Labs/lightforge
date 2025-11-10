@@ -8,7 +8,7 @@
     "llm_config_id": null,
     "llm_config_comment": "Set to tool.config.v1 breadcrumb ID. Agent will load config from that breadcrumb. Change via Dashboard UI.",
     
-    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\n🔴 CRITICAL: You MUST respond with valid JSON for EVERY response, even simple ones!\n\n🔴 IMPORTANT: If the user message has a session tag (like session:session-1762288119864), you MUST copy it to your response tags!\n\nALL RESPONSES MUST USE THIS FORMAT:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:SESSION_ID_FROM_USER_MESSAGE\"],\n    \"context\": {\n      \"message\": \"Your actual response text goes here\"\n    }\n  }\n}\n\nEXAMPLE - Simple greeting (WITH session tag):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:session-1762288119864\"],\n    \"context\": {\n      \"message\": \"Hello! How can I help you today?\"\n    }\n  }\n}\n\nEXAMPLE - With tool invocation:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:session-1762288119864\"],\n    \"context\": {\n      \"message\": \"I'll generate a random number for you.\",\n      \"tool_requests\": [\n        {\n          \"tool\": \"random\",\n          \"input\": {\"min\": 1, \"max\": 100},\n          \"requestId\": \"rand-001\",\n          \"return_to_llm\": false\n        }\n      ]\n    }\n  }\n}\n\nTOOL RESPONSE HANDLING:\n- return_to_llm: false → Tool result goes DIRECTLY to user (use for simple results)\n- return_to_llm: true → Tool result comes BACK to you first (use when you need to add reasoning)\n\nYOU decide which to use based on the situation!\n\nCONTEXT INFO:\nYou receive pre-assembled context with:\n- Relevant conversation history (vector-searched)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n\nREMEMBER:\n- ALWAYS respond with the JSON format above\n- Put your actual message in context.message\n- Only add tool_requests if you need to invoke tools\n- Output ONLY the JSON, no other text before or after",
+    "system_prompt": "You are a helpful AI assistant integrated with the RCRT system.\n\n🔴 CRITICAL: You MUST respond with valid JSON for EVERY response, even simple ones!\n\n🔴 IMPORTANT: If the user message has a session tag (like session:session-1762288119864), you MUST copy it to your response tags!\n\nALL RESPONSES MUST USE THIS FORMAT:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:SESSION_ID_FROM_USER_MESSAGE\"],\n    \"context\": {\n      \"message\": \"Your actual response text goes here\"\n    }\n  }\n}\n\nEXAMPLE - Simple greeting (WITH session tag):\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:session-1762288119864\"],\n    \"context\": {\n      \"message\": \"Hello! How can I help you today!\"\n    }\n  }\n}\n\nEXAMPLE - With tool invocation:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"title\": \"Chat Response\",\n    \"tags\": [\"agent:response\", \"chat:output\", \"session:session-1762288119864\"],\n    \"context\": {\n      \"message\": \"I'll generate a random number for you.\",\n      \"tool_requests\": [\n        {\n          \"tool\": \"random\",\n          \"input\": {\"min\": 1, \"max\": 100},\n          \"requestId\": \"rand-001\",\n          \"return_to_llm\": false\n        }\n      ]\n    }\n  }\n}\n\nTOOL RESPONSE HANDLING:\n- return_to_llm: false → Tool result goes DIRECTLY to user (use for simple results)\n- return_to_llm: true → Tool result comes BACK to you first (use when you need to add reasoning)\n\nYOU decide which to use based on the situation!\n\nCONTEXT INFO:\nYou receive pre-assembled context with:\n- Relevant conversation history (graph-based)\n- Available tools and their usage\n- Recent tool results\n- Browser context (when available)\n- Relevant knowledge (semantic search)\n\nREMEMBER:\n- ALWAYS respond with the JSON format above\n- Put your actual message in context.message\n- Only add tool_requests if you need to invoke tools\n- Output ONLY the JSON, no other text before or after",
     
     "capabilities": {
       "can_create_breadcrumbs": true,
@@ -17,41 +17,102 @@
       "can_spawn_agents": false
     },
     
+    "context_sources": {
+      "always": [
+        {
+          "type": "schema",
+          "schema_name": "tool.catalog.v1",
+          "method": "latest",
+          "limit": 1,
+          "optional": false,
+          "reason": "Agent needs to know available tools for orchestration"
+        },
+        {
+          "type": "tag",
+          "tag": "browser:active-tab",
+          "method": "latest",
+          "limit": 1,
+          "optional": true,
+          "reason": "Current page context enables context-aware responses"
+        }
+      ],
+      "semantic": {
+        "enabled": true,
+        "schemas": ["knowledge.v1", "note.v1"],
+        "limit": 3,
+        "min_similarity": 0.75
+      }
+    },
+    
+    "ui_schema": {
+      "configurable": true,
+      "config_fields": [
+        {
+          "key": "llm_config_id",
+          "label": "LLM Configuration",
+          "type": "string",
+          "ui_type": "select",
+          "description": "Select which LLM configuration this agent should use",
+          "required": false,
+          "placeholder": "Select LLM config...",
+          "help_text": "Agent will load model, temperature, and API keys from this configuration",
+          "options_source": {
+            "type": "breadcrumb-search",
+            "schema_name": "tool.config.v1",
+            "tag": "workspace:tools",
+            "value_path": "$.id",
+            "label_path": "$.title"
+          }
+        },
+        {
+          "key": "system_prompt",
+          "label": "System Prompt",
+          "type": "string",
+          "ui_type": "textarea",
+          "description": "Instructions that define the agent's behavior and personality",
+          "required": true,
+          "placeholder": "You are a helpful AI assistant...",
+          "help_text": "This prompt is sent to the LLM with every request"
+        },
+        {
+          "key": "capabilities.can_create_breadcrumbs",
+          "label": "Can Create Breadcrumbs",
+          "type": "boolean",
+          "ui_type": "boolean",
+          "description": "Allow agent to create new breadcrumbs",
+          "default_value": true
+        },
+        {
+          "key": "capabilities.can_update_own",
+          "label": "Can Update Own Breadcrumbs",
+          "type": "boolean",
+          "ui_type": "boolean",
+          "description": "Allow agent to modify breadcrumbs it created",
+          "default_value": true
+        },
+        {
+          "key": "capabilities.can_delete_own",
+          "label": "Can Delete Own Breadcrumbs",
+          "type": "boolean",
+          "ui_type": "boolean",
+          "description": "Allow agent to delete breadcrumbs it created",
+          "default_value": false
+        }
+      ]
+    },
+    
     "subscriptions": {
       "selectors": [
         {
-          "comment": "Pre-built context from context-builder with LLM-optimized formatting. Context is assembled, transformed by schema llm_hints, and ready for LLM consumption.",
+          "comment": "Pre-assembled context from context-builder with graph traversal and agent-declared sources. Context is formatted with sections and ready for LLM.",
           "schema_name": "agent.context.v1",
           "all_tags": ["consumer:default-chat-assistant"],
           "role": "trigger",
-          "key": "assembled_context",
+          "key": "context",
           "fetch": {"method": "event_data"}
         },
         {
-          "comment": "Current browser page context (transformed by llm_hints to show only essential info: title, URL, interactive elements)",
-          "schema_name": "browser.page.context.v1",
-          "any_tags": ["browser:active-tab"],
-          "role": "context",
-          "key": "browser",
-          "fetch": {"method": "latest", "limit": 1}
-        },
-        {
-          "comment": "Available tools catalog (transformed by llm_hints to exclude source code, show only schemas/descriptions)",
-          "schema_name": "tool.catalog.v1",
-          "role": "context",
-          "key": "tools",
-          "fetch": {"method": "latest", "limit": 1}
-        },
-        {
-          "comment": "Recent conversation history (transformed by llm_hints to format as 'User (timestamp): message')",
-          "schema_name": "user.message.v1",
-          "any_tags": ["extension:chat"],
-          "role": "context",
-          "key": "history",
-          "fetch": {"method": "recent", "limit": 10}
-        },
-        {
-          "comment": "Tool responses trigger continuation (for LLM responses)",
+          "comment": "Tool responses trigger continuation (for LLM responses and tool results)",
           "schema_name": "tool.response.v1",
           "all_tags": ["workspace:tools"],
           "context_match": [
@@ -60,41 +121,31 @@
           "role": "trigger",
           "key": "tool_response",
           "fetch": {"method": "event_data"}
-        },
-        {
-          "comment": "Recent tool responses (for context/history)",
-          "schema_name": "tool.response.v1",
-          "all_tags": ["workspace:tools"],
-          "context_match": [
-            {"path": "$.requestedBy", "op": "eq", "value": "default-chat-assistant"}
-          ],
-          "role": "context",
-          "key": "tool_results",
-          "fetch": {"method": "recent", "limit": 5}
         }
       ]
     },
     
     "metadata": {
-      "version": "4.0.0",
-      "architecture": "universal-executor",
+      "version": "5.0.0",
+      "architecture": "graph-based-context",
       "created_by": "system",
-      "purpose": "General purpose chat interface with context-builder integration",
+      "purpose": "General purpose chat interface with unified graph-based context assembly",
       "source_of_truth": "bootstrap-breadcrumbs/system/default-chat-agent.json",
       "features": [
-        "Vector-based context assembly",
-        "Pre-built context consumption",
-        "Browser context awareness",
-        "Dynamic tool discovery",
-        "Fetch-on-trigger pattern",
-        "Configurable LLM via breadcrumb",
-        "Zero hardcoding"
+        "Graph-based context assembly (via context-builder)",
+        "Agent-declared context sources (context_sources field)",
+        "Semantic knowledge retrieval (hybrid search)",
+        "Browser context awareness (via tag)",
+        "Dynamic tool discovery (via catalog)",
+        "Zero context fetching in agent-runner",
+        "Single source of truth for context needs"
       ],
       "configuration_notes": [
         "LLM configured via tool.config.v1 breadcrumb",
-        "Change LLM by updating tool:config breadcrumb tag",
-        "Supports any LLM tool (openrouter, ollama, custom)",
-        "No hardcoded defaults - fully dynamic"
+        "Context sources declared in context_sources field",
+        "Context-builder reads agent definition and augments graph",
+        "Agent-runner ONLY receives pre-built context",
+        "No duplicate fetching between services"
       ]
     }
   }

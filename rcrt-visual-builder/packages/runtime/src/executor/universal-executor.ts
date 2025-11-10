@@ -30,8 +30,8 @@ export interface Subscription {
   all_tags?: string[];
   context_match?: ContextMatch[];
   
-  // Behavior (explicit, required)
-  role: 'trigger' | 'context';
+  // Behavior (explicit, required) - Only 'trigger' used now
+  role: 'trigger';
   
   // Context key (explicit, defaults to schema_name)
   key?: string;
@@ -97,38 +97,32 @@ export abstract class UniversalExecutor {
       }
       
       // Check role
-      if (subscription.role === 'context') {
-        // Just a notification - data is in DB when we need it
-        console.log(`📝 [${this.id}] ${event.schema_name} updated (context source)`);
+      if (subscription.role !== 'trigger') {
+        // Ignore non-trigger subscriptions (context handled by context-builder)
         return;
       }
       
-      if (subscription.role === 'trigger') {
-        // TRIGGER! Process now
-        console.log(`🎯 [${this.id}] ${event.schema_name} is TRIGGER - processing...`);
-        
-        // Fetch the trigger breadcrumb (with llm_hints applied)
-        const triggerBreadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id);
-        
-        // Skip self-created
-        if (this.isSelfCreated(triggerBreadcrumb)) {
-          console.log(`⏭️ [${this.id}] Skipping self-created event`);
-          return;
-        }
-        
-        // Assemble context from all subscriptions
-        const context = await this.assembleContextFromSubscriptions(triggerBreadcrumb);
-        
-        console.log(`🔄 [${this.id}] Executing with ${Object.keys(context).length} context sources...`);
-        
-        // Execute (polymorphic!)
-        const result = await this.execute(triggerBreadcrumb, context);
-        
-        // Create response
-        await this.respond(triggerBreadcrumb, result);
-        
-        console.log(`✅ [${this.id}] ${event.schema_name} processed successfully`);
+      // TRIGGER! Process now
+      console.log(`🎯 [${this.id}] ${event.schema_name} is TRIGGER - processing...`);
+      
+      // Fetch the trigger breadcrumb (with llm_hints applied)
+      const triggerBreadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id);
+      
+      // Skip self-created
+      if (this.isSelfCreated(triggerBreadcrumb)) {
+        console.log(`⏭️ [${this.id}] Skipping self-created event`);
+        return;
       }
+      
+      // Execute (context is IN the trigger for agent.context.v1!)
+      console.log(`🔄 [${this.id}] Executing with pre-assembled context...`);
+      const result = await this.execute(triggerBreadcrumb, {});
+      
+      // Create response
+      await this.respond(triggerBreadcrumb, result);
+      
+      console.log(`✅ [${this.id}] ${event.schema_name} processed successfully`);
+    }
       
     } catch (error) {
       console.error(`❌ [${this.id}] Error processing event:`, error);
@@ -136,91 +130,9 @@ export abstract class UniversalExecutor {
     }
   }
   
-  /**
-   * Assemble context from all subscriptions
-   * Pure - no hardcoded mappings
-   */
-  private async assembleContextFromSubscriptions(trigger: any): Promise<Record<string, any>> {
-    const context: Record<string, any> = {
-      trigger: trigger
-    };
-    
-    console.log(`🔍 [${this.id}] Assembling context from subscriptions...`);
-    
-    // Fetch each context subscription
-    for (const subscription of this.subscriptions) {
-      if (subscription.role === 'context') {
-        try {
-          const breadcrumbs = await this.fetchContextSource(subscription);
-          
-          if (breadcrumbs && breadcrumbs.length > 0) {
-            // Use explicit key or default to schema_name
-            const key = subscription.key || subscription.schema_name;
-            
-            // Single or multiple based on fetch config
-            if (subscription.fetch.limit === 1 || subscription.fetch.method === 'latest') {
-              context[key] = breadcrumbs[0].context;
-            } else {
-              context[key] = breadcrumbs.map((b: any) => b.context);
-            }
-            
-            console.log(`  ✅ Fetched ${key}: ${breadcrumbs.length} item(s)`);
-          } else {
-            console.log(`  ⚠️ No data for ${subscription.schema_name}`);
-          }
-        } catch (error) {
-          console.warn(`  ❌ Failed to fetch ${subscription.schema_name}:`, error);
-          // Continue with other sources
-        }
-      }
-    }
-    
-    const sourceCount = Object.keys(context).length - 1; // -1 for trigger
-    console.log(`✅ [${this.id}] Context assembled with ${sourceCount} sources`);
-    
-    return context;
-  }
   
-  /**
-   * Fetch breadcrumbs for a context subscription
-   * Pure fetch - no special cases
-   */
-  private async fetchContextSource(subscription: Subscription): Promise<any[]> {
-    const method = subscription.fetch.method;
-    const limit = subscription.fetch.limit || 1;
-    
-    const params: any = {
-      schema_name: subscription.schema_name,
-      include_context: true,
-      limit: limit
-    };
-    
-    // Apply tag filters
-    if (subscription.any_tags && subscription.any_tags.length > 0) {
-      params.tag = subscription.any_tags[0];
-    }
-    
-    switch (method) {
-      case 'latest':
-      case 'recent':
-        return await this.rcrtClient.searchBreadcrumbsWithContext(params);
-      
-      case 'vector':
-        const query = this.getVectorSearchQuery();
-        return await this.rcrtClient.vectorSearch({
-          q: query,
-          nn: subscription.fetch.nn || 5,
-          schema_name: subscription.schema_name
-        });
-      
-      case 'event_data':
-        // Event data already in trigger
-        return [];
-      
-      default:
-        return [];
-    }
-  }
+  // REMOVED: fetchContextSource() - No longer needed
+  // Context is pre-assembled by context-builder service
   
   /**
    * Find subscription matching this event

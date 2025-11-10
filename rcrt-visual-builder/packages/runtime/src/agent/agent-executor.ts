@@ -49,14 +49,15 @@ export class AgentExecutorUniversal extends UniversalExecutor {
   
   /**
    * Execute: Handle triggers based on type
-   * - user.message.v1: Create LLM request (fire-and-forget)
-   * - agent.context.v1: Create LLM request (fire-and-forget)
+   * - agent.context.v1: Create LLM request (fire-and-forget)  
    * - tool.response.v1: Create agent response (continuation)
+   * 
+   * NOTE: user.message.v1 NO LONGER HANDLED - context-builder handles it!
    */
   protected async execute(trigger: any, context: Record<string, any>): Promise<any> {
     const triggerSchema = trigger.schema_name;
     
-    if (triggerSchema === 'user.message.v1' || triggerSchema === 'agent.context.v1') {
+    if (triggerSchema === 'agent.context.v1') {
       // Fire-and-forget: Create LLM request, return immediately
       await this.createLLMRequest(trigger, context);
       return { action: 'llm_request_created', async: true };

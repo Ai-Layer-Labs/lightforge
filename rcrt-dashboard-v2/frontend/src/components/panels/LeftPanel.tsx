@@ -4,12 +4,11 @@ import { useNodes, useSelectedNodes, useDashboard } from '../../stores/Dashboard
 import { FilterPanel } from './FilterPanel';
 import { CreatePanel } from './CreatePanel';
 import { DetailsPanel } from './DetailsPanel';
-import { AgentConfigPanel } from './AgentConfigPanel';
 import { SettingsPanel } from './SettingsPanel';
 
 export function LeftPanel() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details' | 'agents' | 'settings'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'create' | 'details' | 'settings'>('filters');
   const [panelWidth, setPanelWidth] = useState(350);
   const [isResizing, setIsResizing] = useState(false);
   
@@ -45,14 +44,8 @@ export function LeftPanel() {
     if (selectedNodes.length > 0) {
       const node = selectedNodes[0];
       
-      // Agent-definition nodes → open Agent Config
-      if (node.type === 'agent-definition' || 
-          node.metadata?.schema === 'agent.def.v1' ||
-          node.data?.schema_name === 'agent.def.v1') {
-        setActiveTab('agents');
-      } 
-      // Other nodes → open Details
-      else if (activeTab !== 'details' && activeTab !== 'agents') {
+      // All nodes → open Details
+      if (activeTab !== 'details') {
         setActiveTab('details');
       }
     }
@@ -193,7 +186,6 @@ export function LeftPanel() {
             >
               {activeTab === 'filters' && <FilterPanel />}
               {activeTab === 'create' && <CreatePanel />}
-              {activeTab === 'agents' && <AgentConfigPanel />}
               {activeTab === 'settings' && <SettingsPanel />}
               {activeTab === 'details' && <DetailsPanel />}
             </motion.div>

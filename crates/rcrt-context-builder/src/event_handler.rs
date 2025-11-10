@@ -99,16 +99,26 @@ impl EventHandler {
     ) -> Result<()> {
         use crate::graph::load_graph_around_trigger;
         use crate::retrieval::AssembledContext;
+        use crate::agent_config::load_agent_definition;
         
         let Some(trigger) = trigger_id else {
             warn!("No trigger ID provided, skipping context assembly");
             return Ok(());
         };
         
-        // 🎯 NEW APPROACH: Load graph and use PathFinder
-        // This replaces multiple SourceConfig strategies with single unified graph traversal
+        // 🎯 UNIFIED APPROACH: Graph + Agent-Declared Sources
+        // Single source of truth: context_sources in agent.def.v1
         
-        // 1. Load graph around trigger (3 hops = ~500 nodes typically)
+        // 1. Load agent definition to get context_sources
+        let consumer_id = "default-chat-assistant";  // Hardcoded for now
+        let agent_def = load_agent_definition(consumer_id, self.vector_store.pool()).await?;
+        
+        info!("📋 Loaded agent definition for {}", consumer_id);
+        if agent_def.context_sources.is_some() {
+            info!("  ✓ Has context_sources configuration");
+        }
+        
+        // 2. Load graph around trigger (3 hops)
         let loaded_graph = match load_graph_around_trigger(
             trigger,
             3,  // radius: 3 hops
@@ -116,8 +126,7 @@ impl EventHandler {
         ).await {
             Ok(graph) => graph,
             Err(e) => {
-                error!("Failed to load graph: {}, falling back to direct fetch", e);
-                // Fallback: Just use trigger node
+                error!("Failed to load graph: {}, falling back", e);
                 return self.assemble_fallback(session_tag, trigger).await;
             }
         };
@@ -126,7 +135,7 @@ impl EventHandler {
             loaded_graph.graph.node_count(),
             loaded_graph.graph.edge_count());
         
-        // 2. Convert petgraph to SessionGraph for PathFinder
+        // 3. Convert petgraph to SessionGraph for PathFinder
         let mut session_graph = crate::graph::SessionGraph::new(session_tag.to_string());
         
         for node_idx in loaded_graph.graph.node_indices() {
@@ -156,7 +165,123 @@ impl EventHandler {
             });
         }
         
-        // 3. Use PathFinder with token awareness
+        // 4. AUGMENT graph with agent-declared context_sources
+        if let Some(context_sources) = &agent_def.context_sources {
+            info!("🔧 Augmenting graph with agent context_sources...");
+            
+            // 4a. Always-include sources
+            if let Some(always) = &context_sources.always {
+                for source in always {
+                    let optional = source.optional.unwrap_or(false);
+                    
+                    let nodes_result = match source.source_type.as_str() {
+                        "schema" => {
+                            if let Some(schema_name) = &source.schema_name {
+                                self.fetch_by_schema(schema_name, source.method.as_deref(), source.limit).await
+                            } else {
+                                warn!("  ⚠️  Schema source missing schema_name");
+                                continue;
+                            }
+                        },
+                        "tag" => {
+                            if let Some(tag) = &source.tag {
+                                self.fetch_by_tag(tag, source.limit.unwrap_or(1)).await
+                            } else {
+                                warn!("  ⚠️  Tag source missing tag");
+                                continue;
+                            }
+                        },
+                        _ => {
+                            warn!("  ⚠️  Unknown source type: {}", source.source_type);
+                            continue;
+                        }
+                    };
+                    
+                    match nodes_result {
+                        Ok(nodes) => {
+                            for node_row in nodes {
+                                let node_id = node_row.id;
+                                if !session_graph.nodes.contains_key(&node_id) {
+                                    let node = breadcrumb_row_to_node(node_row);
+                                    session_graph.add_node(node);
+                                    info!("  + Augmented: {} ({})", 
+                                        source.schema_name.as_deref().or(source.tag.as_deref()).unwrap_or("unknown"),
+                                        source.reason.as_deref().unwrap_or(""));
+                                }
+                            }
+                        },
+                        Err(e) if !optional => {
+                            warn!("  ⚠️  Required source failed: {}", e);
+                        },
+                        Err(_) => {
+                            // Optional source, ignore failure
+                        }
+                    }
+                }
+            }
+            
+            // 4b. Semantic search (if enabled)
+            if let Some(semantic) = &context_sources.semantic {
+                if semantic.enabled {
+                    info!("  🔍 Semantic search enabled");
+                    
+                    // Get trigger breadcrumb for semantic search
+                    if let Ok(Some(trigger_bc)) = self.vector_store.get_by_id(trigger).await {
+                        let query_text = trigger_bc.context
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        
+                        let entities = self.entity_extractor.extract(query_text)?;
+                        
+                        if !entities.keywords.is_empty() {
+                            if let Some(ref embedding) = trigger_bc.embedding {
+                                let limit = semantic.limit.unwrap_or(3);
+                                let min_sim = semantic.min_similarity.unwrap_or(0.75);
+                                
+                                // Hybrid search on specified schemas
+                                let knowledge = self.vector_store.find_similar_hybrid(
+                                    &embedding,
+                                    &entities.keywords,
+                                    limit,
+                                    None,  // Global search
+                                ).await?;
+                                
+                                let mut added_count = 0;
+                                for k in knowledge {
+                                    // Filter by allowed schemas
+                                    if semantic.schemas.contains(&k.schema_name) {
+                                        // Check similarity threshold
+                                        let similarity = k.embedding.as_ref()
+                                            .and_then(|e| trigger_bc.embedding.as_ref().map(|te| {
+                                                // Rough cosine similarity
+                                                1.0 / (1.0 + vector_distance(te, e))
+                                            }))
+                                            .unwrap_or(0.0);
+                                        
+                                        if similarity >= min_sim {
+                                            if !session_graph.nodes.contains_key(&k.id) {
+                                                let node = breadcrumb_row_to_node(k);
+                                                session_graph.add_node(node);
+                                                added_count += 1;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if added_count > 0 {
+                                    info!("  + Augmented: {} knowledge breadcrumbs", added_count);
+                                }
+                            }
+                        } else {
+                            info!("  ⏭️  No keywords extracted, skipping semantic search");
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. Use PathFinder with token awareness
         let path_finder = crate::retrieval::PathFinder::new(5, 50);
         let relevant_node_ids = path_finder.find_paths_token_aware(
             &session_graph,
@@ -164,9 +289,10 @@ impl EventHandler {
             4000,  // Target: 4000 tokens
         );
         
-        info!("🎯 PathFinder selected {} nodes from graph", relevant_node_ids.len());
+        info!("🎯 PathFinder selected {} nodes from graph (augmented from {} total)", 
+            relevant_node_ids.len(), session_graph.nodes.len());
         
-        // 4. Fetch breadcrumbs (they're already in session_graph)
+        // 6. Fetch breadcrumbs (they're already in session_graph)
         let mut breadcrumbs = Vec::new();
         for node_id in relevant_node_ids {
             if let Some(node) = session_graph.nodes.get(&node_id) {
@@ -266,6 +392,57 @@ impl EventHandler {
         
         Ok(())
     }
+    
+    /// Fetch breadcrumbs by schema
+    async fn fetch_by_schema(
+        &self,
+        schema_name: &str,
+        method: Option<&str>,
+        limit: Option<usize>,
+    ) -> Result<Vec<crate::vector_store::BreadcrumbRow>> {
+        let limit = limit.unwrap_or(1);
+        
+        match method.unwrap_or("latest") {
+            "latest" => {
+                if let Some(row) = self.vector_store.get_latest(schema_name, None).await? {
+                    Ok(vec![row])
+                } else {
+                    Ok(vec![])
+                }
+            },
+            "recent" | "all" => {
+                self.vector_store.get_recent(Some(schema_name), None, limit).await
+            },
+            _ => Ok(vec![])
+        }
+    }
+    
+    /// Fetch breadcrumbs by tag
+    async fn fetch_by_tag(
+        &self,
+        tag: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::vector_store::BreadcrumbRow>> {
+        self.vector_store.get_by_tag(tag, limit).await
+    }
+}
+
+/// Convert BreadcrumbRow to BreadcrumbNode
+fn breadcrumb_row_to_node(row: crate::vector_store::BreadcrumbRow) -> crate::graph::BreadcrumbNode {
+    let trigger_event_id = row.context
+        .get("trigger_event_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok());
+    
+    crate::graph::BreadcrumbNode {
+        id: row.id,
+        schema_name: row.schema_name,
+        tags: row.tags,
+        context: row.context,
+        embedding: row.embedding,
+        created_at: row.created_at,
+        trigger_event_id,
+    }
 }
 
 /// Determine priority order for schemas in context
@@ -282,5 +459,11 @@ fn schema_priority(schema: &str) -> u8 {
         "note.v1" => 4,
         _ => 5,                                // Everything else last
     }
+}
+
+/// Rough vector distance (not precise, just for filtering)
+fn vector_distance(_v1: &pgvector::Vector, _v2: &pgvector::Vector) -> f32 {
+    // Simplified - actual distance would be computed properly
+    0.2  // Placeholder
 }
 

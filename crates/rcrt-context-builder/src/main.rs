@@ -25,6 +25,7 @@ mod event_handler;
 mod output;
 mod entity_extractor;  // Entity extraction (regex-based)
 mod entity_worker;     // SSE-based worker for entity extraction
+mod agent_config;      // Agent definition loader
 
 use config::Config;
 use rcrt_client::RcrtClient;
