@@ -283,13 +283,12 @@ export function DetailsPanel() {
                 onClick={() => setIsEditing(!isEditing)}
                 className="w-full px-4 py-2 bg-purple-500/20 border border-purple-400/50 rounded-lg text-purple-300 hover:bg-purple-500/30 transition-colors"
               >
-                {isEditing ? '👁️ View Mode' : '🧠 Edit Agent'}
+                {isEditing ? '👁️ View Mode' : '🧠 Configure Agent'}
               </button>
               
               {isEditing && (
-                <EditAgentDefinitionForm 
+                <EditToolForm 
                   node={node}
-                  fullBreadcrumb={breadcrumbDetailsQuery.data}
                   onSave={() => setIsEditing(false)}
                   isSaving={isSaving}
                   setIsSaving={setIsSaving}
