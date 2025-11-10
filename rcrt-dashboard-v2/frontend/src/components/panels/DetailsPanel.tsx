@@ -820,7 +820,7 @@ function EditBreadcrumbForm({ node, fullBreadcrumb, onSave, isSaving, setIsSavin
   );
 }
 
-// Edit Tool Configuration Form
+// Edit Tool/Agent Configuration Form (Unified)
 function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   node: RenderNode;
   onSave: () => void;
@@ -829,9 +829,14 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
 }) {
   const [config, setConfig] = useState<ToolConfigValue>({});
   const [secrets, setSecrets] = useState<any[]>([]);
-  const [toolBreadcrumb, setToolBreadcrumb] = useState<any>(null); // Full tool.code.v1 breadcrumb
+  const [toolBreadcrumb, setToolBreadcrumb] = useState<any>(null); // Full tool.code.v1 or agent.def.v1 breadcrumb
   const { authenticatedFetch, isAuthenticated } = useAuthentication();
   const queryClient = useQueryClient();
+  
+  // Detect if this is an agent or tool
+  const isAgent = node.data?.schema_name === 'agent.def.v1' || 
+                  node.type === 'agent-definition' ||
+                  node.metadata?.schema === 'agent.def.v1';
   
   // IMPORTANT: All hooks must be called before any early returns!
   
@@ -854,6 +859,23 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           }
         } catch (error) {
           console.warn('Failed to load secrets:', error);
+        }
+        
+        // Handle agents differently than tools
+        if (isAgent) {
+          console.log('🤖 Loading agent configuration...');
+          
+          // For agents, the node IS the agent.def.v1 breadcrumb
+          // Load current config from the breadcrumb context
+          setToolBreadcrumb(node.data);
+          
+          // Agent config IS the agent context (not a separate breadcrumb)
+          if (node.data?.context) {
+            console.log('📥 Loaded agent config from context');
+            setConfig(node.data.context);
+          }
+          
+          return; // Skip tool-specific loading
         }
         
         // Get tool name (works for both catalog tools and breadcrumb tools)
@@ -936,17 +958,52 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
     loadData();
   }, [node.id, isAuthenticated]);
   
-  // Check if tool has ui_schema for dynamic configuration
-  // Use toolBreadcrumb if available (for catalog tools), otherwise use node.data (for breadcrumb tools)
+  // Check if tool/agent has ui_schema for dynamic configuration
+  // Use toolBreadcrumb if available (for catalog tools), otherwise use node.data (for breadcrumb tools/agents)
   const toolData = toolBreadcrumb || node.data;
   const uiSchema = toolData?.context?.ui_schema;
-  const toolName = node.data?.name || node.data?.context?.name;
+  const toolName = node.data?.name || node.data?.context?.name || node.data?.context?.agent_id;
   
-  // If tool has dynamic UI schema, use DynamicConfigForm
+  // If tool/agent has dynamic UI schema, use DynamicConfigForm
   if (uiSchema?.configurable) {
     const handleSaveConfig = async () => {
       setIsSaving(true);
       try {
+        // AGENTS: Update agent.def.v1 breadcrumb directly
+        if (isAgent) {
+          console.log('💾 Saving agent configuration:', { agentId: node.data?.context?.agent_id, config });
+          
+          // Load current version for optimistic concurrency
+          const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`);
+          if (!fullResponse.ok) {
+            throw new Error('Failed to load agent for version check');
+          }
+          const fullAgent = await fullResponse.json();
+          
+          // Update agent context
+          const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
+            method: 'PATCH',
+            headers: {
+              'If-Match': String(fullAgent.version),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              context: config  // Replace entire context with form data
+            })
+          });
+          
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            throw new Error(`Failed to update agent: ${errorText}`);
+          }
+          
+          console.log('✅ Agent configuration saved successfully');
+          await queryClient.invalidateQueries({ queryKey: ['breadcrumb-details'] });
+          onSave();
+          return;
+        }
+        
+        // TOOLS: Save to tool.config.v1 breadcrumb (unchanged)
         console.log('💾 Saving tool configuration:', { toolName, config });
         
         // Search for existing tool config breadcrumb
@@ -987,7 +1044,8 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
           const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${existingConfig.id}`, {
             method: 'PATCH',
             headers: {
-              'If-Match': String(fullConfig.version)
+              'If-Match': String(fullConfig.version),
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(configData)
           });

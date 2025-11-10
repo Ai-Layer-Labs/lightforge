@@ -48,6 +48,16 @@
       "configurable": true,
       "config_fields": [
         {
+          "key": "agent_id",
+          "label": "Agent ID",
+          "type": "string",
+          "ui_type": "text",
+          "description": "Unique identifier for this agent",
+          "required": true,
+          "placeholder": "default-chat-assistant",
+          "help_text": "Lowercase, hyphenated identifier"
+        },
+        {
           "key": "llm_config_id",
           "label": "LLM Configuration",
           "type": "string",
@@ -75,28 +85,33 @@
           "help_text": "This prompt is sent to the LLM with every request"
         },
         {
-          "key": "capabilities.can_create_breadcrumbs",
-          "label": "Can Create Breadcrumbs",
-          "type": "boolean",
-          "ui_type": "boolean",
-          "description": "Allow agent to create new breadcrumbs",
-          "default_value": true
+          "key": "capabilities",
+          "label": "Capabilities",
+          "type": "json",
+          "ui_type": "json",
+          "description": "Agent permissions (can_create_breadcrumbs, can_update_own, can_delete_own, can_spawn_agents)",
+          "default_value": {
+            "can_create_breadcrumbs": true,
+            "can_update_own": true,
+            "can_delete_own": false,
+            "can_spawn_agents": false
+          }
         },
         {
-          "key": "capabilities.can_update_own",
-          "label": "Can Update Own Breadcrumbs",
-          "type": "boolean",
-          "ui_type": "boolean",
-          "description": "Allow agent to modify breadcrumbs it created",
-          "default_value": true
+          "key": "subscriptions",
+          "label": "Subscriptions (Event Triggers)",
+          "type": "json",
+          "ui_type": "json",
+          "description": "Event subscription selectors - define what triggers this agent",
+          "help_text": "Advanced: Edit subscription selectors as JSON"
         },
         {
-          "key": "capabilities.can_delete_own",
-          "label": "Can Delete Own Breadcrumbs",
-          "type": "boolean",
-          "ui_type": "boolean",
-          "description": "Allow agent to delete breadcrumbs it created",
-          "default_value": false
+          "key": "context_sources",
+          "label": "Context Sources",
+          "type": "json",
+          "ui_type": "json",
+          "description": "Declare what context to augment graph with (always-include sources and semantic search config)",
+          "help_text": "Advanced: Configure context assembly behavior"
         }
       ]
     },

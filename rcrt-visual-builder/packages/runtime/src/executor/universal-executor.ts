@@ -122,7 +122,6 @@ export abstract class UniversalExecutor {
       await this.respond(triggerBreadcrumb, result);
       
       console.log(`✅ [${this.id}] ${event.schema_name} processed successfully`);
-    }
       
     } catch (error) {
       console.error(`❌ [${this.id}] Error processing event:`, error);
