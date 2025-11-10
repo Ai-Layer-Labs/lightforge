@@ -1,0 +1,42 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "Agent Catalog Schema Definition",
+  "tags": [
+    "schema:definition",
+    "system:bootstrap",
+    "defines:agent.catalog.v1"
+  ],
+  "context": {
+    "defines_schema": "agent.catalog.v1",
+    "category": "agents",
+    "field_definitions": {
+      "agents": {
+        "type": "array",
+        "required": true,
+        "description": "Array of available agents in the workspace"
+      },
+      "totalAgents": {
+        "type": "number",
+        "required": false,
+        "description": "Total number of agents"
+      },
+      "activeAgents": {
+        "type": "number",
+        "required": false,
+        "description": "Number of currently active agents"
+      }
+    }
+  },
+  "description": "Catalog of available specialist agents for delegation and coordination",
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "=== AVAILABLE AGENTS ===\n\nSpecialist agents ({{activeAgents}} active out of {{totalAgents}} total):\n\n{{#each agents}}- {{this.name}} ({{this.agent_id}})\n  Status: {{this.status}}\n  Purpose: {{this.description}}\n{{/each}}\n\nDelegate tasks by creating breadcrumbs with appropriate tags targeting the specialist agent."
+      }
+    },
+    "mode": "replace"
+  }
+}
+

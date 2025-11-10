@@ -79,8 +79,8 @@ export abstract class UniversalExecutor {
     console.log(`📨 [${this.id}] Event: ${event.schema_name}`);
     
     try {
-      // Find matching subscription
-      const subscription = this.findMatchingSubscription(event);
+      // Find matching subscription (now async to support context_match)
+      const subscription = await this.findMatchingSubscription(event);
       
       if (!subscription) {
         console.log(`⏭️ [${this.id}] No subscription for ${event.schema_name}`);
@@ -90,7 +90,8 @@ export abstract class UniversalExecutor {
             schema: s.schema_name,
             role: s.role,
             all_tags: s.all_tags,
-            any_tags: s.any_tags
+            any_tags: s.any_tags,
+            context_match: s.context_match
           }))
         );
         return;
@@ -135,11 +136,11 @@ export abstract class UniversalExecutor {
   
   /**
    * Find subscription matching this event
-   * Pure selector matching
+   * Pure selector matching - now async to support context_match
    */
-  private findMatchingSubscription(event: any): Subscription | null {
+  private async findMatchingSubscription(event: any): Promise<Subscription | null> {
     for (const sub of this.subscriptions) {
-      if (this.matchesSelector(event, sub)) {
+      if (await this.matchesSelector(event, sub)) {
         return sub;
       }
     }
@@ -148,9 +149,9 @@ export abstract class UniversalExecutor {
   
   /**
    * Check if event matches subscription selector
-   * Pure matching logic
+   * Pure matching logic - now properly implements context_match
    */
-  private matchesSelector(event: any, subscription: Subscription): boolean {
+  private async matchesSelector(event: any, subscription: Subscription): Promise<boolean> {
     // Schema name match
     if (subscription.schema_name && event.schema_name !== subscription.schema_name) {
       return false;
@@ -167,10 +168,34 @@ export abstract class UniversalExecutor {
       if (!hasAll) return false;
     }
     
-    // Context matching - SKIP for initial routing
-    // SSE events don't have full breadcrumb context
-    // We'll check context_match after fetching the breadcrumb if needed
-    // For now, if schema + tags match, route the event
+    // Context matching - NOW IMPLEMENTED!
+    // Fetch full breadcrumb to check context fields
+    if (subscription.context_match && subscription.context_match.length > 0) {
+      if (!event.breadcrumb_id) {
+        console.log(`⚠️ [${this.id}] context_match requires breadcrumb_id, but none provided`);
+        return false;
+      }
+      
+      try {
+        const fullBreadcrumb = await this.rcrtClient.getBreadcrumb(event.breadcrumb_id);
+        
+        // Check all context_match rules
+        for (const rule of subscription.context_match) {
+          const actualValue = this.getValueByPath(fullBreadcrumb.context, rule.path);
+          const matches = this.compareValues(actualValue, rule.value, rule.op);
+          
+          if (!matches) {
+            console.log(`⏭️ [${this.id}] context_match failed: ${rule.path} ${rule.op} ${rule.value} (actual: ${actualValue})`);
+            return false;
+          }
+        }
+        
+        console.log(`✅ [${this.id}] context_match validated successfully`);
+      } catch (error) {
+        console.warn(`⚠️ [${this.id}] Could not fetch breadcrumb for context_match validation:`, error);
+        return false;
+      }
+    }
     
     return true;
   }

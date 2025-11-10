@@ -35,7 +35,7 @@
     "transform": {
       "formatted": {
         "type": "template",
-        "template": "=== AVAILABLE TOOLS ===\n\n{{#each tools}}- {{name}} ({{category}})\n  {{description}}\n  Returns: {{returns}}\n\n{{/each}}"
+        "template": "=== AVAILABLE TOOLS ===\n\nYou have access to {{activeTools}} tools:\n\n{{#each tools}}- {{name}} ({{category}}): {{description}}\n  Returns: {{returns}}\n{{/each}}\n\nUse tool_requests array to invoke tools."
       }
     },
     "mode": "replace"

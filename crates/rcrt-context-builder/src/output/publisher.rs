@@ -35,60 +35,15 @@ impl ContextPublisher {
         trigger_id: Option<Uuid>,
         context: &AssembledContext,
     ) -> Result<()> {
-        use std::collections::HashMap;
-        
-        // Group breadcrumbs by category for structured formatting
-        let mut sections: HashMap<&str, Vec<&BreadcrumbNode>> = HashMap::new();
-        
-        for bc in &context.breadcrumbs {
-            let category = categorize_schema(&bc.schema_name);
-            sections.entry(category).or_insert_with(Vec::new).push(bc);
-        }
-        
-        // Build formatted context with sections and separators
+        // THE RCRT WAY: Just format breadcrumbs in order
+        // llm_hints templates include their own headers (self-describing)
+        // No hardcoded sections, no schema matching, no gatekeepers
         let mut formatted_text = String::new();
         
-        // Section 1: Available Tools
-        if let Some(tools) = sections.get("tools") {
-            formatted_text.push_str("=== AVAILABLE TOOLS ===\n\n");
-            for bc in tools {
-                let llm_content = self.extract_llm_content(bc.id).await?;
-                formatted_text.push_str(&llm_content.to_string());
-                formatted_text.push_str("\n");
-            }
-            formatted_text.push_str("\n---\n\n");
-        }
-        
-        // Section 2: Browser Context
-        if let Some(browser) = sections.get("browser") {
-            formatted_text.push_str("=== BROWSER CONTEXT ===\n\n");
-            for bc in browser {
-                let llm_content = self.extract_llm_content(bc.id).await?;
-                formatted_text.push_str(&llm_content.to_string());
-                formatted_text.push_str("\n");
-            }
-            formatted_text.push_str("\n---\n\n");
-        }
-        
-        // Section 3: Conversation History
-        if let Some(conversation) = sections.get("conversation") {
-            formatted_text.push_str("=== CONVERSATION HISTORY ===\n\n");
-            for bc in conversation {
-                let llm_content = self.extract_llm_content(bc.id).await?;
-                formatted_text.push_str(&llm_content.to_string());
-                formatted_text.push_str("\n\n");
-            }
-            formatted_text.push_str("---\n\n");
-        }
-        
-        // Section 4: Relevant Knowledge
-        if let Some(knowledge) = sections.get("knowledge") {
-            formatted_text.push_str("=== RELEVANT KNOWLEDGE ===\n\n");
-            for bc in knowledge {
-                let llm_content = self.extract_llm_content(bc.id).await?;
-                formatted_text.push_str(&llm_content.to_string());
-                formatted_text.push_str("\n\n");
-            }
+        for bc in &context.breadcrumbs {
+            let llm_content = self.extract_llm_content(bc.id).await?;
+            formatted_text.push_str(&llm_content.to_string());
+            formatted_text.push_str("\n\n---\n\n");
         }
         
         // Recalculate token estimate based on formatted text
@@ -140,15 +95,6 @@ impl ContextPublisher {
     }
 }
 
-/// Categorize breadcrumb schema for section grouping
-fn categorize_schema(schema: &str) -> &str {
-    match schema {
-        "tool.catalog.v1" => "tools",
-        "browser.page.context.v1" | "browser.tab.context.v1" => "browser",
-        "user.message.v1" | "agent.response.v1" => "conversation",
-        "tool.response.v1" => "conversation",  // Tool results in conversation
-        "knowledge.v1" | "note.v1" => "knowledge",
-        _ => "other",
-    }
-}
+// REMOVED: categorize_schema() - No longer needed
+// Breadcrumbs self-describe their formatting via llm_hints templates
 

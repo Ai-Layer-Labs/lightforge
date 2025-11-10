@@ -295,6 +295,7 @@ async function dispatchEventToTool(
             output: executionResult.result,
             execution_time_ms: executionTime,
             metadata: executionResult.metadata,
+            requestedBy: breadcrumb.context?.requestedBy,  // Copy from request for agent routing
             timestamp: new Date().toISOString()
           }
         });
@@ -318,6 +319,7 @@ async function dispatchEventToTool(
           tool: toolName,
           status: 'error',
           error: `Tool ${toolName} not found. Only tool.code.v1 (self-contained Deno tools) are supported. Legacy tool.v1 has been removed.`,
+          requestedBy: breadcrumb.context?.requestedBy,  // Copy from request for agent routing
           timestamp: new Date().toISOString()
         }
       });
@@ -342,6 +344,7 @@ async function dispatchEventToTool(
             status: 'error',
             error: String(error),
             execution_time_ms: 0,
+            requestedBy: eventData.context?.requestedBy,  // Copy from request for agent routing
             timestamp: new Date().toISOString()
           }
         });
