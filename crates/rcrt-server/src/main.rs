@@ -5,7 +5,7 @@ use tower_http::cors::{CorsLayer, Any};
 use tracing_subscriber::{EnvFilter, fmt};
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-use rcrt_core::{db::Db, models::{BreadcrumbCreate, BreadcrumbContextView, BreadcrumbFull, Selector, SelectorSubscription, AclGrantAgent}};
+use rcrt_core::{db::Db, models::{BreadcrumbCreate, BreadcrumbContextView, BreadcrumbFull, AclGrantAgent}};
 use anyhow::Result;
 use sqlx::migrate::Migrator;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
@@ -139,8 +139,6 @@ async fn main() -> Result<()> {
         .route("/breadcrumbs/:id/full", get(get_breadcrumb_full))
         .route("/breadcrumbs/:id/history", get(get_breadcrumb_history))
         .route("/breadcrumbs/search", get(vector_search))
-        .route("/subscriptions/selectors", post(create_selector).get(list_selectors))
-        .route("/subscriptions/selectors/:id", put(update_selector).delete(delete_selector))
         .route("/events/stream", get(sse_stream))
         .route("/acl", get(list_acls))
         .route("/acl/grant", post(grant_acl))
@@ -693,7 +691,7 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
             Err(e) => tracing::error!("🔧 NATS: ❌ Failed to publish updated event: {}", e)
         }
         
-        fanout_events_and_webhooks(&state, auth.owner_id, &bc, &updated).await;
+        dispatch_webhooks(&state, auth.owner_id, &bc, &updated).await;
     } else {
         tracing::warn!("🔧 NATS: ❌ No NATS connection available - events will not be published!");
     }
@@ -843,7 +841,7 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         tracing::info!("🔧 NATS: Publishing update event for {}", bc.id);
         let _ = conn.publish(&subj_updated, updated.as_bytes());
         
-        fanout_events_and_webhooks(&state, auth.owner_id, &bc, &updated).await;
+        dispatch_webhooks(&state, auth.owner_id, &bc, &updated).await;
     }
     
     Ok(Json(json!({"ok": true})))
@@ -917,69 +915,22 @@ async fn list_acls(State(state): State<AppState>, auth: AuthContext) -> Result<J
     Ok(Json(out))
 }
 
-async fn fanout_events_and_webhooks(state: &AppState, owner_id: Uuid, bc: &rcrt_core::models::Breadcrumb, payload: &str) {
-    // Load all selectors for this owner and match
-    let Ok(subs) = state.db.list_selector_subscriptions_for_owner(owner_id).await else { return; };
-    let tags = bc.tags.clone();
-    let schema = bc.schema_name.clone();
-    let mut target_agents: Vec<Uuid> = Vec::new();
-    for s in subs {
-        let any_ok = s.selector.any_tags.as_ref().map(|v| v.iter().any(|t| tags.contains(t))).unwrap_or(true);
-        let all_ok = s.selector.all_tags.as_ref().map(|v| v.iter().all(|t| tags.contains(t))).unwrap_or(true);
-        let schema_ok = s.selector.schema_name.as_ref().map(|sn| schema.as_ref().map(|x| x==sn).unwrap_or(false)).unwrap_or(true);
-        // simple context_match: only eq on top-level keys for now
-        let ctx_ok = if let Some(cm) = &s.selector.context_match {
-            cm.iter().all(|rule| {
-                // support $.key format only
-                if !rule.path.starts_with("$.") { return true; }
-                let key = &rule.path[2..];
-                let val = bc.context.get(key);
-                match rule.op.as_str() {
-                    "eq" => val == Some(&rule.value),
-                    "contains_any" => {
-                        if let (Some(serde_json::Value::Array(arr)), serde_json::Value::Array(needles)) = (val, &rule.value) {
-                            needles.iter().any(|n| arr.contains(n))
-                        } else { true }
-                    }
-                    _ => true
-                }
-            })
-        } else { true };
-        if any_ok && all_ok && schema_ok && ctx_ok { target_agents.push(s.agent_id); }
-    }
-
-    // NATS per-agent subjects
-    // Ensure payload has "type" field for agent-specific channels
-    #[cfg(feature = "nats")]
-    if let Some(conn) = &state.nats_conn {
-        // Parse payload and ensure it has type field
-        let agent_payload = if let Ok(mut event_json) = serde_json::from_str::<serde_json::Value>(payload) {
-            if event_json.get("type").is_none() {
-                // Add type field if missing (should never happen with proper create/update paths)
-                if let Some(obj) = event_json.as_object_mut() {
-                    obj.insert("type".to_string(), serde_json::json!("breadcrumb.updated"));
-                }
-            }
-            event_json.to_string()
-        } else {
-            payload.to_string() // Fallback to original if parse fails
-        };
-        
-        for agent_id in &target_agents {
-            let subj_agent = format!("agents.{}.events", agent_id);
-            tracing::debug!("🔧 NATS: Publishing to agent channel {} with type field ensured", subj_agent);
-            let _ = conn.publish(&subj_agent, agent_payload.as_bytes());
-        }
-    }
-
-    // Webhooks
-    for agent_id in target_agents {
-        if let Ok(hooks) = state.db.list_agent_webhooks(owner_id, agent_id).await {
-            let secret = state.db.get_agent_webhook_secret(owner_id, agent_id).await.ok().flatten();
+async fn dispatch_webhooks(state: &AppState, owner_id: Uuid, _bc: &rcrt_core::models::Breadcrumb, payload: &str) {
+    // RCRT uses global broadcast + client-side tag matching
+    // No server-side filtering via selector_subscriptions needed
+    // This function only handles webhook dispatch for external integrations
+    
+    // Get all agents for this owner (webhooks can be configured per-agent)
+    let Ok(agents) = state.db.list_agents(owner_id).await else { return; };
+    
+    // Dispatch webhooks for each agent that has them configured
+    for agent in agents {
+        if let Ok(hooks) = state.db.list_agent_webhooks(owner_id, agent.id).await {
+            let secret = state.db.get_agent_webhook_secret(owner_id, agent.id).await.ok().flatten();
             for (_id, url) in hooks {
                 let db = state.db.clone();
                 let payload_str = payload.to_string();
-                tokio::spawn(dispatch_webhook(db, owner_id, agent_id, url, payload_str, secret.clone()));
+                tokio::spawn(dispatch_webhook(db, owner_id, agent.id, url, payload_str, secret.clone()));
             }
         }
     }
@@ -1533,33 +1484,6 @@ async fn list_breadcrumbs(State(state): State<AppState>, Query(q): Query<ListQue
 }
 
 #[derive(Deserialize)]
-struct SelectorReq { any_tags: Option<Vec<String>>, all_tags: Option<Vec<String>>, schema_name: Option<String>, context_match: Option<Vec<rcrt_core::models::ContextMatch>> }
-
-async fn create_selector(State(state): State<AppState>, auth: AuthContext, Json(req): Json<SelectorReq>) -> Result<Json<SelectorSubscription>, (StatusCode, String)> {
-    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
-    let selector = Selector { any_tags: req.any_tags, all_tags: req.all_tags, schema_name: req.schema_name, context_match: req.context_match };
-    let created = state.db.create_selector_subscription(auth.owner_id, auth.agent_id, selector).await.map_err(internal_error)?;
-    Ok(Json(created))
-}
-
-async fn list_selectors(State(state): State<AppState>, auth: AuthContext) -> Result<Json<Vec<SelectorSubscription>>, (StatusCode, String)> {
-    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
-    let subs = state.db.list_selector_subscriptions(auth.owner_id, auth.agent_id).await.map_err(internal_error)?;
-    Ok(Json(subs))
-}
-
-async fn update_selector(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(selector_id): axum::extract::Path<Uuid>, Json(req): Json<Selector>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
-    state.db.update_selector(auth.owner_id, auth.agent_id, selector_id, req).await.map_err(internal_error)?;
-    Ok(Json(json!({"ok": true})))
-}
-
-async fn delete_selector(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(selector_id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if !auth.roles.iter().any(|r| r == "subscriber" || r == "curator") { return Err((StatusCode::FORBIDDEN, "subscriber role required".into())); }
-    state.db.delete_selector(auth.owner_id, auth.agent_id, selector_id).await.map_err(internal_error)?;
-    Ok(Json(json!({"ok": true})))
-}
-
 // Auth extractor: JWT by default; dev mode explicit via AUTH_MODE=disabled with OWNER_ID/AGENT_ID
 #[derive(Clone, Debug)]
 struct AuthContext { owner_id: Uuid, agent_id: Uuid, roles: Vec<String> }
@@ -1635,16 +1559,12 @@ async fn sse_stream(State(state): State<AppState>, auth: AuthContext) -> Result<
     let conn = state.nats_conn.as_ref().unwrap().clone();
     tracing::info!("🔧 SSE: 📡 NEW SSE CONNECTION from agent {} (owner: {})", auth.agent_id, auth.owner_id);
     
-    // Subscribe to all breadcrumb update events  
-    tracing::info!("🔧 SSE: Subscribing to NATS bc.*.updated...");
+    // Subscribe to global breadcrumb update events
+    // RCRT uses tag-based routing with client-side filtering
+    // No per-agent topics needed - global broadcast is simpler and scales better
+    tracing::info!("🔧 SSE: Subscribing to NATS bc.*.updated (global broadcast)");
     let sub_bc = conn.subscribe("bc.*.updated").map_err(|e| {
         tracing::error!("🔧 SSE: ❌ Failed to subscribe to bc.*.updated: {}", e);
-        StatusCode::SERVICE_UNAVAILABLE
-    })?;
-    
-    tracing::info!("🔧 SSE: Subscribing to NATS agents.{}.events...", auth.agent_id);
-    let sub_agent = conn.subscribe(&format!("agents.{}.events", auth.agent_id)).map_err(|e| {
-        tracing::error!("🔧 SSE: ❌ Failed to subscribe to agent events: {}", e);
         StatusCode::SERVICE_UNAVAILABLE
     })?;
     
@@ -1681,13 +1601,6 @@ async fn sse_stream(State(state): State<AppState>, auth: AuthContext) -> Result<
             } else {
                 tracing::warn!("🔧 SSE: ⚠️ Failed to decode NATS message as UTF-8");
             }
-        }
-    });
-
-    let tx2 = tx.clone();
-    tokio::task::spawn_blocking(move || {
-        for msg in sub_agent.messages() {
-            if let Ok(txt) = std::str::from_utf8(&msg.data) { let _ = tx2.send(txt.to_string()); }
         }
     });
 

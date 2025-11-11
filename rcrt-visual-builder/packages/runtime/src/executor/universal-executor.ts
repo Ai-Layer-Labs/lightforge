@@ -139,11 +139,31 @@ export abstract class UniversalExecutor {
    * Pure selector matching - now async to support context_match
    */
   private async findMatchingSubscription(event: any): Promise<Subscription | null> {
+    // Enhanced logging for tag-based routing diagnostics
+    console.log(`🔍 [${this.id}] Matching event:`, {
+      schema: event.schema_name,
+      tags: event.tags,
+      has_tags: Array.isArray(event.tags),
+      tags_count: event.tags?.length || 0
+    });
+    
     for (const sub of this.subscriptions) {
+      console.log(`  📋 Checking subscription:`, {
+        schema: sub.schema_name,
+        all_tags: sub.all_tags,
+        any_tags: sub.any_tags,
+        role: sub.role
+      });
+      
       if (await this.matchesSelector(event, sub)) {
+        console.log(`  ✅ MATCH! Subscription matched.`);
         return sub;
+      } else {
+        console.log(`  ❌ No match - continuing to next subscription`);
       }
     }
+    
+    console.log(`⚠️ [${this.id}] No matching subscription found for ${event.schema_name}`);
     return null;
   }
   
@@ -154,18 +174,32 @@ export abstract class UniversalExecutor {
   private async matchesSelector(event: any, subscription: Subscription): Promise<boolean> {
     // Schema name match
     if (subscription.schema_name && event.schema_name !== subscription.schema_name) {
+      console.log(`    ↳ Schema mismatch: expected ${subscription.schema_name}, got ${event.schema_name}`);
       return false;
     }
     
-    // Tag matching
+    // Tag matching - defensive checks for tag-based routing
+    // Ensure event.tags is an array before proceeding
+    if (!Array.isArray(event.tags)) {
+      console.warn(`    ⚠️ Event tags not an array:`, typeof event.tags, event.tags);
+      return false;
+    }
+    
     if (subscription.any_tags) {
-      const hasAny = subscription.any_tags.some(tag => event.tags?.includes(tag));
-      if (!hasAny) return false;
+      const hasAny = subscription.any_tags.some(tag => event.tags.includes(tag));
+      if (!hasAny) {
+        console.log(`    ↳ any_tags mismatch: need one of [${subscription.any_tags.join(', ')}], got [${event.tags.join(', ')}]`);
+        return false;
+      }
     }
     
     if (subscription.all_tags) {
-      const hasAll = subscription.all_tags.every(tag => event.tags?.includes(tag));
-      if (!hasAll) return false;
+      const hasAll = subscription.all_tags.every(tag => event.tags.includes(tag));
+      if (!hasAll) {
+        const missing = subscription.all_tags.filter(tag => !event.tags.includes(tag));
+        console.log(`    ↳ all_tags mismatch: missing [${missing.join(', ')}] from event tags [${event.tags.join(', ')}]`);
+        return false;
+      }
     }
     
     // Context matching - NOW IMPLEMENTED!

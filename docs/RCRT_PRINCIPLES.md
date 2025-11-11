@@ -89,18 +89,32 @@ Breadcrumb Update → PostgreSQL → NATS → Subscribers
                               Webhooks
 ```
 
-### Selector-Based Routing
+### Tag-Based Routing
 
-Agents subscribe using **selectors** that match breadcrumbs:
+**The simplest possible routing mechanism:**
+
+```
+Tags = Routing
+```
+
+Agents subscribe to **tag patterns** in their definitions:
 
 ```json
 {
-  "schema_name": "user.message.v1",
-  "any_tags": ["workspace:agents"]
+  "schema_name": "tool.code.v1",
+  "all_tags": ["workspace:tools"],
+  "role": "trigger"
 }
 ```
 
-Only matching events are delivered. Intelligent routing, not broadcast spam.
+Events broadcast globally. Client-side matching triggers execution.
+
+**Example:**
+- Tool created with tags: `["tool", "workspace:tools"]`
+- validation-specialist subscribes to: `tool.code.v1 + all_tags: ["workspace:tools"]`
+- Match → Trigger → Process → Done
+
+**That's it. That's the whole routing system.**
 
 ### Benefits
 

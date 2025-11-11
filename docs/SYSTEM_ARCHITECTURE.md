@@ -818,6 +818,69 @@ EXIT
 
 ## Event-Driven Communication
 
+### The Tag-Based Routing Primitive
+
+**RCRT's simplest and most powerful design:**
+
+```
+Tags = Routing
+```
+
+Every breadcrumb has tags. Every agent/tool subscribes to tag patterns. Events broadcast globally. Client-side matching triggers execution.
+
+**No exceptions. No special cases. Just tags.**
+
+---
+
+### How It Works
+
+**1. Breadcrumbs Created with Tags**
+```json
+{
+  "schema_name": "tool.code.v1",
+  "tags": ["tool", "tool:astral", "workspace:tools", "self-contained"]
+}
+```
+
+**2. Agents Subscribe to Tag Patterns**
+```json
+{
+  "subscriptions": {
+    "selectors": [{
+      "schema_name": "tool.code.v1",
+      "all_tags": ["workspace:tools"],
+      "role": "trigger"
+    }]
+  }
+}
+```
+
+**3. Global Broadcast via NATS**
+```
+Breadcrumb created/updated
+  ↓
+rcrt-server publishes to: bc.{id}.updated
+  ↓
+ALL agents/tools receive event (owner filtered)
+  ↓
+Client-side tag matching
+  ↓
+If match: TRIGGER (fire-and-forget)
+```
+
+**4. Client-Side Matching (UniversalExecutor)**
+```typescript
+// For each event:
+if (event.schema_name === subscription.schema_name) {
+  if (subscription.all_tags.every(tag => event.tags.includes(tag))) {
+    // MATCH! Trigger execution
+    execute(event);
+  }
+}
+```
+
+---
+
 ### SSE (Server-Sent Events)
 
 **Server → Clients (One-way push)**
@@ -839,7 +902,7 @@ GET /events/stream?token={jwt}
   "schema_name": "user.message.v1",
   "tags": ["extension:chat", "session:session-123"],
   "updated_at": "2025-11-07T10:30:00Z",
-  "context": {...}  // Full context included
+  "context": {...}
 }
 ```
 
@@ -847,16 +910,6 @@ GET /events/stream?token={jwt}
 - `breadcrumb.created` - New breadcrumb
 - `breadcrumb.updated` - Breadcrumb modified
 - `ping` - Keepalive (every 5s)
-
-**Fanout Logic (rcrt-server):**
-```rust
-1. Breadcrumb created/updated
-2. Load all selector_subscriptions for owner
-3. Match selectors against breadcrumb (schema, tags, context)
-4. Publish to NATS topics:
-   - bc.{id}.updated (global)
-   - agents.{matched_agent_id}.events (filtered per agent)
-```
 
 **Client Handling:**
 - Auto-reconnect with exponential backoff
@@ -869,28 +922,29 @@ GET /events/stream?token={jwt}
 
 **Service-to-Service Communication**
 
-**Topics:**
+**Single Topic (Global Broadcast):**
 ```
-bc.{breadcrumb_id}.updated     - All breadcrumb updates
-agents.{agent_id}.events       - Filtered per agent
+bc.*.updated - ALL breadcrumb updates (owner filtered in SSE)
 ```
 
 **Subscription Pattern:**
 ```typescript
-// tools-runner subscribes to all breadcrumb updates
+// All services subscribe to global topic
 nats.subscribe("bc.*.updated", (msg) => {
   const event = JSON.parse(msg.data);
-  if (event.schema_name === 'tool.request.v1') {
-    dispatchToTool(event);
+  
+  // Client-side tag/schema filtering
+  if (matchesMySubscriptions(event)) {
+    processEvent(event);
   }
 });
-
-// Agent-specific filtered stream
-nats.subscribe("agents.{agent_id}.events", (msg) => {
-  // Pre-filtered by server selectors
-  routeToAgent(msg);
-});
 ```
+
+**Why Global Broadcast?**
+- **Simple**: One topic, one subscription
+- **Scalable**: Stateless client filtering, run 100 instances
+- **Debuggable**: All events visible in logs
+- **Flexible**: Any tag pattern works instantly
 
 ---
 

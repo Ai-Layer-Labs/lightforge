@@ -119,6 +119,24 @@ GET /breadcrumbs?schema_name=tool.v1
 
 No hardcoded registration needed!
 
+### 4. Tag-Based Routing
+
+All agents and tools discover and trigger via **tags**:
+
+**Example: validation-specialist**
+- Subscribes to: `tool.code.v1 + all_tags: ["workspace:tools"]`
+- When tool created with `workspace:tools` tag → Triggers automatically
+- Validates code → Adds "approved" tag → tools-runner loads
+
+**Example: tools-runner**
+- Loads all tool.code.v1 with `tag: "approved"`
+- Listens for tool.request.v1 with `workspace:tools` tag
+- Executes → Returns tool.response.v1
+
+**Key Principle:** Tags act as routing, triggers, and filters.
+
+**No configuration. No registration. Just tags.**
+
 ## Tool System
 
 ### Tool Definition Structure

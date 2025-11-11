@@ -3,7 +3,7 @@
   "info": {
     "title": "RCRT API",
     "version": "0.1.0",
-    "description": "Right Context Right Time (RCRT) service. Provides minimal context packets (breadcrumbs), subscriptions, event fanout (NATS/SSE/webhooks), ACL/RLS, vector search, and secrets handling. Unless otherwise stated, endpoints require agent JWT (or dev AUTH_MODE=disabled).\n\n## 🔑 CRITICAL: Breadcrumb Endpoint Usage\n\n### READ Operations (GET)\n\n**GET /breadcrumbs/{id}/full** ✅ USE THIS\n- Returns: Complete, untransformed breadcrumb data\n- Use for: SDK, Dashboard, Tools, Scripts, Extensions, Bootstrap\n- Transformations: NONE - raw data as stored\n- Required for: Reading actual breadcrumb content\n\n**GET /breadcrumbs/{id}** ⚠️ INTERNAL ONLY\n- Returns: LLM-optimized, transformed/summarized view\n- Use for: ONLY context-builder when assembling LLM context\n- Transformations: Applies llm_hints from schema definitions\n- Do NOT use in: SDK, Dashboard, Tools, Scripts\n\n### WRITE Operations (PATCH/DELETE)\n\n**PATCH /breadcrumbs/{id}** ✅ CORRECT\n**DELETE /breadcrumbs/{id}** ✅ CORRECT\n- Endpoint: Use base path WITHOUT /full\n- /full endpoint: Read-only (GET only)\n- Pattern: GET /full to read current state, then PATCH /id to update\n\n### Quick Reference\n```\n✅ GET    /breadcrumbs/{id}/full  → Read raw data\n⚠️  GET    /breadcrumbs/{id}       → LLM-optimized (internal)\n✅ PATCH  /breadcrumbs/{id}        → Update breadcrumb\n✅ DELETE /breadcrumbs/{id}        → Delete breadcrumb\n❌ PATCH  /breadcrumbs/{id}/full   → 405 Method Not Allowed\n❌ DELETE /breadcrumbs/{id}/full   → 405 Method Not Allowed\n```"
+    "description": "Right Context Right Time (RCRT) service. Provides minimal context packets (breadcrumbs), tag-based event routing, event fanout (NATS/SSE/webhooks), ACL/RLS, vector search, and secrets handling. Unless otherwise stated, endpoints require agent JWT (or dev AUTH_MODE=disabled).\n\n## 🎯 Tag-Based Routing\n\nRCRT uses a simple primitive: **Tags = Routing**\n\n- Breadcrumbs created with tags (routing metadata)\n- Agents/tools subscribe to tag patterns in their definitions\n- Events broadcast globally via NATS (bc.*.updated)\n- Client-side filtering matches schema + tags\n- Trigger on match (fire-and-forget)\n\nNo API endpoints needed for subscriptions - routing is automatic from agent.def.v1 definitions.\n\n## 🔑 CRITICAL: Breadcrumb Endpoint Usage\n\n### READ Operations (GET)\n\n**GET /breadcrumbs/{id}/full** ✅ USE THIS\n- Returns: Complete, untransformed breadcrumb data\n- Use for: SDK, Dashboard, Tools, Scripts, Extensions, Bootstrap\n- Transformations: NONE - raw data as stored\n- Required for: Reading actual breadcrumb content\n\n**GET /breadcrumbs/{id}** ⚠️ INTERNAL ONLY\n- Returns: LLM-optimized, transformed/summarized view\n- Use for: ONLY context-builder when assembling LLM context\n- Transformations: Applies llm_hints from schema definitions\n- Do NOT use in: SDK, Dashboard, Tools, Scripts\n\n### WRITE Operations (PATCH/DELETE)\n\n**PATCH /breadcrumbs/{id}** ✅ CORRECT\n**DELETE /breadcrumbs/{id}** ✅ CORRECT\n- Endpoint: Use base path WITHOUT /full\n- /full endpoint: Read-only (GET only)\n- Pattern: GET /full to read current state, then PATCH /id to update\n\n### Quick Reference\n```\n✅ GET    /breadcrumbs/{id}/full  → Read raw data\n⚠️  GET    /breadcrumbs/{id}       → LLM-optimized (internal)\n✅ PATCH  /breadcrumbs/{id}        → Update breadcrumb\n✅ DELETE /breadcrumbs/{id}        → Delete breadcrumb\n❌ PATCH  /breadcrumbs/{id}/full   → 405 Method Not Allowed\n❌ DELETE /breadcrumbs/{id}/full   → 405 Method Not Allowed\n```"
   },
   "servers": [{ "url": "/" }],
   "paths": {
@@ -95,37 +95,10 @@
         "responses": { "200": { "description": "Results", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ListItem" } } } } } }
       }
     },
-    "/subscriptions/selectors": {
-      "post": {
-        "summary": "Create selector",
-        "description": "Create a selector subscription for the caller agent. Supports tag filters, optional schema name, and simple context_match rules (eq, contains_any). Requires role: subscriber or curator.",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Selector" } } } },
-        "responses": { "200": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SelectorSubscription" } } } } }
-      },
-      "get": {
-        "summary": "List selectors",
-        "description": "List selector subscriptions owned by the caller agent.",
-        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/SelectorSubscription" } } } } } }
-      }
-    },
-    "/subscriptions/selectors/{id}": {
-      "parameters": [{ "$ref": "#/components/parameters/SelectorId" }],
-      "put": {
-        "summary": "Update selector",
-        "description": "Update an existing selector subscription. Requires role: subscriber or curator.",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Selector" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
-      },
-      "delete": {
-        "summary": "Delete selector",
-        "description": "Delete a selector subscription. Requires role: subscriber or curator.",
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } } }
-      }
-    },
     "/events/stream": {
       "get": {
         "summary": "SSE stream",
-        "description": "Server-Sent Events stream of authorized events (owner-filtered and per-agent). Includes periodic ping events for liveness.",
+        "description": "Server-Sent Events stream of all breadcrumb updates (owner-filtered). Uses tag-based routing: agents filter events client-side based on tag patterns defined in agent.def.v1. Includes periodic ping events for liveness.",
         "responses": { "200": { "description": "SSE", "content": { "text/event-stream": {} } } }
       }
     },
@@ -351,8 +324,7 @@
       "TenantId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "SecretId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "DlqId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
-      "IfMatch": { "name": "If-Match", "in": "header", "schema": { "type": "string" } },
-      "SelectorId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+      "IfMatch": { "name": "If-Match", "in": "header", "schema": { "type": "string" } }
     },
     "schemas": {
       "OkResp": { "type": "object", "properties": { "ok": { "type": "boolean" } } },
@@ -364,9 +336,6 @@
       "BreadcrumbUpdate": { "type": "object", "properties": { "title": { "type": "string" }, "context": { "type": "object", "additionalProperties": true }, "tags": { "type": "array", "items": { "type": "string" } }, "schema_name": { "type": "string" }, "visibility": { "type": "string", "enum": ["public","team","private"] }, "sensitivity": { "type": "string", "enum": ["low","pii","secret"] }, "ttl": { "type": "string", "format": "date-time" }, "ttl_type": { "type": "string", "enum": ["never","datetime","duration","usage","hybrid"] }, "ttl_config": { "type": "object", "additionalProperties": true }, "ttl_source": { "type": "string", "enum": ["manual","schema-default","auto-applied","explicit"] } } },
       "BreadcrumbContext": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "title": { "type": "string" }, "context": { "type": "object", "additionalProperties": true }, "tags": { "type": "array", "items": { "type": "string" } }, "version": { "type": "integer" }, "updated_at": { "type": "string", "format": "date-time" } } },
       "BreadcrumbFull": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "owner_id": { "type": "string", "format": "uuid" }, "title": { "type": "string" }, "context": { "type": "object", "additionalProperties": true }, "tags": { "type": "array", "items": { "type": "string" } }, "schema_name": { "type": "string" }, "visibility": { "type": "string" }, "sensitivity": { "type": "string" }, "version": { "type": "integer" }, "checksum": { "type": "string" }, "ttl": { "type": "string", "format": "date-time" }, "ttl_type": { "type": "string", "enum": ["never","datetime","duration","usage","hybrid"] }, "ttl_config": { "type": "object", "additionalProperties": true }, "read_count": { "type": "integer", "description": "Number of times read (for usage-based TTL)" }, "ttl_source": { "type": "string", "enum": ["manual","schema-default","auto-applied","explicit"] }, "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" }, "created_by": { "type": "string", "format": "uuid" }, "updated_by": { "type": "string", "format": "uuid" }, "size_bytes": { "type": "integer" }, "embedding": { "type": "array", "items": { "type": "number" } } } },
-      "Selector": { "type": "object", "properties": { "any_tags": { "type": "array", "items": { "type": "string" } }, "all_tags": { "type": "array", "items": { "type": "string" } }, "schema_name": { "type": "string" }, "context_match": { "type": "array", "items": { "$ref": "#/components/schemas/ContextMatch" } } } },
-      "ContextMatch": { "type": "object", "properties": { "path": { "type": "string" }, "op": { "type": "string", "enum": ["eq","contains_any","gt","lt"] }, "value": { } }, "required": ["path","op","value"] },
-      "SelectorSubscription": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "owner_id": { "type": "string", "format": "uuid" }, "agent_id": { "type": "string", "format": "uuid" }, "selector": { "$ref": "#/components/schemas/Selector" } } },
       "WebhookReq": { "type": "object", "properties": { "url": { "type": "string", "format": "uri" } }, "required": ["url"] },
       "WebhookItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "url": { "type": "string", "format": "uri" } } },
       "AgentRegReq": { "type": "object", "properties": { "roles": { "type": "array", "items": { "type": "string" } } }, "required": ["roles"] },

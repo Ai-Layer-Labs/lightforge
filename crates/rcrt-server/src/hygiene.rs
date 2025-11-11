@@ -411,25 +411,15 @@ impl HygieneRunner {
         let mut cleaned_count = 0u64;
         
         for (agent_id, owner_id) in idle_agents {
-            // Check if agent has any active subscriptions before deleting
-            let subscription_count: (i64,) = sqlx::query_as(
-                "SELECT COUNT(*) FROM selector_subscriptions WHERE owner_id = $1 AND agent_id = $2"
-            )
-            .bind(owner_id)
-            .bind(agent_id)
-            .fetch_one(&self.state.db.pool)
-            .await?;
-            
-            if subscription_count.0 == 0 {
-                // Safe to delete - no active subscriptions
-                match self.cleanup_agent(owner_id, agent_id).await {
-                    Ok(()) => {
-                        cleaned_count += 1;
-                        info!("Cleaned up idle agent: {}", agent_id);
-                    }
-                    Err(e) => {
-                        warn!("Failed to cleanup agent {}: {}", agent_id, e);
-                    }
+            // RCRT uses tag-based routing - no subscriptions table to check
+            // Safe to cleanup idle agents directly
+            match self.cleanup_agent(owner_id, agent_id).await {
+                Ok(()) => {
+                    cleaned_count += 1;
+                    info!("Cleaned up idle agent: {}", agent_id);
+                }
+                Err(e) => {
+                    warn!("Failed to cleanup agent {}: {}", agent_id, e);
                 }
             }
         }
@@ -453,21 +443,14 @@ impl HygieneRunner {
                 .await?;
         }
         
-        // 2. Clean up agent's subscriptions
-        sqlx::query("DELETE FROM selector_subscriptions WHERE owner_id = $1 AND agent_id = $2")
-            .bind(owner_id)
-            .bind(agent_id)
-            .execute(&self.state.db.pool)
-            .await?;
-        
-        // 3. Clean up agent's webhooks
+        // 2. Clean up agent's webhooks
         sqlx::query("UPDATE agent_webhooks SET active = false WHERE owner_id = $1 AND agent_id = $2")
             .bind(owner_id)
             .bind(agent_id)
             .execute(&self.state.db.pool)
             .await?;
         
-        // 4. Delete the agent record
+        // 3. Delete the agent record
         sqlx::query("DELETE FROM agents WHERE owner_id = $1 AND id = $2")
             .bind(owner_id)
             .bind(agent_id)
@@ -475,28 +458,6 @@ impl HygieneRunner {
             .await?;
         
         Ok(())
-    }
-    
-    async fn cleanup_orphaned_subscriptions(&self) -> Result<u64, Box<dyn std::error::Error>> {
-        // Clean up subscriptions for agents that no longer exist
-        let orphaned_query = 
-            "DELETE FROM selector_subscriptions s
-             WHERE NOT EXISTS (
-                 SELECT 1 FROM agents a 
-                 WHERE a.owner_id = s.owner_id 
-                 AND a.id = s.agent_id
-             )";
-        
-        let result = sqlx::query(orphaned_query)
-            .execute(&self.state.db.pool)
-            .await?;
-        
-        let deleted = result.rows_affected();
-        if deleted > 0 {
-            info!("Cleaned up {} orphaned subscriptions", deleted);
-        }
-        
-        Ok(deleted)
     }
     
     async fn cleanup_old_dlq_entries(&self) -> Result<u64, Box<dyn std::error::Error>> {
