@@ -5,7 +5,10 @@
     "tool",
     "tool:timer",
     "workspace:tools",
-    "self-contained"
+    "self-contained",
+    "approved",
+    "validated",
+    "bootstrap"
   ],
   "context": {
     "name": "timer",

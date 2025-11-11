@@ -123,37 +123,24 @@ async function startCentralizedSSEDispatcher(
                     console.warn('[EventBridge] Failed to feed event:', e);
                   }
                   
-                  // 🔥 AUTO-RELOAD: Detect new/updated tools (debounced)
+                  // 🔥 AUTO-LOAD: Load approved tools immediately (no debounce needed)
                   if (eventData.schema_name === 'tool.code.v1' && 
-                      eventData.tags?.includes(workspace)) {
+                      eventData.tags?.includes(workspace) &&
+                      eventData.tags?.includes('approved')) {
                     
-                    // Debounce to handle bootstrap (14 tools created rapidly)
-                    if (!toolReloadDebounce) {
-                      console.log(`🔄 New tool detected: ${eventData.breadcrumb_id}`);
-                      toolReloadDebounce = {
-                        timer: setTimeout(async () => {
-                          console.log(`🔄 Reloading tools (${toolReloadDebounce!.count} new/updated)...`);
-                          
-                          if (globalDenoRuntime) {
-                            try {
-                              await globalDenoRuntime.reloadTools();
-                              console.log(`✅ Tools reloaded: ${globalDenoRuntime.getAllTools().length} tools available`);
-                              
-                              // Update catalog after reload
-                              await bootstrapTools(client, workspace);
-                              console.log('📊 Tool catalog updated');
-                            } catch (error) {
-                              console.error('❌ Failed to reload tools:', error);
-                            }
-                          }
-                          
-                          toolReloadDebounce = null;
-                        }, 2000), // Wait 2 seconds for batching
-                        count: 1
-                      };
-                    } else {
-                      toolReloadDebounce.count++;
-                      console.log(`🔄 Tool update batched (${toolReloadDebounce.count} total)`);
+                    console.log(`✅ Approved tool detected: ${eventData.breadcrumb_id}`);
+                    
+                    if (globalDenoRuntime) {
+                      try {
+                        await globalDenoRuntime.addToolById(eventData.breadcrumb_id);
+                        console.log(`✅ Loaded approved tool`);
+                        
+                        // Update catalog
+                        await bootstrapTools(client, workspace);
+                        console.log('📊 Tool catalog updated');
+                      } catch (error) {
+                        console.error('❌ Failed to load approved tool:', error);
+                      }
                     }
                   }
                 }

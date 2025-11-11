@@ -6,7 +6,10 @@
     "tool:openrouter-models-sync",
     "workspace:tools",
     "self-contained",
-    "sync"
+    "sync",
+    "approved",
+    "validated",
+    "bootstrap"
   ],
   "context": {
     "name": "openrouter_models_sync",

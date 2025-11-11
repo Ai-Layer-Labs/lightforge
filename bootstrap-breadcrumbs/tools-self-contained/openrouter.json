@@ -6,7 +6,10 @@
     "tool:openrouter",
     "workspace:tools",
     "self-contained",
-    "llm"
+    "llm",
+    "approved",
+    "validated",
+    "bootstrap"
   ],
   "context": {
     "name": "openrouter",

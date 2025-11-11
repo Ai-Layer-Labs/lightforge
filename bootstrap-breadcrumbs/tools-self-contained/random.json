@@ -3,7 +3,7 @@
   "title": "Random Number Generator (Self-Contained)",
   "description": "Generate random numbers",
   "semantic_version": "2.0.0",
-  "tags": ["tool", "tool:random", "workspace:tools", "self-contained"],
+  "tags": ["tool", "tool:random", "workspace:tools", "self-contained", "approved", "validated", "bootstrap"],
   "llm_hints": {
     "include": ["name", "description", "input_schema", "output_schema", "examples"],
     "exclude": ["code", "permissions", "limits"]

@@ -5,7 +5,10 @@
     "tool",
     "tool:breadcrumb-create",
     "workspace:tools",
-    "self-contained"
+    "self-contained",
+    "approved",
+    "validated",
+    "bootstrap"
   ],
   "context": {
     "name": "breadcrumb-create",

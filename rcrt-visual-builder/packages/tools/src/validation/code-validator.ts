@@ -11,8 +11,8 @@ export interface CodeValidationResult {
 
 export class CodeValidator {
   private static DANGEROUS_PATTERNS = [
-    /eval\s*\(/,
-    /Function\s*\(/,
+    /(?<![.$])\beval\s*\(/,  // Block standalone eval(), allow .$eval() and .evaluate()
+    /(?<![.$])\bFunction\s*\(/,  // Block Function constructor, allow method names with "Function"
     /require\s*\(/,
     /import\s*\(/,
     /__dirname/,

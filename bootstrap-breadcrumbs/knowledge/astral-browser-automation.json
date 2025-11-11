@@ -79,13 +79,7 @@
           "env": "Required for XDG_CACHE_HOME and other browser environment variables",
           "hrtime": "Required for accurate timing and performance metrics"
         },
-        "critical_permission_rules": {
-          "NEVER_INCLUDE_FFI": "🔴 CRITICAL: NEVER set ffi: true! FFI is ALWAYS blocked, even for trusted tools. It's a security risk.",
-          "ALWAYS_FALSE_OR_OMIT": "ffi must be false or omitted entirely from permissions object",
-          "WHY_BLOCKED": "FFI (Foreign Function Interface) allows calling arbitrary C/C++ code, which is too dangerous",
-          "WHAT_YOU_NEED_INSTEAD": "For browser automation: net, read, write, run, hrtime (NOT ffi!)",
-          "COMMON_MISTAKE": "LLMs sometimes include ffi: true thinking it's needed for browser processes - IT IS NOT"
-        }
+        "validation_note": "See tool-validation-rules.json for complete validation checklist and permission requirements"
       },
       
       "complete_working_example": {
@@ -435,19 +429,12 @@
         "close": "await browser.close();"
       },
       
-      "checklist_for_creation": [
-        "☐ Imported from jsr:@astral/astral",
-        "☐ Defined Input/Output interfaces with all actions",
-        "☐ Created browsers and pages Maps for state",
-        "☐ Implemented generateId() function",
-        "☐ Implemented execute() with action switch",
-        "☐ Implemented all action handlers (launch, navigate, screenshot, etc.)",
-        "☐ Added getPage() helper for page retrieval",
-        "☐ Set permissions: net, read, write, run, hrtime to true",
-        "☐ Set appropriate limits (timeout: 120000ms, memory: 512MB)",
-        "☐ Included examples for each action",
-        "☐ Added llm_hints to exclude code/permissions",
-        "☐ Tested each action independently"
+      "quick_reference_checklist": [
+        "☐ Import from jsr:@astral/astral",
+        "☐ Implement action handlers (launch, navigate, screenshot, click, type, evaluate, etc.)",
+        "☐ State management with Maps for browsers/pages",
+        "☐ Permissions: net, read, write, run, env, hrtime (see tool-validation-rules.json)",
+        "☐ Comprehensive examples for each action"
       ]
     }
   },

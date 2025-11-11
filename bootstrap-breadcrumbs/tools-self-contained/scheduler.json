@@ -6,7 +6,10 @@
     "tool:scheduler",
     "workspace:tools",
     "self-contained",
-    "system"
+    "system",
+    "approved",
+    "validated",
+    "bootstrap"
   ],
   "context": {
     "name": "scheduler",

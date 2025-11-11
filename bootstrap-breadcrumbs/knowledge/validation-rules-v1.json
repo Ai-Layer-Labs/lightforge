@@ -1,0 +1,168 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Code Validation Rules - Evolving Security Patterns",
+  "tags": [
+    "knowledge",
+    "validation-rules",
+    "security",
+    "code-analysis",
+    "workspace:system"
+  ],
+  "context": {
+    "topic": "code-validation-security",
+    "audience": "validation-specialist and tool-debugger agents",
+    "last_updated": "2025-11-10",
+    "version_note": "This breadcrumb evolves via breadcrumb-update when agents learn new patterns",
+    "content": {
+      "summary": "Dynamic validation rules for tool.code.v1 security analysis. Updated by validation-specialist and tool-debugger agents as they learn safe patterns and discover new threats.",
+      
+      "dangerous_patterns": [
+        {
+          "pattern": "(?<![.$])\\beval\\s*\\(",
+          "severity": "error",
+          "reason": "Direct eval() allows arbitrary code execution",
+          "example_violation": "eval(userInput)",
+          "added_by": "system",
+          "date": "2025-11-10"
+        },
+        {
+          "pattern": "(?<![.$])\\bFunction\\s*\\(",
+          "severity": "error",
+          "reason": "Function constructor allows arbitrary code execution",
+          "example_violation": "new Function('return ' + code)()",
+          "added_by": "system",
+          "date": "2025-11-10"
+        },
+        {
+          "pattern": "\\bexec\\s*\\(",
+          "severity": "warning",
+          "reason": "exec() can execute shell commands if misused",
+          "example_violation": "exec(command)",
+          "added_by": "system",
+          "date": "2025-11-10"
+        }
+      ],
+      
+      "safe_exceptions": [
+        {
+          "pattern": "\\.$eval\\s*\\(",
+          "reason": "Playwright/Astral API method for evaluating selectors - completely safe",
+          "context": "Browser automation libraries",
+          "example_safe_usage": "page.$eval('h1', el => el.textContent)",
+          "added_by": "system",
+          "date": "2025-11-10",
+          "validated_in_tools": ["astral", "puppeteer", "playwright"]
+        },
+        {
+          "pattern": "\\.evaluate\\s*\\(",
+          "reason": "Browser page evaluation API - sandboxed execution in browser context",
+          "context": "Browser automation",
+          "example_safe_usage": "page.evaluate(() => document.title)",
+          "added_by": "system",
+          "date": "2025-11-10",
+          "validated_in_tools": ["astral", "puppeteer", "playwright"]
+        },
+        {
+          "pattern": "\\.waitForSelector\\s*\\(",
+          "reason": "Browser API for waiting on elements - no code execution",
+          "context": "Browser automation",
+          "example_safe_usage": "page.waitForSelector('.content')",
+          "added_by": "system",
+          "date": "2025-11-10",
+          "validated_in_tools": ["astral"]
+        }
+      ],
+      
+      "permission_validation": {
+        "browser_tools": {
+          "required": ["net", "read", "write", "run", "env", "hrtime"],
+          "forbidden": ["ffi"],
+          "rationale": "Browser automation needs filesystem, process spawning, and environment access"
+        },
+        "api_tools": {
+          "required": ["net"],
+          "optional": [],
+          "forbidden": ["ffi", "read", "write", "run", "env"],
+          "rationale": "API calls only need network access"
+        },
+        "logic_tools": {
+          "required": [],
+          "optional": [],
+          "forbidden": ["ffi", "read", "write", "run", "env", "net"],
+          "rationale": "Pure logic needs no external permissions"
+        },
+        "rcrt_tools": {
+          "required": ["net"],
+          "optional": [],
+          "forbidden": ["ffi", "read", "write", "run", "env"],
+          "rationale": "RCRT API tools need network to call RCRT endpoints"
+        }
+      },
+      
+      "schema_validation": {
+        "all_properties_need_type": {
+          "rule": "Every property in input_schema and output_schema must have 'type' field",
+          "severity": "error",
+          "violation_message": "Property 'X' must have a 'type'",
+          "fix": "Add \"type\": \"string\" | \"number\" | \"boolean\" | \"object\" | \"array\" | \"any\""
+        },
+        "required_arrays": {
+          "rule": "input_schema.required and output_schema.required must be arrays",
+          "severity": "error"
+        }
+      },
+      
+      "learning_protocol": {
+        "when_to_add_exception": [
+          "Pattern matches dangerous rule BUT is actually safe (false positive)",
+          "Library API method that happens to match security pattern",
+          "Context makes it clear the usage is sandboxed/safe"
+        ],
+        "when_to_add_dangerous_pattern": [
+          "New security threat discovered",
+          "Pattern allows code injection",
+          "Enables privilege escalation"
+        ],
+        "update_procedure": {
+          "step_1": "Identify pattern to add/modify",
+          "step_2": "Use breadcrumb-update tool on THIS breadcrumb",
+          "step_3": "Add to safe_exceptions or dangerous_patterns array",
+          "step_4": "Include: pattern, reason, added_by (agent-id), date, context",
+          "step_5": "Document in version history via optimistic locking"
+        }
+      },
+      
+      "validation_decision_tree": {
+        "step_1": "Extract code from tool.code.v1",
+        "step_2": "Check against dangerous_patterns",
+        "step_3": "If match found, check safe_exceptions",
+        "step_4": "If exception exists, APPROVE with warning",
+        "step_5": "If no exception, REJECT with error",
+        "step_6": "Check permissions match tool type",
+        "step_7": "Validate all schema properties have types",
+        "step_8": "Create tool.validation.result.v1 with decision"
+      },
+      
+      "version_history_example": {
+        "description": "This breadcrumb's version history shows what the system learned",
+        "versions": [
+          {"version": 1, "date": "2025-11-10", "change": "Initial validation rules", "updated_by": "system"},
+          {"version": 2, "date": "2025-11-10", "change": "Added safe exception: page.$eval()", "updated_by": "tool-debugger"},
+          {"version": 3, "date": "2025-11-10", "change": "Added safe exception: page.waitForSelector()", "updated_by": "validation-specialist"},
+          {"version": 4, "date": "2025-11-11", "change": "Added dangerous pattern: dangerousFunction()", "updated_by": "validation-specialist"}
+        ]
+      }
+    }
+  },
+  "semantic_version": "1.0.0",
+  "llm_hints": {
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "# {{title}}\n\n## Dangerous Patterns (BLOCK)\n{{#each context.content.dangerous_patterns}}• Pattern: {{this.pattern}}\n  Severity: {{this.severity}}\n  Reason: {{this.reason}}\n  Added by: {{this.added_by}} on {{this.date}}\n{{/each}}\n\n## Safe Exceptions (ALLOW)\n{{#each context.content.safe_exceptions}}• Pattern: {{this.pattern}}\n  Reason: {{this.reason}}\n  Context: {{this.context}}\n  Added by: {{this.added_by}} on {{this.date}}\n{{/each}}\n\n## Permission Rules\n{{#each context.content.permission_validation}}{{@key}}:\n  Required: {{this.required}}\n  Forbidden: {{this.forbidden}}\n  Rationale: {{this.rationale}}\n{{/each}}\n\n## Validation Decision Tree\n{{#each context.content.validation_decision_tree}}{{@index}}. {{this}}\n{{/each}}\n\n## Learning Protocol\nWhen to add exception:\n{{#each context.content.learning_protocol.when_to_add_exception}}• {{this}}\n{{/each}}\n\nUpdate using breadcrumb-update tool on THIS breadcrumb to evolve rules!"
+      }
+    },
+    "mode": "replace"
+  }
+}
+

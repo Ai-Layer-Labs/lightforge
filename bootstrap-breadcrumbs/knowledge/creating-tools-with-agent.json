@@ -134,21 +134,15 @@
           "7. Create tool.creation.response.v1 to inform user"
         ],
         
-        "validation_checklist": [
-          "✅ schema_name = 'tool.code.v1'",
-          "✅ tags include: ['tool', 'tool:NAME', 'workspace:tools', 'self-contained']",
-          "✅ context.code.source contains valid TypeScript with export async function execute",
-          "✅ context.name matches tool:NAME tag",
-          "✅ input_schema defines all accepted parameters",
-          "✅ output_schema defines all return fields",
-          "✅ permissions include required permissions (net, run, etc.)",
-          "🔴 permissions.ffi = false OR omitted (NEVER true - always blocked!)",
-          "✅ limits are appropriate (timeout_ms, memory_mb, cpu_percent)",
-          "✅ required_secrets is array (even if empty)",
-          "✅ ui_schema is object with configurable field",
-          "✅ examples include at least 2-3 use cases with explanations",
-          "✅ llm_hints exclude code/permissions/limits"
-        ],
+        "validation_checklist": {
+          "note": "Complete checklist in tool-validation-rules.json knowledge guide",
+          "critical_reminders": [
+            "🔴 ALL output properties must have 'type' field",
+            "🔴 NEVER set ffi: true",
+            "🔴 Browser tools need: net, read, write, run, env, hrtime",
+            "✅ Validate against tool-validation-rules.json BEFORE uploading"
+          ]
+        },
         
         "using_breadcrumb_create_tool": {
           "description": "Specialist uses breadcrumb-create tool to upload generated tool",

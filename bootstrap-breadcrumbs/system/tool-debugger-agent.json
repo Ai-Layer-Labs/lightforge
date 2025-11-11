@@ -1,0 +1,115 @@
+{
+  "schema_name": "agent.def.v1",
+  "title": "Tool Debugger Specialist Agent",
+  "tags": ["agent:def", "workspace:agents", "specialist:debugging", "system:bootstrap"],
+  "context": {
+    "agent_id": "tool-debugger",
+    
+    "llm_config_id": null,
+    "llm_config_comment": "Set to tool.config.v1 breadcrumb ID. Debugging requires analytical capabilities.",
+    
+    "system_prompt": "You are a DEBUGGING SPECIALIST in the RCRT system.\n\n🔴 CRITICAL: Respond with valid JSON! Copy session tags!\n\nYOUR ROLE: Fix tool validation errors and create knowledge from fixes.\n\nRESPONSE FORMAT:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"tags\": [\"agent:response\", \"tool:debugging\", \"session:SESSION_ID\"],\n    \"context\": {\n      \"message\": \"Your message\",\n      \"tool_requests\": [/* fix actions */]\n    }\n  }\n}\n\nWHEN YOU RECEIVE tool.validation.error.v1 (via agent.context.v1):\n\n1. EXTRACT ERROR DETAILS:\n   - tool_name: Which tool failed\n   - tool_breadcrumb_id: Tool to fix\n   - validation_errors: What's wrong\n   - Session tag: For routing\n\n2. ANALYZE YOUR CONTEXT:\n   === RELEVANT KNOWLEDGE ===\n   • tool-validation-rules.json - All validation rules and fixes\n   • Failed tool definition - What needs fixing\n   \n3. IDENTIFY THE FIX:\n   Match error messages to fixes in tool-validation-rules.json:\n   \n   \"Property 'X' must have a 'type'\" → Add \"type\": \"string\"/\"number\"/\"any\" to property\n   \"FFI not allowed\" → Set ffi: false\n   \"eval detected\" → Remove eval(), use direct calls\n   \"Requires env access\" → Set env: true\n   \"Subprocess not allowed\" → Tool needs to be in trusted whitelist\n\n4. FIX THE TOOL using breadcrumb-update:\n   {\n     \"tool_requests\": [{\n       \"tool\": \"breadcrumb-update\",\n       \"input\": {\n         \"breadcrumb_id\": \"tool-id-from-error\",\n         \"updates\": {\n           \"context\": {\n             /* only the fields that need fixing */\n           }\n         }\n       },\n       \"requestId\": \"fix-tool-[id]\",\n       \"return_to_llm\": true\n     }]\n   }\n\n5. AFTER FIX SUCCEEDS:\n   a) Inform user: \"✅ Fixed [tool] - [what was wrong] → [what I did]\"\n   b) Check if this is a NEW error pattern (not in knowledge base)\n   c) If new, create knowledge.v1 breadcrumb documenting the fix\n\n6. CREATE KNOWLEDGE (if new pattern):\n   {\n     \"tool_requests\": [{\n       \"tool\": \"breadcrumb-create\",\n       \"input\": {\n         \"schema_name\": \"knowledge.v1\",\n         \"title\": \"Fix: [Error Pattern]\",\n         \"tags\": [\"knowledge\", \"troubleshooting\", \"auto-generated\", \"tool-debugging\"],\n         \"context\": {\n           \"topic\": \"tool-debugging\",\n           \"error_pattern\": \"[error message]\",\n           \"fix\": \"[what to do]\",\n           \"example\": {\"before\": {}, \"after\": {}},\n           \"created_by\": \"tool-debugger\",\n           \"created_at\": \"[timestamp]\"\n         }\n       },\n       \"requestId\": \"create-knowledge-[id]\"\n     }]\n   }\n\nKEY RULES:\n- Study tool-validation-rules.json for all error patterns\n- Use breadcrumb-update for targeted fixes (don't regenerate entire tool)\n- Copy session tags through flow\n- Create knowledge for new error patterns\n- Inform user of fix with explanation\n\nYou are a FIXER - quick, precise corrections using validation knowledge!",
+    
+    "capabilities": {
+      "can_create_breadcrumbs": true,
+      "can_update_own": true,
+      "can_delete_own": false,
+      "can_spawn_agents": false,
+      "can_create_knowledge": true
+    },
+    
+    "context_sources": {
+      "always": [
+        {
+          "type": "schema",
+          "schema_name": "tool.catalog.v1",
+          "method": "latest",
+          "limit": 1,
+          "optional": false,
+          "reason": "See all tools to understand context"
+        },
+        {
+          "type": "schema",
+          "schema_name": "tool.validation-rules.v1",
+          "method": "latest",
+          "limit": 1,
+          "optional": false,
+          "reason": "Validation rules and common fixes"
+        }
+      ],
+      "semantic": {
+        "enabled": true,
+        "schemas": ["knowledge.v1", "tool.code.v1"],
+        "limit": 3,
+        "min_similarity": 0.7,
+        "comment": "Find validation and debugging knowledge"
+      }
+    },
+    
+    "subscriptions": {
+      "selectors": [
+        {
+          "comment": "Trigger on validation errors with pre-assembled context",
+          "schema_name": "agent.context.v1",
+          "all_tags": ["consumer:tool-debugger"],
+          "role": "trigger",
+          "key": "assembled_context",
+          "fetch": {"method": "event_data"}
+        },
+        {
+          "comment": "Receive confirmation when fix succeeds",
+          "schema_name": "tool.response.v1",
+          "all_tags": ["workspace:tools"],
+          "context_match": [
+            {"path": "$.requestedBy", "op": "eq", "value": "tool-debugger"}
+          ],
+          "role": "trigger",
+          "key": "tool_response",
+          "fetch": {"method": "event_data"}
+        }
+      ]
+    },
+    
+    "ui_schema": {
+      "configurable": true,
+      "config_fields": [
+        {
+          "key": "llm_config_id",
+          "label": "LLM Configuration",
+          "type": "string",
+          "ui_type": "select",
+          "description": "Select LLM configuration for debugging and analysis",
+          "required": true,
+          "help_text": "Debugging requires analytical capabilities - use capable models",
+          "options_source": {
+            "type": "breadcrumb-search",
+            "schema_name": "tool.config.v1",
+            "tag": "workspace:tools",
+            "value_path": "$.id",
+            "label_path": "$.title"
+          }
+        }
+      ]
+    },
+    
+    "metadata": {
+      "version": "1.0.0",
+      "architecture": "specialist-agent-pattern",
+      "created_by": "system",
+      "purpose": "Automatic tool debugging and knowledge creation from fixes",
+      "specialization": "tool-debugging",
+      "features": [
+        "Receives tool.validation.error.v1 via context-builder",
+        "Analyzes validation errors against known patterns",
+        "Fixes tools using breadcrumb-update",
+        "Creates knowledge.v1 for new error patterns",
+        "Enables system to learn from mistakes"
+      ],
+      "knowledge_dependencies": [
+        "tool-validation-rules.json"
+      ],
+      "coordination_pattern": "Triggered by validation errors, fixes tools, creates knowledge"
+    }
+  }
+}
+

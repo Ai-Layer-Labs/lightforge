@@ -7,8 +7,9 @@ import { RcrtClientEnhanced } from '@rcrt-builder/sdk';
 import { DenoExecutor, ExecutionResult, ToolCode, ToolLimits, ToolPermissions } from './deno-executor';
 import { ContextSerializer, ToolExecutionContext } from './context-serializer';
 import { ExecutionQueue } from './utils/execution-queue';
-import { CodeValidator } from './validation/code-validator';
-import { SchemaValidator } from './validation/schema-validator';
+// Validation now done by validation-specialist agent, not hardcoded!
+// import { CodeValidator } from './validation/code-validator';
+// import { SchemaValidator } from './validation/schema-validator';
 import { PermissionValidator } from './validation/permission-validator';
 
 export interface ToolCodeBreadcrumb {
@@ -110,14 +111,18 @@ export class DenoToolRuntime {
   
   /**
    * Load tool definitions from breadcrumbs
+   * THE RCRT WAY: Only load tools approved by validation-specialist agent!
    */
   async loadTools(): Promise<void> {
     try {
+      // Only load tools with "approved" tag (validation-specialist adds this)
       const breadcrumbs = await this.client.searchBreadcrumbs({
         schema_name: 'tool.code.v1',
         tag: this.workspace,
         limit: 100
       });
+      
+      console.log(`[DenoToolRuntime] Found ${breadcrumbs.length} total tools`);
 
       for (const breadcrumb of breadcrumbs) {
         try {
@@ -128,19 +133,21 @@ export class DenoToolRuntime {
             console.error(`[DenoToolRuntime] Skipping tool ${breadcrumb.id} - missing context or code`);
             continue;
           }
-
-          const validation = await this.validateTool(tool, tool.context.name);
-          if (!validation.valid) {
-            console.error(`[DenoToolRuntime] Invalid tool ${tool.context.name}:`, validation.errors);
+          
+          // Check if approved by validation-specialist
+          if (!tool.tags || !tool.tags.includes('approved')) {
+            console.log(`[DenoToolRuntime] Skipping ${tool.context.name} - awaiting validation-specialist approval`);
             continue;
           }
 
           this.tools.set(tool.context.name, tool);
-          console.log(`[DenoToolRuntime] Registered tool: ${tool.context.name}`);
+          console.log(`[DenoToolRuntime] Registered approved tool: ${tool.context.name}`);
         } catch (error) {
           console.error('[DenoToolRuntime] Failed to load tool breadcrumb:', breadcrumb.id, error);
         }
       }
+      
+      console.log(`[DenoToolRuntime] Loaded ${this.tools.size} approved tools (${breadcrumbs.length - this.tools.size} awaiting approval)`);
     } catch (error) {
       console.error('[DenoToolRuntime] Failed to load tools:', error);
       throw error;
@@ -335,66 +342,21 @@ export class DenoToolRuntime {
   }
   
   /**
-   * Validate a tool
+   * Load a single approved tool (called when tool gets "approved" tag)
    */
-  async validateTool(tool: ToolCodeBreadcrumb, toolName?: string): Promise<{
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-  }> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    
-    // Use provided toolName or extract from tool context
-    const name = toolName || tool.context.name;
-    
-    // Validate code
-    const codeValidation = CodeValidator.validate(
-      tool.context.code.source,
-      name
-    );
-    errors.push(...codeValidation.errors);
-    warnings.push(...codeValidation.warnings);
-    
-    // Validate input schema
-    const inputValidation = SchemaValidator.validate(
-      tool.context.input_schema,
-      'input'
-    );
-    errors.push(...inputValidation.errors);
-    
-    // Validate output schema
-    const outputValidation = SchemaValidator.validate(
-      tool.context.output_schema,
-      'output'
-    );
-    errors.push(...outputValidation.errors);
-    
-    // Validate permissions (pass tool name for whitelist check)
-    const permissionValidation = PermissionValidator.validate(
-      tool.context.permissions,
-      name
-    );
-    errors.push(...permissionValidation.errors);
-    warnings.push(...permissionValidation.warnings);
-    
-    // Validate examples
-    if (tool.context.examples && tool.context.examples.length > 0) {
-      const exampleValidation = SchemaValidator.validateExamples(
-        tool.context.examples,
-        tool.context.input_schema,
-        tool.context.output_schema
-      );
-      errors.push(...exampleValidation.errors);
-    } else {
-      warnings.push('No examples provided');
+  async loadSingleTool(tool: ToolCodeBreadcrumb): Promise<void> {
+    if (!tool.context || !tool.context.code) {
+      console.error(`[DenoToolRuntime] Invalid tool - missing context or code`);
+      return;
     }
     
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings
-    };
+    if (!tool.tags || !tool.tags.includes('approved')) {
+      console.warn(`[DenoToolRuntime] Tool ${tool.context.name} not approved - skipping`);
+      return;
+    }
+    
+    this.tools.set(tool.context.name, tool);
+    console.log(`[DenoToolRuntime] Loaded approved tool: ${tool.context.name}`);
   }
   
   /**
@@ -514,6 +476,18 @@ export class DenoToolRuntime {
    */
   getQueueStatus(): { running: number; queued: number; maxConcurrent: number } {
     return this.executionQueue.getStatus();
+  }
+  
+  /**
+   * Add a tool by loading it from breadcrumb ID
+   */
+  async addToolById(breadcrumbId: string): Promise<void> {
+    try {
+      const tool = await this.client.getBreadcrumb(breadcrumbId) as unknown as ToolCodeBreadcrumb;
+      await this.loadSingleTool(tool);
+    } catch (error) {
+      console.error(`[DenoToolRuntime] Failed to add tool ${breadcrumbId}:`, error);
+    }
   }
 }
 
