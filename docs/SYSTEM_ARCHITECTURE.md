@@ -2161,6 +2161,86 @@ If current version != 5:
 
 ---
 
+## Direct Tool Discovery (v2.1.0)
+
+> **Nov 2025 Update:** Catalog aggregation removed - agents now query tool.code.v1 directly
+
+### The Change
+
+**Before (Aggregation Anti-Pattern):**
+```
+Individual tool.code.v1 breadcrumbs (14 tools)
+    ↓
+tools-runner aggregates → tool.catalog.v1 (with hardcoded llm_hints)
+    ↓
+Agents query catalog
+```
+
+**Problems:**
+- Hardcoded llm_hints in TypeScript code (hidden fallback)
+- Aggregation code to maintain (113 lines)
+- Update lag between tool creation and availability
+- Violated single source of truth
+
+**After (Direct Discovery):**
+```
+Individual tool.code.v1 breadcrumbs (14 tools)
+    ↓
+Agents query tool.code.v1 directly via context_sources
+    ↓
+Context-builder fetches each with llm_hints from tool-code-v1.json schema
+    ↓
+Code excluded, schemas included
+```
+
+**Benefits:**
+- ✅ No hardcoded llm_hints anywhere
+- ✅ No aggregation code
+- ✅ Instant tool availability
+- ✅ Single source of truth (schema.def.v1)
+- ✅ Fail fast (no hidden fallbacks)
+
+### Implementation
+
+**Agent context_sources:**
+```json
+{
+  "always": [
+    {
+      "type": "schema",
+      "schema_name": "tool.code.v1",
+      "method": "all",
+      "limit": 50
+    }
+  ]
+}
+```
+
+**tool-code-v1.json schema llm_hints:**
+```json
+{
+  "include": ["name", "description", "input_schema", "output_schema", "examples"],
+  "exclude": ["code", "permissions", "limits", "ui_schema"]
+}
+```
+
+**Result:** 14 tools × 150 tokens = 2,100 tokens (vs 8,000 with broken catalog)
+
+### Context Token Reduction
+
+**Measured improvement:**
+- Before: 11,000-15,000 tokens (with broken catalog llm_hints)
+- After: 3,900-5,100 tokens (with direct discovery)
+- **Reduction: 66-74%**
+
+**Breakdown:**
+- 14 tools: ~2,100 tokens (full schemas, code excluded)
+- Agent catalog: ~200 tokens
+- Knowledge: ~1,500 tokens
+- Session messages: ~500-1,000 tokens
+
+---
+
 ## Summary
 
 > 🎯 **Key Takeaways** - The essentials of RCRT architecture

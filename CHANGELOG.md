@@ -1,5 +1,64 @@
 # RCRT Changelog
 
+## [4.2.0] - 2025-11-12 - Direct Tool Discovery & Universal Tool Standard
+
+### 🚀 Architectural Breakthrough: Pure RCRT Principles
+
+#### Breaking Changes
+- **Direct Tool Discovery**: Agents query tool.code.v1 directly (not tool.catalog.v1)
+- **Catalog Aggregation REMOVED**: Eliminated 113 lines of aggregation code + 30 lines hardcoded llm_hints
+- **Universal Tool Invocation Standard**: All agents use consistent tool invocation format
+- **Specialist Agents Configuration**: Require llm_config_id to be set via Dashboard (can't function without LLM)
+
+#### Added
+- Universal Tool Invocation Standard in all 4 agent system prompts (400-500 tokens)
+- Direct tool discovery via tool.code.v1 (agents get 14 individual tools with llm_hints applied)
+- `snippets/universal-tool-standard.txt` - Reusable standard block
+- `knowledge/tool-invocation-standard.json` - Complete standard documentation
+- Multi-step merge pattern in tool-debugger (prevents context wipeout)
+
+#### Changed
+- **Agent context_sources**: tool.catalog.v1 → tool.code.v1 (all 4 agents)
+- **LLM tool timeouts**: 60s → 300s (openrouter, venice), 120s → 300s (ollama)
+- **Context blacklist**: Removed tool.code.v1 entry (was blocking direct discovery!)
+- **Schema priority**: tool.code.v1 priority=1, tool.catalog.v1 priority=99 (deprecated)
+- **Dashboard**: Queries tool.code.v1 directly (no catalog dependency)
+- **validation-specialist**: Now includes approved tool examples for pattern learning
+- **tool-debugger**: Now includes all tools for context understanding
+
+#### Removed
+- Catalog aggregation code: 113 lines from bootstrap-tools.ts
+- Hardcoded llm_hints: 30 lines (violated single source of truth)
+- tool.catalog.v1 from all agent context_sources
+- 4 deprecated note agents (bypassed context-builder)
+- 34 backup files (.backup cleanup)
+
+#### Fixed
+- **Critical**: Broken tool.catalog.v1 llm_hints template (referenced non-existent `{{returns}}` field)
+- **Critical**: tool.code.v1 blacklisted in context assembly (prevented direct discovery)
+- **Critical**: Hardcoded llm_hints overriding schema.def.v1 (hidden fallback)
+- Context bloat: 11K-15K tokens → 3.9K-5.1K tokens (66-74% reduction!)
+- Tool-debugger partial update bug (now uses multi-step merge pattern)
+
+#### Performance Impact
+- **Context size**: 66-74% reduction (11,000-15,000 → 3,900-5,100 tokens)
+- **Tool representation**: 2,100 tokens for 14 tools (vs 8,000 with broken catalog)
+- **No aggregation lag**: Tools available instantly when created
+- **Code deleted**: 143 lines (aggregation + hardcoded llm_hints)
+
+#### Architectural Purity Achieved
+- ✅ Everything is a breadcrumb (no aggregation)
+- ✅ Single source of truth (llm_hints only in schema.def.v1)
+- ✅ Fail fast (no hidden fallbacks)
+- ✅ Data-driven (optimized through configuration, not code)
+
+#### Outstanding Issues for Next Session
+- ⚠️ Validation-specialist may reject valid tools (needs LLM to reason properly)
+- ⚠️ Tool-debugger needs testing with new merge pattern
+- ⚠️ tool.error.v1 breadcrumbs might not be created (verify tools-runner error handling)
+
+---
+
 ## [4.1.0] - 2025-11-12 - Tool Lifecycle Fixes & Context Visibility
 
 ### 🔧 Production Readiness & Debugging Improvements

@@ -826,10 +826,14 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
   isSaving: boolean;
   setIsSaving: (val: boolean) => void;
 }) {
-  const [config, setConfig] = useState<ToolConfigValue>({});
+  // Initialize config with current tool state (approved checkbox based on tags)
+  const initialApproved = node.metadata?.tags?.includes('approved') || false;
+  const [config, setConfig] = useState<ToolConfigValue>({
+    approved: initialApproved
+  });
   const [secrets, setSecrets] = useState<any[]>([]);
   const [toolBreadcrumb, setToolBreadcrumb] = useState<any>(null); // Full tool.code.v1 or agent.def.v1 breadcrumb
-  const { authenticatedFetch, isAuthenticated } = useAuthentication();
+  const { authenticatedFetch, isAuthenticated} = useAuthentication();
   const queryClient = useQueryClient();
   
   // Detect if this is an agent or tool
@@ -1142,6 +1146,13 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
             description: 'Whether this tool is enabled',
             defaultValue: true,
           },
+          {
+            key: 'approved',
+            label: 'Approved',
+            type: 'boolean',
+            description: 'Whether this tool is approved for use (adds/removes "approved" tag)',
+            defaultValue: false,
+          },
         ];
     }
   };
@@ -1235,6 +1246,57 @@ function EditToolForm({ node, onSave, isSaving, setIsSaving }: {
     setIsSaving(true);
 
     try {
+      // Handle special flags (enabled, approved) that modify tool breadcrumb tags
+      const hasSpecialFlags = config.hasOwnProperty('enabled') || config.hasOwnProperty('approved');
+      
+      if (hasSpecialFlags && node.id) {
+        console.log('🏷️ Updating tool tags for enabled/approved status');
+        
+        // Fetch current tool breadcrumb
+        const toolResponse = await authenticatedFetch(`/api/breadcrumbs/${node.id}/full`);
+        if (!toolResponse.ok) {
+          throw new Error('Failed to load tool breadcrumb');
+        }
+        const toolBreadcrumb = await toolResponse.json();
+        
+        // Update tags based on enabled/approved
+        let tags = [...(toolBreadcrumb.tags || [])];
+        
+        // Handle "approved" toggle
+        if (config.hasOwnProperty('approved')) {
+          if (config.approved) {
+            // Add approved tag if not present
+            if (!tags.includes('approved')) {
+              tags.push('approved');
+              console.log('✅ Adding "approved" tag');
+            }
+          } else {
+            // Remove approved tag
+            tags = tags.filter(t => t !== 'approved');
+            console.log('❌ Removing "approved" tag');
+          }
+        }
+        
+        // Update the tool breadcrumb tags
+        const updateResponse = await authenticatedFetch(`/api/breadcrumbs/${node.id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'If-Match': `${toolBreadcrumb.version}`,
+          },
+          body: JSON.stringify({ tags }),
+        });
+        
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update tool tags');
+        }
+        
+        console.log('✅ Tool tags updated successfully');
+        await queryClient.invalidateQueries({ queryKey: ['breadcrumbs'] });
+        onSave();
+        return;
+      }
+      
       // Check if this is a context-builder tool or context.config.v1 breadcrumb
       const isContextBuilderTool = node.metadata.title.toLowerCase() === 'context-builder' || 
                                     node.metadata.title.toLowerCase() === 'context_builder';
