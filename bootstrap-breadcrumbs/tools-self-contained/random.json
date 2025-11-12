@@ -3,10 +3,31 @@
   "title": "Random Number Generator (Self-Contained)",
   "description": "Generate random numbers",
   "semantic_version": "2.0.0",
-  "tags": ["tool", "tool:random", "workspace:tools", "self-contained", "approved", "validated", "bootstrap"],
+  "tags": [
+    "tool",
+    "workspace:tools",
+    "tool:random",
+    "approved",
+    "validated",
+    "bootstrap",
+    "testing",
+    "demo",
+    "utility",
+    "tool"
+  ],
   "llm_hints": {
-    "include": ["name", "description", "input_schema", "output_schema", "examples"],
-    "exclude": ["code", "permissions", "limits"]
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits"
+    ]
   },
   "context": {
     "name": "random",
@@ -74,7 +95,9 @@
           "max": 10
         },
         "output": {
-          "numbers": [7]
+          "numbers": [
+            7
+          ]
         },
         "explanation": "Access the number with result.numbers[0]"
       },
@@ -86,7 +109,11 @@
           "count": 3
         },
         "output": {
-          "numbers": [42, 73, 15]
+          "numbers": [
+            42,
+            73,
+            15
+          ]
         },
         "explanation": "Access with result.numbers[0], result.numbers[1], etc."
       },
@@ -97,11 +124,12 @@
           "max": 100
         },
         "output": {
-          "numbers": [84]
+          "numbers": [
+            84
+          ]
         },
         "explanation": "In workflow steps, use ${stepId.numbers[0]}"
       }
     ]
   }
 }
-

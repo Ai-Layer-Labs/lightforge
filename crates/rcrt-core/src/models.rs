@@ -25,6 +25,7 @@ pub struct BreadcrumbCreate {
     pub ttl_type: Option<String>,        // 'never', 'datetime', 'duration', 'usage', 'hybrid'
     pub ttl_config: Option<JsonValue>,   // Duration spec, max_reads, etc
     pub ttl_source: Option<String>,      // 'manual', 'schema-default', 'auto-applied', 'explicit'
+    pub entity_keywords: Option<Vec<String>>,  // Hybrid pointers: tag pointers + extracted keywords
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +70,7 @@ pub struct Breadcrumb {
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
     pub size_bytes: i32,
+    pub entity_keywords: Option<Vec<String>>,  // Hybrid pointers: tag pointers + extracted keywords
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +113,7 @@ pub struct BreadcrumbFull {
     pub updated_by: Option<Uuid>,
     pub size_bytes: i32,
     pub embedding: Option<Vector>,
+    pub entity_keywords: Option<Vec<String>>,  // Hybrid pointers: tag pointers + extracted keywords
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

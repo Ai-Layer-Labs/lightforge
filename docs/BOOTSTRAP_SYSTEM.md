@@ -137,6 +137,48 @@ All agents and tools discover and trigger via **tags**:
 
 **No configuration. No registration. Just tags.**
 
+### 5. Pointer Tags
+
+All bootstrap files now include **pointer tags** for semantic search and intelligent context assembly.
+
+**Pointer tags** are keywords without namespace prefixes that seed vector search:
+
+**Knowledge files**: 5-10 domain keywords
+- `validation-rules-v1.json`: validation, security, code-analysis, pattern-matching, deno, typescript
+- `astral-browser-automation.json`: browser-automation, playwright, puppeteer, web-scraping, testing, security
+- `how-to-create-tools.json`: tool-creation, documentation, guide, typescript, deno
+
+**Tool files**: 3-5 tech/domain keywords
+- `openrouter.json`: llm-integration, api-calling, openai, anthropic
+- `breadcrumb-update.json`: rcrt-api, crud-operations, database
+- `timer.json`: utility, async, scheduling
+
+**Agent files**: 2-3 role keywords
+- `validation-specialist`: security, code-analysis, validation
+- `tool-creator`: tool-creation, code-generation
+- `default-chat-assistant`: coordination, routing
+
+**Why pointer tags matter:**
+
+When context-builder assembles context for an agent, it uses **hybrid search** (vector similarity 60% + keyword matching 40%) with these pointers to find relevant knowledge.
+
+**Example flow**:
+```
+1. validation-specialist needs context for browser tool
+2. Tool has pointer tag: "browser-automation"
+3. context-builder extracts this pointer
+4. Hybrid search finds knowledge.v1 with "browser-automation" tag
+5. Result: validation-specialist gets browser security guide automatically!
+```
+
+**Benefits**:
+- **Automatic discovery**: No manual configuration needed
+- **Semantic relevance**: Finds conceptually related content
+- **Scalable**: Add new domains by adding pointer tags
+- **Symmetric**: Both query and database use same keywords
+
+**See**: `docs/TAG_TAXONOMY.md` for complete specification
+
 ## Tool System
 
 ### Tool Definition Structure

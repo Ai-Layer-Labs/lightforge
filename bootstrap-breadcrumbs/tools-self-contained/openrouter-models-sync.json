@@ -3,13 +3,16 @@
   "title": "OpenRouter Models Sync Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:openrouter-models-sync",
     "workspace:tools",
-    "self-contained",
-    "sync",
+    "tool:openrouter-models-sync",
     "approved",
     "validated",
-    "bootstrap"
+    "bootstrap",
+    "llm-integration",
+    "catalog",
+    "sync",
+    "tool",
+    "sync"
   ],
   "context": {
     "name": "openrouter_models_sync",

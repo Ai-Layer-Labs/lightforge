@@ -4,11 +4,11 @@
   "description": "How llm_hints transform breadcrumbs for LLM consumption - can reduce tokens by 60-90%",
   "semantic_version": "2.1.0",
   "tags": [
-    "knowledge",
-    "documentation",
-    "llm-hints",
+    "workspace:knowledge",
+    "llm-integration",
     "optimization",
-    "workspace:system"
+    "documentation",
+    "transform"
   ],
   "llm_hints": {
     "transform": {
@@ -17,29 +17,35 @@
         "format": "Knowledge: llm_hints System v2.1.0 - Transforms breadcrumbs for LLM context. NEW: Top-level (breadcrumb.llm_hints), precedence Instance > Schema. Can reduce 60-90% tokens. See context.transform_types and context.precedence."
       }
     },
-    "include": ["topic", "purpose", "precedence", "transform_types", "best_practices"],
-    "exclude": ["detailed_examples", "implementation"],
+    "include": [
+      "topic",
+      "purpose",
+      "precedence",
+      "transform_types",
+      "best_practices"
+    ],
+    "exclude": [
+      "detailed_examples",
+      "implementation"
+    ],
     "mode": "replace"
   },
   "context": {
     "topic": "llm-hints-optimization",
     "audience": "LLMs and developers optimizing context",
     "last_updated": "2025-11-07",
-    
     "purpose": {
       "problem": "Raw breadcrumbs contain too much data for LLMs (metadata, IDs, timestamps, implementation details)",
       "solution": "llm_hints transform breadcrumbs to show only relevant data in clean format",
       "impact": "60-90% token reduction while keeping relevant information",
       "example": "tool.code.v1: 5000 tokens → 500 tokens (exclude code, keep description/schemas)"
     },
-    
     "precedence": {
       "v2_1_change": "v2.1.0 moved llm_hints to top-level and FIXED precedence",
       "correct_order": "Instance (breadcrumb.llm_hints) > Schema (schema.def.v1.llm_hints)",
       "allows": "Per-breadcrumb customization while having schema defaults",
       "breaking_change": "NO support for context.llm_hints (legacy location)"
     },
-    
     "transform_types": {
       "format": {
         "description": "Simple {field} replacement",
@@ -58,11 +64,12 @@
       },
       "literal": {
         "description": "Static value",
-        "example": {"literal": "Always this text"},
+        "example": {
+          "literal": "Always this text"
+        },
         "use_when": "Add constant instructions or notes"
       }
     },
-    
     "modes": {
       "replace": {
         "description": "Replace entire context with transform output",
@@ -75,21 +82,18 @@
         "example": "Add 'summary' field while keeping all original data"
       }
     },
-    
     "include_exclude": {
       "include": "Whitelist specific fields (only these appear)",
       "exclude": "Blacklist specific fields (everything except these)",
       "nested_support": "Can exclude nested paths: 'metadata.internal_id'",
       "use_case": "Quickly remove metadata without transforms"
     },
-    
     "where_hints_are_used": {
       "get_breadcrumb_context": "GET /breadcrumbs/{id} applies llm_hints automatically",
       "get_breadcrumb_full": "GET /breadcrumbs/{id}/full does NOT apply hints (raw data)",
       "context_builder": "Fetches breadcrumbs with hints applied for agent context",
       "sdk_usage": "Use /full for raw data, use /{id} for LLM-optimized"
     },
-    
     "best_practices": [
       "Add llm_hints to schemas (all breadcrumbs of that type optimized)",
       "Override at breadcrumb level for special cases (v2.1.0: top-level)",
@@ -98,14 +102,11 @@
       "Test token reduction (GET /breadcrumbs/{id} shows transformed)",
       "For large context, aggressive exclusion saves significant cost"
     ],
-    
     "real_world_impact": {
       "tool_catalog": "Was 8000 tokens, now 1500 tokens (81% reduction)",
       "conversation_history": "Format as 'User: X' instead of full JSON (60% reduction)",
       "knowledge_base": "Exclude examples/code, keep summaries (90% reduction)"
     },
-    
     "critical_for_cost": "LLM API costs scale with tokens. llm_hints can reduce costs 5-10x while maintaining context quality. Essential for production systems."
   }
 }
-

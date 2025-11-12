@@ -124,6 +124,75 @@ Events broadcast globally. Client-side matching triggers execution.
 ✅ **Resilient**: Durable streams survive restarts
 ✅ **Efficient**: Only relevant events delivered
 
+### Tags as Universal Primitive
+
+**The simplest, most powerful design:**
+
+```
+Tags = Routing + Pointers + State
+```
+
+Every tag in RCRT serves triple duty - routing events, seeding semantic search, and managing lifecycle.
+
+**Three tag types:**
+1. `namespace:id` - Routing & identity (workspace:tools, agent:validation-specialist)
+2. `keyword` - Semantic pointers (browser-automation, validation, security)
+3. `state` - Lifecycle (approved, validated, bootstrap, deprecated)
+
+**How they work together:**
+
+**Routing**: Subscription matching
+- Agent subscribes to: `tool.code.v1 + workspace:tools`
+- Tool created with: `workspace:tools` tag
+- Match → Trigger!
+
+**Pointers**: Context discovery
+- Tool has pointer tags: `browser-automation`, `playwright`
+- context-builder extracts these keywords
+- Hybrid search finds: Browser security guides, similar tools
+- Result: Rich, relevant context assembled automatically
+
+**State**: Permissions & lifecycle
+- `approved` → tools-runner loads it
+- `validated` → passed security check
+- `bootstrap` → system tool
+- `deprecated` → scheduled for removal
+
+**Symmetric design**:
+```
+Write (rcrt-server):
+  Extract pointers from tags + content
+    ↓
+  Store in entity_keywords column
+
+Read (context-builder):
+  Extract pointers from trigger
+    ↓
+  Query entity_keywords (hybrid search)
+    ↓
+  Keyword overlap + vector similarity
+```
+
+**ONE primitive. INFINITE power.**
+
+**Example**:
+```
+Knowledge article:
+  tags: ["workspace:knowledge", "browser-automation", "security", "playwright"]
+  entity_keywords: ["browser-automation", "security", "playwright", "page", "eval", ...]
+
+Tool created:
+  tags: ["workspace:tools", "tool:astral", "browser-automation"]
+  entity_keywords: ["browser-automation", "page", "click", ...]
+
+validation-specialist needs context:
+  Hybrid search with "browser-automation" pointer
+    ↓
+  Finds knowledge article (tag match + keyword overlap + vector similarity)
+    ↓
+  Gets security guidance automatically!
+```
+
 ## 3. Transforms Optimize Context
 
 ### The Transform Primitive

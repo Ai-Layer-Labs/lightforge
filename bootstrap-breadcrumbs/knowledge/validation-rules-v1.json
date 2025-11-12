@@ -2,11 +2,13 @@
   "schema_name": "knowledge.v1",
   "title": "Code Validation Rules - Evolving Security Patterns",
   "tags": [
-    "knowledge",
-    "validation-rules",
+    "workspace:knowledge",
+    "validation",
     "security",
     "code-analysis",
-    "workspace:system"
+    "pattern-matching",
+    "deno",
+    "typescript"
   ],
   "context": {
     "topic": "code-validation-security",
@@ -15,7 +17,6 @@
     "version_note": "This breadcrumb evolves via breadcrumb-update when agents learn new patterns",
     "content": {
       "summary": "Dynamic validation rules for tool.code.v1 security analysis. Updated by validation-specialist and tool-debugger agents as they learn safe patterns and discover new threats.",
-      
       "dangerous_patterns": [
         {
           "pattern": "(?<![.$])\\beval\\s*\\(",
@@ -42,7 +43,6 @@
           "date": "2025-11-10"
         }
       ],
-      
       "safe_exceptions": [
         {
           "pattern": "\\.$eval\\s*\\(",
@@ -51,7 +51,11 @@
           "example_safe_usage": "page.$eval('h1', el => el.textContent)",
           "added_by": "system",
           "date": "2025-11-10",
-          "validated_in_tools": ["astral", "puppeteer", "playwright"]
+          "validated_in_tools": [
+            "astral",
+            "puppeteer",
+            "playwright"
+          ]
         },
         {
           "pattern": "\\.evaluate\\s*\\(",
@@ -60,7 +64,11 @@
           "example_safe_usage": "page.evaluate(() => document.title)",
           "added_by": "system",
           "date": "2025-11-10",
-          "validated_in_tools": ["astral", "puppeteer", "playwright"]
+          "validated_in_tools": [
+            "astral",
+            "puppeteer",
+            "playwright"
+          ]
         },
         {
           "pattern": "\\.waitForSelector\\s*\\(",
@@ -69,36 +77,68 @@
           "example_safe_usage": "page.waitForSelector('.content')",
           "added_by": "system",
           "date": "2025-11-10",
-          "validated_in_tools": ["astral"]
+          "validated_in_tools": [
+            "astral"
+          ]
         }
       ],
-      
       "permission_validation": {
         "browser_tools": {
-          "required": ["net", "read", "write", "run", "env", "hrtime"],
-          "forbidden": ["ffi"],
+          "required": [
+            "net",
+            "read",
+            "write",
+            "run",
+            "env",
+            "hrtime"
+          ],
+          "forbidden": [
+            "ffi"
+          ],
           "rationale": "Browser automation needs filesystem, process spawning, and environment access"
         },
         "api_tools": {
-          "required": ["net"],
+          "required": [
+            "net"
+          ],
           "optional": [],
-          "forbidden": ["ffi", "read", "write", "run", "env"],
+          "forbidden": [
+            "ffi",
+            "read",
+            "write",
+            "run",
+            "env"
+          ],
           "rationale": "API calls only need network access"
         },
         "logic_tools": {
           "required": [],
           "optional": [],
-          "forbidden": ["ffi", "read", "write", "run", "env", "net"],
+          "forbidden": [
+            "ffi",
+            "read",
+            "write",
+            "run",
+            "env",
+            "net"
+          ],
           "rationale": "Pure logic needs no external permissions"
         },
         "rcrt_tools": {
-          "required": ["net"],
+          "required": [
+            "net"
+          ],
           "optional": [],
-          "forbidden": ["ffi", "read", "write", "run", "env"],
+          "forbidden": [
+            "ffi",
+            "read",
+            "write",
+            "run",
+            "env"
+          ],
           "rationale": "RCRT API tools need network to call RCRT endpoints"
         }
       },
-      
       "schema_validation": {
         "all_properties_need_type": {
           "rule": "Every property in input_schema and output_schema must have 'type' field",
@@ -111,7 +151,6 @@
           "severity": "error"
         }
       },
-      
       "learning_protocol": {
         "when_to_add_exception": [
           "Pattern matches dangerous rule BUT is actually safe (false positive)",
@@ -131,7 +170,6 @@
           "step_5": "Document in version history via optimistic locking"
         }
       },
-      
       "validation_decision_tree": {
         "step_1": "Extract code from tool.code.v1",
         "step_2": "Check against dangerous_patterns",
@@ -142,14 +180,33 @@
         "step_7": "Validate all schema properties have types",
         "step_8": "Create tool.validation.result.v1 with decision"
       },
-      
       "version_history_example": {
         "description": "This breadcrumb's version history shows what the system learned",
         "versions": [
-          {"version": 1, "date": "2025-11-10", "change": "Initial validation rules", "updated_by": "system"},
-          {"version": 2, "date": "2025-11-10", "change": "Added safe exception: page.$eval()", "updated_by": "tool-debugger"},
-          {"version": 3, "date": "2025-11-10", "change": "Added safe exception: page.waitForSelector()", "updated_by": "validation-specialist"},
-          {"version": 4, "date": "2025-11-11", "change": "Added dangerous pattern: dangerousFunction()", "updated_by": "validation-specialist"}
+          {
+            "version": 1,
+            "date": "2025-11-10",
+            "change": "Initial validation rules",
+            "updated_by": "system"
+          },
+          {
+            "version": 2,
+            "date": "2025-11-10",
+            "change": "Added safe exception: page.$eval()",
+            "updated_by": "tool-debugger"
+          },
+          {
+            "version": 3,
+            "date": "2025-11-10",
+            "change": "Added safe exception: page.waitForSelector()",
+            "updated_by": "validation-specialist"
+          },
+          {
+            "version": 4,
+            "date": "2025-11-11",
+            "change": "Added dangerous pattern: dangerousFunction()",
+            "updated_by": "validation-specialist"
+          }
         ]
       }
     }
@@ -165,4 +222,3 @@
     "mode": "replace"
   }
 }
-

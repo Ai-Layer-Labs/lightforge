@@ -3,9 +3,9 @@
   "title": "JSON Transform Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:json-transform",
     "workspace:tools",
-    "self-contained"
+    "tool:json-transform",
+    "tool"
   ],
   "context": {
     "name": "json-transform",

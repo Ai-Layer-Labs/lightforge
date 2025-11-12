@@ -34,6 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_breadcrumbs_hybrid
 ### 1.2 Apply Migration
 
 Run migration via Docker or `psql`:
+
 ```bash
 docker compose exec db psql -U postgres -d rcrt -f /path/to/0006_entity_metadata.sql
 ```
@@ -495,7 +496,7 @@ Update `docker-compose.yml`:
 ```yaml
 context-builder:
   build: ./crates/rcrt-context-builder
-  environment:
+  enviroment:
     - RCRT_API_URL=http://rcrt:8080
     - DATABASE_URL=postgresql://postgres:password@db:5432/rcrt
     - OWNER_ID=00000000-0000-0000-0000-000000000001
@@ -559,6 +560,7 @@ CMD ["./rcrt-context-builder"]
 Test query: "How do I create a tool?"
 
 Expected logs:
+
 ```
 🔍 Hybrid search with keywords: ["tool", "create", "creation", "deno"]
 ✅ Context assembled: 10+ breadcrumbs, ~5000+ tokens
@@ -566,6 +568,7 @@ Expected logs:
 ```
 
 Expected result ranking:
+
 1. Knowledge breadcrumb (hybrid score ~0.95)
 2. Tool catalog
 3. Recent user messages

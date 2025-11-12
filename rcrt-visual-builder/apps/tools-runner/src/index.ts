@@ -251,10 +251,15 @@ async function dispatchEventToTool(
       processingStatus.clear(); // Simple cleanup - real systems could use TTL
     }
     
+    // Capture context for error handling
+    let toolName = 'unknown';
+    let toolBreadcrumbId: string | undefined;
+    let toolDefinition: any;
+    
     try {
       // Get full breadcrumb details
       const breadcrumb = await client.getBreadcrumb(eventData.breadcrumb_id);
-      const toolName = breadcrumb.context?.tool;
+      toolName = breadcrumb.context?.tool;
       const toolInput = breadcrumb.context?.input;
       
       // 🔧 DEBUG: Log the input being passed to tools
@@ -283,6 +288,12 @@ async function dispatchEventToTool(
         schema_name: 'tool.code.v1',
         tag: `tool:${toolName}`
       });
+      
+      // Capture for error handling
+      if (newToolBreadcrumbs.length > 0) {
+        toolBreadcrumbId = newToolBreadcrumbs[0].id;
+        toolDefinition = newToolBreadcrumbs[0];
+      }
       
       if (newToolBreadcrumbs.length > 0 && globalDenoRuntime) {
         // Execute via Deno runtime (new system)
@@ -358,25 +369,84 @@ async function dispatchEventToTool(
       
       try {
         const errorRequestId = eventData.context?.requestId || eventData.breadcrumb_id;
+        const toolName = eventData.context?.tool || 'unknown';
+        const errorType = determineErrorType(error);
+        const sessionTag = eventData.tags?.find((t: string) => t.startsWith('session:'));
+        
+        // Create tool.response.v1 (for requesting agent)
         await client.createBreadcrumb({
           schema_name: 'tool.response.v1',
-          title: `Error: ${eventData.context?.tool || 'unknown'}`,
+          title: `Error: ${toolName}`,
           tags: [workspace, 'tool:response', `request:${errorRequestId}`],
           context: {
-            request_id: errorRequestId,  // Use requestId from request if available
-            tool: eventData.context?.tool || 'unknown',
+            request_id: errorRequestId,
+            tool: toolName,
             status: 'error',
             error: String(error),
             execution_time_ms: 0,
-            requestedBy: eventData.context?.requestedBy,  // Copy from request for agent routing
+            requestedBy: eventData.context?.requestedBy,
             timestamp: new Date().toISOString()
           }
         });
+        
+        // ✨ ALSO create tool.error.v1 (for tool-debugger)
+        console.log(`🔧 Creating tool.error.v1 for debugging: ${toolName} (${errorType})`);
+        
+        await client.createBreadcrumb({
+          schema_name: 'tool.error.v1',
+          title: `Tool Error: ${toolName} - ${errorType}`,
+          tags: [
+            'tool:error',
+            `tool:${toolName}`,
+            `error:${errorType}`,  // Pointer tag for semantic search!
+            'workspace:tools',
+            ...(sessionTag ? [sessionTag] : [])
+          ],
+          context: {
+            // Who & What
+            tool_name: toolName,
+            tool_breadcrumb_id: toolBreadcrumbId,  // The tool that failed
+            request_id: errorRequestId,
+            requestedBy: eventData.context?.requestedBy,
+            
+            // Error Details
+            error_type: errorType,
+            error_message: String(error),
+            error_stack: (error as any)?.stack || null,
+            
+            // Context
+            tool_input: eventData.context?.input,
+            tool_limits: toolDefinition?.context?.limits,
+            execution_time_ms: 0,
+            
+            // Classification
+            severity: errorType === 'permission' ? 'critical' : 
+                     errorType === 'timeout' ? 'medium' : 'high',
+            retryable: errorType !== 'not-found',
+            
+            // Timestamps
+            failed_at: new Date().toISOString(),
+            attempt_number: 1
+          }
+        });
+        
+        console.log(`✅ Created error breadcrumbs (response + debug) for ${toolName}`);
       } catch (responseError) {
         console.error('Failed to create error response:', responseError);
       }
     }
   }
+}
+
+// Helper: Determine error type from error message
+function determineErrorType(error: any): string {
+  const msg = String(error).toLowerCase();
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout';
+  if (msg.includes('not found')) return 'not-found';
+  if (msg.includes('permission')) return 'permission';
+  if (msg.includes('validation')) return 'validation';
+  if (msg.includes('config')) return 'config';
+  return 'runtime';
 }
 
 // Load environment variables

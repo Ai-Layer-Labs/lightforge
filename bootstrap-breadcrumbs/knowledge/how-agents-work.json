@@ -4,12 +4,11 @@
   "description": "Deep dive into RCRT agent architecture: context-builder pattern, fire-and-forget execution, and why agents are context + reasoning",
   "semantic_version": "1.0.0",
   "tags": [
-    "knowledge",
-    "documentation",
+    "workspace:knowledge",
     "agents",
+    "documentation",
     "architecture",
-    "patterns",
-    "workspace:system"
+    "llm-integration"
   ],
   "llm_hints": {
     "transform": {
@@ -18,15 +17,23 @@
         "format": "Knowledge: Agent Architecture - Agents = Context + Reasoning. CRITICAL: Agents MUST use context-builder (subscribe to agent.context.v1), MUST use fire-and-forget execution. See context.key_principles for essentials."
       }
     },
-    "include": ["topic", "key_principles", "critical_patterns", "working_example", "broken_example"],
-    "exclude": ["detailed_flow", "code_examples"],
+    "include": [
+      "topic",
+      "key_principles",
+      "critical_patterns",
+      "working_example",
+      "broken_example"
+    ],
+    "exclude": [
+      "detailed_flow",
+      "code_examples"
+    ],
     "mode": "replace"
   },
   "context": {
     "topic": "agent-architecture",
     "audience": "LLMs creating or understanding agents",
     "last_updated": "2025-11-07",
-    
     "key_principles": {
       "definition": "Agents = Context + Reasoning (via LLM)",
       "critical_requirements": [
@@ -38,7 +45,6 @@
       "why_context_builder_is_critical": "context-builder does vector search, assembles similar items, provides semantic understanding. Agents without it get EMPTY context and FAIL.",
       "fire_and_forget": "Every agent invocation: Receive event → Process → Create breadcrumb → EXIT. Each trigger is SEPARATE invocation, not continuous loop."
     },
-    
     "critical_patterns": {
       "context_builder_pattern": {
         "description": "The ONLY correct pattern for intelligent agents",
@@ -56,7 +62,6 @@
         ],
         "proof_it_works": "default-chat-assistant uses this pattern and works perfectly"
       },
-      
       "broken_pattern": {
         "description": "What NOT to do (proven to fail)",
         "flow": [
@@ -69,7 +74,6 @@
         "why_it_fails": "Subscription role:'trigger' is NOT fetched by assembleContextFromSubscriptions (only role:'context' is fetched)"
       }
     },
-    
     "agent_structure": {
       "schema_name": "agent.def.v1",
       "required_fields": {
@@ -82,22 +86,35 @@
       "required_subscription_1": {
         "comment": "Pre-assembled context from context-builder",
         "schema_name": "agent.context.v1",
-        "all_tags": ["consumer:{agent_id}"],
+        "all_tags": [
+          "consumer:{agent_id}"
+        ],
         "role": "trigger",
         "key": "assembled_context",
-        "fetch": {"method": "event_data"}
+        "fetch": {
+          "method": "event_data"
+        }
       },
       "required_subscription_2": {
         "comment": "Tool responses for continuation",
         "schema_name": "tool.response.v1",
-        "all_tags": ["workspace:tools"],
-        "context_match": [{"path": "$.requestedBy", "op": "eq", "value": "{agent_id}"}],
+        "all_tags": [
+          "workspace:tools"
+        ],
+        "context_match": [
+          {
+            "path": "$.requestedBy",
+            "op": "eq",
+            "value": "{agent_id}"
+          }
+        ],
         "role": "trigger",
         "key": "tool_response",
-        "fetch": {"method": "event_data"}
+        "fetch": {
+          "method": "event_data"
+        }
       }
     },
-    
     "working_example": {
       "name": "default-chat-assistant",
       "location": "bootstrap-breadcrumbs/system/default-chat-agent.json",
@@ -108,9 +125,13 @@
         "✅ Copies session tags (conversation isolation)"
       ]
     },
-    
     "broken_example": {
-      "names": ["note-tagger", "note-summarizer", "note-insights", "note-eli5"],
+      "names": [
+        "note-tagger",
+        "note-summarizer",
+        "note-insights",
+        "note-eli5"
+      ],
       "location": "bootstrap-breadcrumbs/system/note-*-agent.json",
       "why_they_fail": [
         "❌ Subscribe directly to note.v1 (bypass context-builder)",
@@ -120,7 +141,6 @@
       ],
       "solution": "See docs/NOTE_AGENTS_SOLUTION.md - replace with single note-processor agent using context-builder"
     },
-    
     "response_format": {
       "schema_name": "agent.response.v1 (or domain-specific like note.tags.v1)",
       "required_structure": {
@@ -128,17 +148,23 @@
         "breadcrumb": {
           "schema_name": "agent.response.v1",
           "title": "Chat Response",
-          "tags": ["agent:response", "chat:output", "session:{SESSION_ID}"],
+          "tags": [
+            "agent:response",
+            "chat:output",
+            "session:{SESSION_ID}"
+          ],
           "context": {
             "message": "Your response text",
-            "creator": {"type": "agent", "agent_id": "{agent_id}"},
+            "creator": {
+              "type": "agent",
+              "agent_id": "{agent_id}"
+            },
             "tool_requests": []
           }
         }
       },
       "critical": "MUST copy session tag from trigger to response for conversation isolation"
     },
-    
     "common_mistakes": [
       {
         "mistake": "Subscribing to raw events instead of agent.context.v1",
@@ -161,7 +187,6 @@
         "correct": "Extract session tag from trigger, add to response tags"
       }
     ],
-    
     "quick_start_creating_agent": {
       "step_1": "Use base-agent.json template as reference",
       "step_2": "Define agent_id, system_prompt, capabilities",
@@ -171,7 +196,6 @@
       "step_6": "agent-runner auto-discovers and loads agent",
       "step_7": "context-builder must be configured to create context for your agent"
     },
-    
     "troubleshooting": {
       "agent_not_responding": [
         "Check: Does agent.def.v1 breadcrumb exist?",
@@ -188,4 +212,3 @@
     }
   }
 }
-

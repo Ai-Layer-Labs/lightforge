@@ -1,5 +1,124 @@
 # RCRT Changelog
 
+## [4.0.0] - 2025-11-12 - Pointer-Tag Unification & Generic Architecture
+
+### 🎯 Major Architectural Transformation
+
+**BREAKING CHANGES**: Unified tag taxonomy, pointer-based context assembly, generic context-builder
+
+This release represents one of the most significant architectural transformations in RCRT's history, achieving true data-driven operation with zero hardcoding.
+
+#### Added
+
+- **Unified Tag Taxonomy** - Three tag types (routing, pointer, state) replace chaos
+- **Hybrid Pointer System** - Tags + extracted keywords enable semantic search
+- **entity_keywords column** - Stores hybrid pointers for intelligent context discovery
+- **Generic context-builder** - Zero hardcoded schemas, fully data-driven
+- **context_trigger field** - Agents declare what triggers context assembly
+- **Comprehensive error breadcrumbs** - Dual creation (tool.response.v1 + tool.error.v1)
+- **Auto-debugging system** - tool.error.v1 triggers tool-debugger automatically
+- **TAG_TAXONOMY.md** - Complete specification (3 tag types, examples, migration)
+- **scripts/update-breadcrumb.js** - Hot-reload breadcrumbs without full restart
+- **scripts/update-pointer-tags.js** - Batch tag updater for bootstrap files
+- **Loop prevention** - validation-specialist skips already-approved tools
+
+#### Changed
+
+- **context-builder** - Deleted ~650 lines of hardcoded schema logic
+- **event_handler.rs** - Complete rewrite with pointer-based universal assembly
+- **agent.def.v1 structure** - Added `context_trigger` field to all agents
+- **All specialist agents** - Now subscribe to agent.context.v1 (not raw triggers)
+- **27 bootstrap files** - Added pointer tags, standardized to clean taxonomy
+- **validation-specialist** - Correct response format, 2 subscriptions, loop prevention
+- **tool-debugger** - Broadened scope (all errors: validation, runtime, timeout, config)
+- **tools-runner** - Dual error breadcrumb creation with full diagnostics
+- **SQL queries** - All SELECT/INSERT/UPDATE include entity_keywords
+
+#### Removed
+
+- **selector_subscriptions table** - Simplified to pure tag-based routing
+- **Hardcoded schema checks** - context-builder now discovers agents via context_trigger
+- **Agent-specific assembly methods** - One universal `assemble_with_pointers()`
+- **Fallback logic** - Fail fast, no hidden defaults
+- **self-contained tag** - Redundant for tool.code.v1 (all are self-contained)
+- **Inconsistent tag prefixes** - Cleaned up guide:, specialist:, defines: prefixes
+- **Duplicate routing systems** - Removed per-agent NATS topics
+
+#### Fixed
+
+- **Tag-based routing** - Global broadcast (bc.*.updated) + client-side filtering
+- **Pointer extraction** - rcrt-server populates entity_keywords at creation
+- **Context assembly** - Uses hybrid pointers for semantic search
+- **Agent subscriptions** - All have 2 subscriptions (agent.context.v1 + tool.response.v1)
+- **Error handling** - Creates tool.error.v1 to trigger tool-debugger
+- **Validation loop** - Prevents re-validating approved tools
+- **Hot-reload script** - Now finds existing breadcrumbs by tags (no duplicates)
+
+### Technical Details
+
+**Code Metrics**:
+- Lines deleted: ~650 (hardcoded logic)
+- Lines added: ~350 (generic + helpers)
+- Net reduction: ~300 lines
+- Files modified: 40+
+
+**Architecture**:
+- Hardcoded schemas: 3 → 0
+- Generic assembly methods: 0 → 1
+- Tag types: ∞ → 3
+- Routing systems: 2 → 1
+- Event routing complexity: HIGH → LOW
+
+**Performance**:
+- Context assembly: More accurate (pointer-based discovery)
+- Event routing: Simpler (one topic, client-side filtering)
+- Maintainability: Significantly improved (less code, clearer patterns)
+
+### Migration
+
+**Requirements**:
+- Fresh deploy required (entity_keywords column via migration 0006)
+- Agent definitions updated automatically via bootstrap
+- No backward compatibility - clean architectural break
+
+**Deployment**:
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+**Verification**:
+```sql
+-- Verify entity_keywords populated
+SELECT title, array_length(entity_keywords, 1) as pointer_count
+FROM breadcrumbs 
+WHERE entity_keywords IS NOT NULL 
+LIMIT 5;
+```
+
+### Documentation
+
+- **TAG_TAXONOMY.md** - Complete tag specification created
+- **SYSTEM_ARCHITECTURE.md** - Updated with pointer system and error handling
+- **RCRT_PRINCIPLES.md** - Added Tags as Universal Primitive
+- **BOOTSTRAP_SYSTEM.md** - Added Pointer Tags section
+- **openapi.json** - Removed selector endpoints, documented tag-based routing
+
+### Known Issues
+
+1. **Field name mismatch**: tool-creator generates `limits.timeout`, should be `limits.timeout_ms`
+2. **Dashboard caching**: May need hard refresh to see updated tool catalog
+3. **3 knowledge files**: Have JSON syntax errors in example code (non-blocking)
+
+### Next Steps
+
+1. Fix timeout field name mismatch in tool-creator prompt
+2. Test complete auto-debugging flow (tool.error.v1 → tool-debugger)
+3. Clean up duplicate agent definitions from initial script bugs
+4. Fix JSON syntax errors in knowledge file examples
+
+---
+
 ## [3.1.0] - 2025-11-10 - Self-Creating Tools & Multi-Agent Coordination
 
 ### Added - Autonomous Tool Creation System 🚀

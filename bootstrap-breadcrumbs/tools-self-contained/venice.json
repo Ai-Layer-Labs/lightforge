@@ -3,13 +3,16 @@
   "title": "Venice AI LLM Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:venice",
     "workspace:tools",
-    "self-contained",
-    "llm",
+    "tool:venice",
     "approved",
     "validated",
-    "bootstrap"
+    "bootstrap",
+    "llm-integration",
+    "api-calling",
+    "venice",
+    "tool",
+    "llm"
   ],
   "context": {
     "name": "venice",

@@ -3,12 +3,15 @@
   "title": "Breadcrumb Search Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:breadcrumb-search",
     "workspace:tools",
-    "self-contained",
+    "tool:breadcrumb-search",
     "approved",
     "validated",
-    "bootstrap"
+    "bootstrap",
+    "rcrt-api",
+    "search",
+    "query",
+    "tool"
   ],
   "context": {
     "name": "breadcrumb-search",

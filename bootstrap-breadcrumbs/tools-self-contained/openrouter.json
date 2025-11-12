@@ -3,13 +3,17 @@
   "title": "OpenRouter LLM Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:openrouter",
     "workspace:tools",
-    "self-contained",
-    "llm",
+    "tool:openrouter",
     "approved",
     "validated",
-    "bootstrap"
+    "bootstrap",
+    "llm-integration",
+    "api-calling",
+    "openai",
+    "anthropic",
+    "tool",
+    "llm"
   ],
   "context": {
     "name": "openrouter",

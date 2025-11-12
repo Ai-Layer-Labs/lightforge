@@ -4,12 +4,11 @@
   "description": "Proven patterns for chat, note processing, tool calls, multi-agent coordination",
   "semantic_version": "1.0.0",
   "tags": [
-    "knowledge",
-    "documentation",
+    "workspace:knowledge",
     "patterns",
-    "workflows",
-    "examples",
-    "workspace:system"
+    "documentation",
+    "best-practices",
+    "examples"
   ],
   "llm_hints": {
     "transform": {
@@ -18,15 +17,22 @@
         "format": "Knowledge: Common Patterns - Proven workflows: chat (12 steps, 2-3s), tool calls (fire-and-forget), multi-agent (event choreography). See context.patterns for quick reference."
       }
     },
-    "include": ["topic", "patterns", "tool_invocation", "multi_agent"],
-    "exclude": ["detailed_flows", "code_samples"],
+    "include": [
+      "topic",
+      "patterns",
+      "tool_invocation",
+      "multi_agent"
+    ],
+    "exclude": [
+      "detailed_flows",
+      "code_samples"
+    ],
     "mode": "replace"
   },
   "context": {
     "topic": "common-patterns",
     "audience": "LLMs implementing workflows",
     "last_updated": "2025-11-07",
-    
     "patterns": {
       "chat_message_flow": {
         "description": "User message → Agent response (12 steps, 2-3 seconds)",
@@ -43,7 +49,6 @@
         "total_time": "2-3 seconds (mostly LLM API)",
         "breadcrumbs_created": 4
       },
-      
       "tool_invocation": {
         "description": "How agents call tools",
         "pattern": [
@@ -63,7 +68,6 @@
           "true": "Tool result comes back to agent first (for reasoning)"
         }
       },
-      
       "multi_agent_coordination": {
         "description": "Agents coordinate via breadcrumb subscriptions",
         "pattern": [
@@ -77,7 +81,6 @@
         "example": "note-processor creates note.tags.v1 → UI subscribes to note.tags.v1 → displays",
         "no_direct_calls": "Agents never call each other, only react to breadcrumbs"
       },
-      
       "browser_context_capture": {
         "description": "Multi-tab tracking pattern",
         "pattern": [
@@ -91,7 +94,6 @@
         "benefits": "Agents always see what user is looking at, context switches with tabs"
       }
     },
-    
     "tool_invocation": {
       "simple_tool": {
         "description": "Tools that return results directly",
@@ -108,7 +110,6 @@
         "pattern": "Tool creates tool.request.v1 for another tool → waits via EventBridge → processes"
       }
     },
-    
     "multi_agent": {
       "parallel_processing": {
         "description": "Multiple agents process same trigger",
@@ -122,14 +123,12 @@
         "example": "context-builder → agent → tools-runner → agent (chat flow)"
       }
     },
-    
     "settings_as_breadcrumbs": {
       "description": "Configuration stored as breadcrumbs for sync",
       "schema": "extension.settings.v1",
       "pattern": "Create/update settings breadcrumb → SSE streams to all devices → update UI",
       "benefits": "Cross-device sync, version history, team collaboration"
     },
-    
     "best_practices": [
       "Always use fire-and-forget (create breadcrumb, EXIT)",
       "Tag breadcrumbs for routing (session:X, note:Y)",
@@ -141,4 +140,3 @@
     ]
   }
 }
-

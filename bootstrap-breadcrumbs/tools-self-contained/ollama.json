@@ -3,9 +3,9 @@
   "title": "Ollama Local LLM Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:ollama_local",
     "workspace:tools",
-    "self-contained",
+    "tool:ollama_local",
+    "tool",
     "llm"
   ],
   "context": {

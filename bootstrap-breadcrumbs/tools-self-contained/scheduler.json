@@ -3,13 +3,16 @@
   "title": "Scheduler Tool (Self-Contained)",
   "tags": [
     "tool",
-    "tool:scheduler",
     "workspace:tools",
-    "self-contained",
-    "system",
+    "tool:scheduler",
     "approved",
     "validated",
-    "bootstrap"
+    "bootstrap",
+    "scheduling",
+    "async",
+    "automation",
+    "tool",
+    "system"
   ],
   "context": {
     "name": "scheduler",

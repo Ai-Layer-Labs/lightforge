@@ -613,18 +613,44 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
             return Err((StatusCode::CONFLICT, "duplicate idempotency key".into()));
         }
     }
+    // STEP 1: Extract text for embedding AND pointer extraction (do once)
+    let llm_text = extract_text_for_embedding_struct(&req);
+    
     // Try embedding before insert for atomicity if available
     let emb = embedding_policy::get_or_fallback_embedding(
-        extract_text_for_embedding_struct(&req),
+        llm_text.clone(),
         req.schema_name.as_deref()
     );
     
-    // Apply automatic TTL policies for certain breadcrumb types
+    // STEP 2: POINTER EXTRACTION - Extract before moving req
+    // Tags ARE pointers - extract semantic keywords for context assembly
+    let tag_pointers: Vec<String> = req.tags.iter()
+        .filter(|t| !t.contains(':'))  // No namespace prefix = pointer
+        .filter(|t| !is_state_tag(t))  // Not lifecycle state
+        .map(|t| t.to_lowercase())
+        .collect();
+    
+    // Extract keywords from llm_hints-transformed text
+    let extracted_pointers = extract_keywords_simple(&llm_text);
+    
+    // Combine hybrid pointers
+    let mut all_pointers = tag_pointers;
+    all_pointers.extend(extracted_pointers);
+    all_pointers.sort();
+    all_pointers.dedup();
+    
+    let entity_keywords_final = if all_pointers.is_empty() {
+        None
+    } else {
+        Some(all_pointers)
+    };
+    
+    // STEP 3: Apply automatic TTL policies for certain breadcrumb types
     let mut breadcrumb_create = BreadcrumbCreate {
-        title: req.title,
+        title: req.title.clone(),
         description: None,          // Will be set below
         semantic_version: None,     // Will be set below
-        context: req.context,
+        context: req.context.clone(),
         tags: req.tags.clone(),
         schema_name: req.schema_name.clone(),
         llm_hints: None,            // Will be set below
@@ -634,6 +660,7 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         ttl_type: None,
         ttl_config: None,
         ttl_source: None,
+        entity_keywords: entity_keywords_final,  // Hybrid pointers
     };
     
     // Map new fields from request to BreadcrumbCreate
@@ -657,7 +684,7 @@ async fn create_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
         tracing::info!("🔧 NATS: Publishing breadcrumb events for {}", bc.id);
         
         // Send both created and updated for immediate consumers that expect either
-        let mut payload_base = json!({
+        let payload_base = json!({
             "breadcrumb_id": bc.id,
             "owner_id": auth.owner_id,
             "version": bc.version,
@@ -924,13 +951,14 @@ async fn dispatch_webhooks(state: &AppState, owner_id: Uuid, _bc: &rcrt_core::mo
     let Ok(agents) = state.db.list_agents(owner_id).await else { return; };
     
     // Dispatch webhooks for each agent that has them configured
-    for agent in agents {
-        if let Ok(hooks) = state.db.list_agent_webhooks(owner_id, agent.id).await {
-            let secret = state.db.get_agent_webhook_secret(owner_id, agent.id).await.ok().flatten();
+    // list_agents returns Vec<(agent_id, roles, created_at)>
+    for (agent_id, _roles, _created_at) in agents {
+        if let Ok(hooks) = state.db.list_agent_webhooks(owner_id, agent_id).await {
+            let secret = state.db.get_agent_webhook_secret(owner_id, agent_id).await.ok().flatten();
             for (_id, url) in hooks {
                 let db = state.db.clone();
                 let payload_str = payload.to_string();
-                tokio::spawn(dispatch_webhook(db, owner_id, agent.id, url, payload_str, secret.clone()));
+                tokio::spawn(dispatch_webhook(db, owner_id, agent_id, url, payload_str, secret.clone()));
             }
         }
     }
@@ -1677,6 +1705,47 @@ async fn trigger_hygiene_run(State(state): State<AppState>, auth: AuthContext) -
         "total_cleaned": total_cleaned,
         "message": "Manual hygiene run completed successfully"
     })))
+}
+
+// ============ POINTER TAG HELPERS ============
+// Support for hybrid pointer system: tags ARE pointers
+
+fn is_state_tag(tag: &str) -> bool {
+    matches!(tag,
+        "approved" | "validated" | "bootstrap" | "deprecated" |
+        "draft" | "archived" | "ephemeral" | "error" | "warning" | "info"
+    )
+}
+
+fn is_domain_term(word: &str) -> bool {
+    // RCRT domain vocabulary
+    // Sync with context-builder entity_extractor.rs
+    matches!(word,
+        "breadcrumb" | "breadcrumbs" | "agent" | "agents" | "tool" | "tools" |
+        "context" | "embedding" | "semantic" | "vector" | "schema" | "secret" |
+        "create" | "search" | "execute" | "configure" | "update" | "delete" |
+        "deno" | "typescript" | "rust" | "postgresql" | "browser" | "playwright" |
+        "permission" | "workflow" | "catalog" | "validation" | "security" |
+        "automation" | "testing" | "scraping" | "analysis" | "pattern" |
+        "knowledge" | "guide" | "documentation" | "integration" | "calling" |
+        "openai" | "anthropic" | "claude" | "openrouter" | "venice" |
+        "database" | "postgres" | "crud" | "operations" | "query"
+    )
+}
+
+fn extract_keywords_simple(text: &str) -> Vec<String> {
+    let text_lower = text.to_lowercase();
+    
+    // Simple word extraction without regex (regex crate not in dependencies)
+    // Split on whitespace and punctuation, keep domain terms
+    let keywords: Vec<String> = text_lower
+        .split(|c: char| !c.is_alphanumeric() && c != '-')
+        .filter(|w| w.len() >= 4)  // 4+ chars
+        .filter(|w| is_domain_term(w))
+        .map(|s| s.to_string())
+        .collect();
+    
+    keywords
 }
 
 

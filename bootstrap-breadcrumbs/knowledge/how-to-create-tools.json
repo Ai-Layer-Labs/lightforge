@@ -2,12 +2,12 @@
   "schema_name": "knowledge.v1",
   "title": "Complete Guide: Creating Self-Contained Tools in RCRT",
   "tags": [
-    "knowledge",
+    "workspace:knowledge",
+    "tool-creation",
     "documentation",
-    "tools",
-    "development",
-    "tutorial",
-    "workspace:system"
+    "guide",
+    "typescript",
+    "deno"
   ],
   "context": {
     "topic": "tool-development",

@@ -3,10 +3,30 @@
   "title": "Echo Tool (Self-Contained)",
   "description": "Returns the input unchanged - useful for testing",
   "semantic_version": "2.0.0",
-  "tags": ["tool", "tool:echo", "workspace:tools", "self-contained", "approved", "validated", "bootstrap"],
+  "tags": [
+    "tool",
+    "workspace:tools",
+    "tool:echo",
+    "approved",
+    "validated",
+    "bootstrap",
+    "testing",
+    "demo",
+    "tool"
+  ],
   "llm_hints": {
-    "include": ["name", "description", "input_schema", "output_schema", "examples"],
-    "exclude": ["code", "permissions", "limits"]
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits"
+    ]
   },
   "context": {
     "name": "echo",
@@ -22,7 +42,9 @@
           "description": "Message to echo"
         }
       },
-      "required": ["message"]
+      "required": [
+        "message"
+      ]
     },
     "output_schema": {
       "type": "object",
@@ -75,4 +97,3 @@
     ]
   }
 }
-

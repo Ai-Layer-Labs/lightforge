@@ -2,11 +2,11 @@
   "schema_name": "knowledge.v1",
   "title": "Tool Validation Rules - Quick Reference",
   "tags": [
-    "knowledge",
-    "tool-validation",
-    "checklist",
-    "reference",
-    "workspace:system"
+    "workspace:knowledge",
+    "validation",
+    "security",
+    "code-analysis",
+    "tools"
   ],
   "context": {
     "topic": "tool-validation-rules",
@@ -14,7 +14,6 @@
     "last_updated": "2025-11-10",
     "content": {
       "summary": "Focused validation rules and checklist for tool.code.v1 creation. Use this as your validation checklist BEFORE uploading tools.",
-      
       "structure_requirements": {
         "must_have": [
           "schema_name = 'tool.code.v1'",
@@ -28,7 +27,6 @@
           "examples array with description, input, output, explanation"
         ]
       },
-      
       "permissions_by_tool_type": {
         "browser_automation_tools": {
           "description": "Astral, Puppeteer, Playwright",
@@ -91,7 +89,6 @@
           "explanation": "Need network to call RCRT API"
         }
       },
-      
       "never_allow": {
         "ffi_true": {
           "rule": "NEVER set ffi: true",
@@ -101,20 +98,39 @@
         },
         "eval_patterns": {
           "rule": "NEVER use eval(), Function(), or new Function()",
-          "patterns_blocked": ["eval\\s*\\(", "Function\\s*\\(", "new\\s+Function"],
+          "patterns_blocked": [
+            "eval\\s*\\(",
+            "Function\\s*\\(",
+            "new\\s+Function"
+          ],
           "reason": "Dynamic code execution is a security risk",
           "violation_message": "Dangerous pattern detected: eval\\s*\\(",
           "alternatives": "Use direct function calls, page.evaluate() with inline arrow functions"
         }
       },
-      
       "output_schema_rules": {
         "all_properties_need_type": {
           "rule": "Every property in output_schema MUST have a 'type' field",
-          "correct": {"result": {"type": "string", "description": "The result"}},
-          "incorrect": {"result": {"description": "The result"}},
+          "correct": {
+            "result": {
+              "type": "string",
+              "description": "The result"
+            }
+          },
+          "incorrect": {
+            "result": {
+              "description": "The result"
+            }
+          },
           "violation_message": "Property 'result' must have a 'type'",
-          "valid_types": ["string", "number", "boolean", "object", "array", "any"]
+          "valid_types": [
+            "string",
+            "number",
+            "boolean",
+            "object",
+            "array",
+            "any"
+          ]
         },
         "nested_properties": {
           "rule": "Nested objects must also define types",
@@ -122,14 +138,17 @@
             "user": {
               "type": "object",
               "properties": {
-                "name": {"type": "string"},
-                "age": {"type": "number"}
+                "name": {
+                  "type": "string"
+                },
+                "age": {
+                  "type": "number"
+                }
               }
             }
           }
         }
       },
-      
       "code_quality_rules": {
         "export_required": "Must have: export async function execute(input, context)",
         "input_validation": "Validate all required inputs at start of function",
@@ -137,7 +156,6 @@
         "type_safety": "Define TypeScript interfaces for Input, Output, Context",
         "resource_cleanup": "Close connections, browsers, files in finally blocks"
       },
-      
       "quick_validation_checklist": [
         "☐ schema_name = 'tool.code.v1'",
         "☐ tags include: 'tool', 'tool:NAME', 'workspace:tools', 'self-contained'",
@@ -150,7 +168,6 @@
         "☐ ui_schema = {configurable: false}",
         "☐ examples with description, input, output, explanation"
       ],
-      
       "common_validation_errors": [
         {
           "error": "Property 'result' must have a 'type'",
@@ -184,7 +201,6 @@
           "where": "permissions.env"
         }
       ],
-      
       "debugging_workflow": {
         "step_1": "Read validation error message",
         "step_2": "Find error in common_validation_errors list above",
@@ -205,4 +221,3 @@
     "mode": "replace"
   }
 }
-

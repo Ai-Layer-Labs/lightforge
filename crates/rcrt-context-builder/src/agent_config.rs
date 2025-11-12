@@ -12,7 +12,16 @@ use sqlx::PgPool;
 pub struct AgentDefinition {
     pub agent_id: String,
     pub llm_config_id: Option<String>,
+    pub context_trigger: Option<ContextTrigger>,  // NEW: Declares what triggers context assembly
     pub context_sources: Option<ContextSources>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextTrigger {
+    pub schema_name: String,
+    pub all_tags: Option<Vec<String>>,
+    pub any_tags: Option<Vec<String>>,
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,30 +67,40 @@ pub async fn load_agent_definition(
     .await?;
     
     let Some((context,)) = row else {
-        // No agent found - return empty definition
-        tracing::warn!("Agent {} not found, using empty context_sources", agent_id);
-        return Ok(AgentDefinition {
-            agent_id: agent_id.to_string(),
-            llm_config_id: None,
-            context_sources: None,
-        });
+        // No agent found - fail fast
+        anyhow::bail!("Agent {} not found", agent_id);
     };
     
-    // Parse context_sources if present
-    let context_sources = context
-        .get("context_sources")
-        .and_then(|v| serde_json::from_value(v.clone()).ok());
+    // Parse full agent definition from context
+    // Includes: agent_id, llm_config_id, context_trigger, context_sources
+    let agent_def: AgentDefinition = serde_json::from_value(context)?;
     
-    // Parse llm_config_id if present
-    let llm_config_id = context
-        .get("llm_config_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+    Ok(agent_def)
+}
+
+/// Load ALL agent definitions that declare context_trigger
+/// Used by context-builder to find which agents want context for a given trigger
+pub async fn load_all_agent_definitions_with_triggers(
+    db_pool: &PgPool,
+) -> Result<Vec<AgentDefinition>> {
+    let rows = sqlx::query_as::<_, (serde_json::Value,)>(
+        "SELECT context 
+         FROM breadcrumbs 
+         WHERE schema_name = 'agent.def.v1'
+           AND tags @> ARRAY['workspace:agents']
+           AND context ? 'context_trigger'
+         ORDER BY updated_at DESC"
+    )
+    .fetch_all(db_pool)
+    .await?;
     
-    Ok(AgentDefinition {
-        agent_id: agent_id.to_string(),
-        llm_config_id,
-        context_sources,
-    })
+    let mut agents = Vec::new();
+    for (context,) in rows {
+        if let Ok(agent_def) = serde_json::from_value::<AgentDefinition>(context) {
+            agents.push(agent_def);
+        }
+    }
+    
+    Ok(agents)
 }
 

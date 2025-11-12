@@ -391,18 +391,21 @@ agents.{agent_id}.events     - Per-agent filtered events
 
 **Purpose:** Assemble highly relevant, token-efficient context for agents using graph exploration
 
-**Major Evolution (Nov 10, 2025):**
+**Major Evolution (Nov 12, 2025 - Pointer-Tag Unification):**
+- ✅ **Fully generic** - Zero hardcoded schemas (deleted ~650 lines)
+- ✅ **Pointer-based discovery** - Uses hybrid pointers for semantic search
+- ✅ **context_trigger pattern** - Agents declare what triggers context assembly
 - ✅ Graph-based retrieval (`breadcrumb_edges` table with 4 edge types)
-- ✅ Multi-seed exploration (vector search finds entry points, graph expands)
+- ✅ Multi-seed exploration (pointer tags find entry points, graph expands)
 - ✅ llm_hints-based embeddings (human-readable, searchable - not JSON)
 - ✅ Model-aware context budgets (50K-750K tokens based on model capacity)
-- ✅ Unified architecture (removed 270+ lines of duplication from agent-runner)
 
 **Current Implementation:**
-- **Dynamic**: Loads agent.def.v1 to read `context_sources`
-- **Multi-seed**: Collects entry points from 4 sources
+- **Fully data-driven**: Discovers agents via `context_trigger` field
+- **Pointer-powered**: Hybrid search using tag pointers + extracted keywords
+- **Multi-seed**: Collects entry points from configured sources + pointers
 - **Graph exploration**: PathFinder traverses from all seeds
-- **Intelligent**: 99.5% token reduction, 100% relevance
+- **Universal**: ONE assembly method for ALL agents (no schema checks!)
 
 **Process (Multi-Seed Graph Exploration):**
 ```
@@ -945,6 +948,130 @@ nats.subscribe("bc.*.updated", (msg) => {
 - **Scalable**: Stateless client filtering, run 100 instances
 - **Debuggable**: All events visible in logs
 - **Flexible**: Any tag pattern works instantly
+
+---
+
+### Pointer-Based Context Assembly
+
+**The Unified Primitive**: Tags = Routing + Pointers + State
+
+Every tag serves triple duty in RCRT:
+1. **Routing** - Subscription matching (namespace:id tags)
+2. **Pointers** - Semantic search seeds (keyword tags)
+3. **State** - Lifecycle filtering (state tags)
+
+**Hybrid Pointer System**:
+
+```
+Write Side (rcrt-server):
+  Breadcrumb created
+    ↓
+  Extract pointers:
+    - From tags (explicit: browser-automation, validation)
+    - From content (dynamic: page, click, selector)
+    ↓
+  Store in entity_keywords column
+
+Read Side (context-builder):
+  Trigger event received
+    ↓
+  Extract pointers:
+    - From trigger.tags (explicit)
+    - From trigger.entity_keywords (cached)
+    ↓
+  Hybrid search (vector 60% + keywords 40%)
+    ↓
+  Seeds for graph walking
+```
+
+**Symmetric Design**: Both sides have hybrid pointers for accurate matching
+
+**Example Flow**:
+```
+Tool created:
+  tags: ["workspace:tools", "tool:astral", "browser-automation", "playwright"]
+  entity_keywords: ["browser-automation", "playwright", "page", "click", "screenshot"]
+  
+validation-specialist needs context:
+  ↓
+  Extracts pointers: ["browser-automation", "playwright", ...]
+  ↓
+  Hybrid search finds:
+    - Browser security guide (has "browser-automation" pointer)
+    - Playwright documentation (has "playwright" pointer)
+    - Similar browser tools (keyword overlap)
+  ↓
+  Assembles rich context automatically!
+```
+
+**Benefits**:
+- **Accurate**: Finds semantically relevant content
+- **Automatic**: No manual context configuration needed
+- **Scalable**: Works for any domain (just add pointer tags)
+- **Intelligent**: Combines explicit curation + dynamic discovery
+
+---
+
+### Comprehensive Error Handling
+
+**Dual Breadcrumb Pattern** on tool errors:
+
+```
+Tool fails
+  ↓
+tools-runner creates TWO breadcrumbs:
+  
+  1. tool.response.v1
+     Purpose: Return error to requesting agent
+     Tags: tool:response, request:{id}
+     Context: {status: "error", error: "..."}
+  
+  2. tool.error.v1
+     Purpose: Trigger tool-debugger for auto-healing
+     Tags: tool:error, tool:{name}, error:{type}
+     Context: Complete diagnostics
+```
+
+**Error Classification** via pointer tags:
+- `error:timeout` → Finds timeout debugging guides
+- `error:permission` → Finds permission troubleshooting
+- `error:runtime` → Finds runtime error patterns
+- `error:config` → Finds configuration guides
+- `error:validation` → Finds validation knowledge
+
+**Auto-Healing Flow**:
+```
+1. Tool fails (timeout, crash, permission denied, etc.)
+2. tools-runner creates tool.error.v1 with:
+   - Error type classification
+   - Full diagnostics (stack, limits, input)
+   - Pointer tag (error:timeout)
+   - Tool breadcrumb ID
+3. context-builder sees tool.error.v1
+4. Finds: tool-debugger wants context (context_trigger matches!)
+5. Assembles context:
+   - Error details (trigger)
+   - Debugging guides (via error:{type} pointer!)
+   - Tool definition
+   - Similar error fixes
+6. tool-debugger triggers
+7. Analyzes error, creates fix via breadcrumb-update
+8. System heals itself automatically!
+```
+
+**Error Breadcrumb Structure**:
+```typescript
+{
+  schema_name: 'tool.error.v1',
+  tags: ['tool:error', 'tool:{name}', 'error:{type}', 'workspace:tools'],
+  context: {
+    tool_name, tool_breadcrumb_id, request_id, requestedBy,
+    error_type, error_message, error_stack,
+    tool_input, tool_limits, execution_time_ms,
+    severity, retryable, failed_at, attempt_number
+  }
+}
+```
 
 ---
 

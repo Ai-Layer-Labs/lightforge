@@ -3,9 +3,9 @@
   "title": "Workflow Orchestrator (Self-Contained)",
   "tags": [
     "tool",
-    "tool:workflow",
     "workspace:tools",
-    "self-contained"
+    "tool:workflow",
+    "tool"
   ],
   "context": {
     "name": "workflow",

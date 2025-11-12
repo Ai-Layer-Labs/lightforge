@@ -3,10 +3,28 @@
   "title": "Calculator Tool (Self-Contained)",
   "description": "Perform mathematical calculations - supports basic arithmetic, parentheses, and common math functions",
   "semantic_version": "2.0.0",
-  "tags": ["tool", "tool:calculator", "workspace:tools", "self-contained"],
+  "tags": [
+    "tool",
+    "workspace:tools",
+    "tool:calculator",
+    "utility",
+    "math",
+    "tool"
+  ],
   "llm_hints": {
-    "include": ["name", "description", "input_schema", "output_schema", "examples"],
-    "exclude": ["code", "permissions", "limits", "ui_schema"]
+    "include": [
+      "name",
+      "description",
+      "input_schema",
+      "output_schema",
+      "examples"
+    ],
+    "exclude": [
+      "code",
+      "permissions",
+      "limits",
+      "ui_schema"
+    ]
   },
   "context": {
     "name": "calculator",
@@ -22,7 +40,9 @@
           "description": "Mathematical expression to evaluate (e.g., \"2 + 2\", \"(5 * 3) / 2\", \"Math.sqrt(16)\")"
         }
       },
-      "required": ["expression"]
+      "required": [
+        "expression"
+      ]
     },
     "output_schema": {
       "type": "object",
@@ -40,7 +60,10 @@
           "description": "Formatted result string"
         }
       },
-      "required": ["result", "expression"]
+      "required": [
+        "result",
+        "expression"
+      ]
     },
     "permissions": {
       "net": false,
@@ -100,4 +123,3 @@
     ]
   }
 }
-

@@ -4,11 +4,11 @@
   "description": "How pgvector embeddings enable semantic search - finding relevant content by meaning, not keywords",
   "semantic_version": "1.0.0",
   "tags": [
-    "knowledge",
-    "documentation",
-    "vector-search",
+    "workspace:knowledge",
+    "semantic-search",
+    "vector",
     "embeddings",
-    "workspace:system"
+    "search"
   ],
   "llm_hints": {
     "transform": {
@@ -17,15 +17,22 @@
         "format": "Knowledge: Vector Search - Semantic similarity via pgvector (384-dim embeddings). Hybrid mode combines vector (60%) + keywords (40%) for 95% accuracy. Blacklist excludes system internals. See context.how_it_works."
       }
     },
-    "include": ["topic", "how_it_works", "hybrid_search", "blacklist_system"],
-    "exclude": ["implementation_details", "sql_queries"],
+    "include": [
+      "topic",
+      "how_it_works",
+      "hybrid_search",
+      "blacklist_system"
+    ],
+    "exclude": [
+      "implementation_details",
+      "sql_queries"
+    ],
     "mode": "replace"
   },
   "context": {
     "topic": "vector-search-semantic",
     "audience": "LLMs understanding context assembly and search",
     "last_updated": "2025-11-07",
-    
     "how_it_works": {
       "embedding_generation": "Text → ONNX MiniLM model → 384-dim vector",
       "storage": "PostgreSQL with pgvector extension",
@@ -33,7 +40,6 @@
       "speed": "Sub-100ms for 100K breadcrumbs with ivfflat index",
       "automatic": "Embeddings generated on breadcrumb creation"
     },
-    
     "hybrid_search": {
       "description": "Combines vector similarity with entity keyword matching",
       "vector_component": "60% weight - semantic similarity",
@@ -42,7 +48,6 @@
       "entity_extraction": "GLiNER extracts high-confidence keywords from content",
       "sql_formula": "(vector_score * 0.6) + (keyword_score * 0.4)"
     },
-    
     "blacklist_system": {
       "purpose": "Exclude system internals from search results",
       "location": "context.blacklist.v1 breadcrumb",
@@ -59,7 +64,6 @@
       "why": "Search should find user content, not system metadata",
       "loaded": "context-builder loads at startup, caches in memory"
     },
-    
     "search_strategies": {
       "recent": {
         "method": "Order by created_at DESC",
@@ -82,7 +86,6 @@
         "fast": "GIN index on tags array"
       }
     },
-    
     "context_builder_usage": {
       "for_user_messages": [
         "Recent: 20 breadcrumbs in session (conversation history)",
@@ -92,14 +95,12 @@
       ],
       "result": "Rich context enabling intelligent agent responses"
     },
-    
     "api_usage": {
       "vector_search": "GET /breadcrumbs/search?q=your query&nn=10",
       "with_filters": "GET /breadcrumbs/search?q=query&schema_name=note.v1&tag=important",
       "returns": "Array of breadcrumbs sorted by similarity",
       "auto_embed": "Server embeds query text automatically"
     },
-    
     "optimization_tips": [
       "Use specific tags to narrow search space",
       "Add schemas to blacklist if they're system internals",
@@ -107,8 +108,6 @@
       "Hybrid search more accurate but slightly slower",
       "Entity keywords improve accuracy significantly"
     ],
-    
     "this_enables": "Semantic understanding - find relevant content by meaning, not exact keywords. Critical for intelligent agent context assembly."
   }
 }
-

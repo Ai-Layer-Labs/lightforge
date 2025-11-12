@@ -611,6 +611,7 @@ impl HygieneRunner {
                 ttl_type: Some("datetime".to_string()),
                 ttl_config: None,
                 ttl_source: Some("auto-applied".to_string()),
+                entity_keywords: None,  // System stats don't need semantic search
             },
             None // No embedding needed for stats
         ).await?;
