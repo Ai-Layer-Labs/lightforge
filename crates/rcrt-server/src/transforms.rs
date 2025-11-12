@@ -4,11 +4,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use handlebars::Handlebars;
 use jsonpath_lib as jsonpath;
-use sqlx;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -36,82 +33,16 @@ pub enum TransformRule {
     Format { format: String }, // Simple {field} replacement
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmHints {
+    #[serde(default)]  // Empty vec if missing
+    pub exclude: Vec<String>,
     pub transform: Option<HashMap<String, TransformRule>>,
-    pub include: Option<Vec<String>>,
-    pub exclude: Option<Vec<String>>,
     pub mode: Option<TransformMode>,
 }
 
 pub struct TransformEngine {
     handlebars: Handlebars<'static>,
-}
-
-/// Cache for schema definitions and their LLM hints
-pub struct SchemaDefinitionCache {
-    definitions: Arc<RwLock<HashMap<String, LlmHints>>>,
-    db: Arc<rcrt_core::db::Db>,
-}
-
-impl SchemaDefinitionCache {
-    pub fn new(db: Arc<rcrt_core::db::Db>) -> Self {
-        Self {
-            definitions: Arc::new(RwLock::new(HashMap::new())),
-            db,
-        }
-    }
-
-    /// Load LLM hints for a schema from database (cached)
-    pub async fn load_schema_hints(&self, schema_name: &str) -> Option<LlmHints> {
-        // Check cache first
-        {
-            let cache = self.definitions.read().await;
-            if let Some(hints) = cache.get(schema_name) {
-                return Some(hints.clone());
-            }
-        }
-        
-        // Load schema definition from database using direct query
-        let tag = format!("defines:{}", schema_name);
-        let result = sqlx::query_as::<_, (Value,)>(
-            r#"SELECT context FROM breadcrumbs 
-               WHERE schema_name = 'schema.def.v1' 
-               AND $1 = ANY(tags)
-               LIMIT 1"#
-        )
-        .bind(&tag)
-        .fetch_optional(&self.db.pool)
-        .await
-        .ok()?;
-        
-        let context = result?.0;
-        
-        // Extract llm_hints from context
-        let hints_value = context.get("llm_hints")?;
-        let hints: LlmHints = serde_json::from_value(hints_value.clone()).ok()?;
-        
-        // Cache and return
-        {
-            let mut cache = self.definitions.write().await;
-            cache.insert(schema_name.to_string(), hints.clone());
-        }
-        
-        Some(hints)
-    }
-
-    /// Refresh cache by clearing it (will reload on next access)
-    pub async fn refresh(&self) {
-        let mut cache = self.definitions.write().await;
-        cache.clear();
-    }
-
-    /// Preload commonly used schemas
-    pub async fn preload(&self, schema_names: &[&str]) {
-        for schema_name in schema_names {
-            let _ = self.load_schema_hints(schema_name).await;
-        }
-    }
 }
 
 impl TransformEngine {
@@ -125,12 +56,9 @@ impl TransformEngine {
     pub fn apply_llm_hints(&self, context: &Value, hints: &LlmHints) -> Result<Value, String> {
         let mut result = context.clone();
 
-        // Apply include/exclude filters first
-        if let Some(include) = &hints.include {
-            result = self.filter_fields(&result, include, true)?;
-        }
-        if let Some(exclude) = &hints.exclude {
-            result = self.filter_fields(&result, exclude, false)?;
+        // Apply exclude filter (required field)
+        if !hints.exclude.is_empty() {
+            result = self.filter_fields(&result, &hints.exclude, false)?;
         }
 
         // Apply transforms
@@ -277,28 +205,33 @@ impl TransformEngine {
                 let mut result = serde_json::Map::new();
                 
                 for (key, val) in obj {
-                    let should_include = fields.iter().any(|f| {
-                        // Support nested field paths like "metadata.internal_id"
-                        if f.contains('.') {
-                            f.starts_with(&format!("{}.", key))
-                        } else {
-                            f == key
-                        }
-                    });
+                    // Check if this exact field should be processed
+                    let exact_match = fields.iter().any(|f| f == key);
                     
-                    if (include && should_include) || (!include && !should_include) {
-                        // For nested exclusions, process recursively
-                        if !include && fields.iter().any(|f| f.starts_with(&format!("{}.", key))) {
-                            // This field has nested exclusions
-                            let nested_fields: Vec<String> = fields.iter()
-                                .filter(|f| f.starts_with(&format!("{}.", key)))
-                                .map(|f| f.strip_prefix(&format!("{}.", key)).unwrap().to_string())
-                                .collect();
-                            
-                            let filtered_val = self.filter_fields(val, &nested_fields, include)?;
-                            result.insert(key.clone(), filtered_val);
-                        } else {
+                    // Check if this field has nested exclusions
+                    let has_nested = fields.iter().any(|f| f.starts_with(&format!("{}.", key)));
+                    
+                    if include {
+                        // Include mode: only keep fields in the list
+                        if exact_match {
                             result.insert(key.clone(), val.clone());
+                        }
+                    } else {
+                        // Exclude mode: keep fields NOT in the list
+                        if !exact_match {
+                            if has_nested {
+                                // This field has nested exclusions, process recursively
+                                let nested_fields: Vec<String> = fields.iter()
+                                    .filter(|f| f.starts_with(&format!("{}.", key)))
+                                    .map(|f| f.strip_prefix(&format!("{}.", key)).unwrap().to_string())
+                                    .collect();
+                                
+                                let filtered_val = self.filter_fields(val, &nested_fields, include)?;
+                                result.insert(key.clone(), filtered_val);
+                            } else {
+                                // No nested exclusions, keep as-is
+                                result.insert(key.clone(), val.clone());
+                            }
                         }
                     }
                 }
@@ -317,27 +250,23 @@ mod tests {
     fn test_template_transform() {
         let engine = TransformEngine::new();
         let context = json!({
-            "items": [
-                {"name": "Alice", "age": 30},
-                {"name": "Bob", "age": 25}
-            ]
+            "name": "TestUser",
+            "count": 5
         });
         
         let hints = LlmHints {
+            exclude: vec![],  // No exclusions
             transform: Some(HashMap::from([(
                 "summary".to_string(),
                 TransformRule::Template {
-                    template: "{{context.items.length}} users".to_string()
+                    template: "User: {{context.name}} (count: {{context.count}})".to_string()
                 }
             )])),
             mode: Some(TransformMode::Replace),
-            ..Default::default()
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
-        // Note: Handlebars doesn't support .length directly, need to adjust
-        // For now this is a placeholder test
-        assert!(result.is_object());
+        assert_eq!(result["summary"], json!("User: TestUser (count: 5)"));
     }
 
     #[test]
@@ -351,6 +280,7 @@ mod tests {
         });
         
         let hints = LlmHints {
+            exclude: vec![],  // No exclusions
             transform: Some(HashMap::from([(
                 "tool_names".to_string(),
                 TransformRule::Extract {
@@ -358,7 +288,6 @@ mod tests {
                 }
             )])),
             mode: Some(TransformMode::Replace),
-            ..Default::default()
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
@@ -371,6 +300,7 @@ mod tests {
         let context = json!({"some": "data"});
         
         let hints = LlmHints {
+            exclude: vec![],  // No exclusions
             transform: Some(HashMap::from([(
                 "instruction".to_string(),
                 TransformRule::Literal {
@@ -378,7 +308,6 @@ mod tests {
                 }
             )])),
             mode: Some(TransformMode::Replace),
-            ..Default::default()
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
@@ -398,8 +327,9 @@ mod tests {
         });
         
         let hints = LlmHints {
-            exclude: Some(vec!["internal_id".to_string(), "metadata.internal_id".to_string()]),
-            ..Default::default()
+            exclude: vec!["internal_id".to_string(), "metadata.internal_id".to_string()],
+            transform: None,
+            mode: None,
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
@@ -420,6 +350,7 @@ mod tests {
         });
         
         let hints = LlmHints {
+            exclude: vec![],  // No exclusions
             transform: Some(HashMap::from([(
                 "count".to_string(),
                 TransformRule::Literal {
@@ -427,7 +358,6 @@ mod tests {
                 }
             )])),
             mode: Some(TransformMode::Merge),
-            ..Default::default()
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
@@ -446,6 +376,7 @@ mod tests {
         });
         
         let hints = LlmHints {
+            exclude: vec![],  // No exclusions
             transform: Some(HashMap::from([(
                 "formatted".to_string(),
                 TransformRule::Format {
@@ -453,10 +384,43 @@ mod tests {
                 }
             )])),
             mode: Some(TransformMode::Replace),
-            ..Default::default()
         };
         
         let result = engine.apply_llm_hints(&context, &hints).unwrap();
         assert_eq!(result["formatted"], json!("User (2025-11-03T00:44:43Z): Hello, world!"));
+    }
+    
+    #[test]
+    fn test_exclude_only() {
+        let engine = TransformEngine::new();
+        let context = json!({
+            "keep": "yes",
+            "remove": "no",
+            "also_keep": "yes"
+        });
+        
+        let hints = LlmHints {
+            exclude: vec!["remove".to_string()],
+            transform: None,
+            mode: None,
+        };
+        
+        let result = engine.apply_llm_hints(&context, &hints).unwrap();
+        assert_eq!(result, json!({"keep": "yes", "also_keep": "yes"}));
+    }
+    
+    #[test]
+    fn test_empty_exclude_shows_all() {
+        let engine = TransformEngine::new();
+        let context = json!({"field1": "val1", "field2": "val2"});
+        
+        let hints = LlmHints {
+            exclude: vec![],  // Empty = show all
+            transform: None,
+            mode: None,
+        };
+        
+        let result = engine.apply_llm_hints(&context, &hints).unwrap();
+        assert_eq!(result, context);
     }
 }

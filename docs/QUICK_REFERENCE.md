@@ -95,7 +95,13 @@ curl -X POST http://localhost:8081/breadcrumbs \
 **New in v2.1.0:**
 - `description` (optional) - Top-level detailed description
 - `semantic_version` (optional) - Top-level version like "2.0.0"
-- `llm_hints` (optional) - Top-level LLM optimization overrides
+- `llm_hints` (optional) - Top-level LLM optimization (exclude-only format in v2.2.0)
+
+**llm_hints format (v2.2.0):**
+```json
+{
+  "exclude": ["field1", "field2"]  // Required, can be empty []
+}
 ```
 
 ### Search Breadcrumbs
@@ -245,7 +251,7 @@ curl -X PATCH http://localhost:8081/breadcrumbs/$ID \
 }
 ```
 
-### Tool Definition (v2.1.0 Structure)
+### Tool Definition (v2.2.0 Structure - Exclude-Only)
 ```json
 {
   "schema_name": "tool.code.v1",
@@ -254,8 +260,7 @@ curl -X PATCH http://localhost:8081/breadcrumbs/$ID \
   "semantic_version": "2.0.0",
   "tags": ["tool", "tool:calculator", "workspace:tools"],
   "llm_hints": {
-    "include": ["name", "description", "input_schema", "output_schema"],
-    "exclude": ["code", "permissions"]
+    "exclude": ["code", "permissions", "limits", "ui_schema"]
   },
   "context": {
     "name": "calculator",
@@ -483,7 +488,7 @@ const agentDef = await client.createBreadcrumb({
 // 2. Agent-runner auto-loads and starts the agent
 ```
 
-### Create Tool (v2.1.0)
+### Create Tool (v2.2.0 - Exclude-Only)
 ```typescript
 // 1. Create tool.code.v1 breadcrumb with Deno code
 const toolDef = await client.createBreadcrumb({
@@ -493,8 +498,7 @@ const toolDef = await client.createBreadcrumb({
   semantic_version: '2.0.0',
   tags: ['tool', 'tool:my-tool', 'workspace:tools'],
   llm_hints: {
-    include: ['name', 'description', 'input_schema', 'output_schema'],
-    exclude: ['code', 'permissions']
+    exclude: ['code', 'permissions', 'limits', 'ui_schema']
   },
   context: {
     name: 'my-tool',

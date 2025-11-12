@@ -241,13 +241,6 @@
   "description": "Venice AI - Privacy-focused LLM access with uncensored models",
   "semantic_version": "1.0.0",
   "llm_hints": {
-    "include": [
-      "name",
-      "description",
-      "input_schema",
-      "output_schema",
-      "examples"
-    ],
     "exclude": [
       "code",
       "permissions",

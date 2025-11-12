@@ -35,15 +35,69 @@ impl ContextPublisher {
         trigger_id: Option<Uuid>,
         context: &AssembledContext,
     ) -> Result<()> {
-        // THE RCRT WAY: Just format breadcrumbs in order
-        // llm_hints templates include their own headers (self-describing)
-        // No hardcoded sections, no schema matching, no gatekeepers
-        let mut formatted_text = String::new();
+        // Group breadcrumbs by schema for sectioned output
+        let mut tools = Vec::new();
+        let mut knowledge = Vec::new();
+        let mut messages = Vec::new();
+        let mut browser = Vec::new();
+        let mut other = Vec::new();
         
         for bc in &context.breadcrumbs {
-            let llm_content = self.extract_llm_content(bc.id).await?;
-            formatted_text.push_str(&llm_content.to_string());
-            formatted_text.push_str("\n\n---\n\n");
+            match bc.schema_name.as_str() {
+                "tool.code.v1" => tools.push(bc),
+                "knowledge.v1" | "note.v1" => knowledge.push(bc),
+                "user.message.v1" | "agent.response.v1" => messages.push(bc),
+                "browser.tab.context.v1" | "browser.page.context.v1" => browser.push(bc),
+                _ => other.push(bc),
+            }
+        }
+        
+        // Format with markdown section headers
+        let mut formatted_text = String::new();
+        
+        if !tools.is_empty() {
+            formatted_text.push_str("=== AVAILABLE TOOLS ===\n\n");
+            for bc in tools {
+                let llm_content = self.extract_llm_content(bc.id).await?;
+                formatted_text.push_str(&self.format_content(llm_content)?);
+                formatted_text.push_str("\n\n");
+            }
+        }
+        
+        if !browser.is_empty() {
+            formatted_text.push_str("=== BROWSER CONTEXT ===\n\n");
+            for bc in browser {
+                let llm_content = self.extract_llm_content(bc.id).await?;
+                formatted_text.push_str(&self.format_content(llm_content)?);
+                formatted_text.push_str("\n\n");
+            }
+        }
+        
+        if !knowledge.is_empty() {
+            formatted_text.push_str("=== RELEVANT KNOWLEDGE ===\n\n");
+            for bc in knowledge {
+                let llm_content = self.extract_llm_content(bc.id).await?;
+                formatted_text.push_str(&self.format_content(llm_content)?);
+                formatted_text.push_str("\n\n");
+            }
+        }
+        
+        if !messages.is_empty() {
+            formatted_text.push_str("=== CONVERSATION HISTORY ===\n\n");
+            for bc in messages {
+                let llm_content = self.extract_llm_content(bc.id).await?;
+                formatted_text.push_str(&self.format_content(llm_content)?);
+                formatted_text.push_str("\n\n");
+            }
+        }
+        
+        if !other.is_empty() {
+            formatted_text.push_str("=== ADDITIONAL CONTEXT ===\n\n");
+            for bc in other {
+                let llm_content = self.extract_llm_content(bc.id).await?;
+                formatted_text.push_str(&self.format_content(llm_content)?);
+                formatted_text.push_str("\n\n");
+            }
         }
         
         // Recalculate token estimate based on formatted text
@@ -92,6 +146,17 @@ impl ContextPublisher {
             context.breadcrumbs.len(), token_estimate);
         
         Ok(())
+    }
+    
+    /// Format llm_content into human-readable string
+    fn format_content(&self, llm_content: serde_json::Value) -> Result<String> {
+        match llm_content {
+            serde_json::Value::String(s) => Ok(s),
+            serde_json::Value::Object(_) | serde_json::Value::Array(_) => {
+                Ok(serde_json::to_string_pretty(&llm_content)?)
+            },
+            _ => Ok(llm_content.to_string())
+        }
     }
 }
 

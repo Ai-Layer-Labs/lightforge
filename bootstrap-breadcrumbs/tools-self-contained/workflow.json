@@ -157,13 +157,6 @@
   "description": "Orchestrate multi-step tool operations with dependencies and variable interpolation",
   "semantic_version": "2.0.1",
   "llm_hints": {
-    "include": [
-      "name",
-      "description",
-      "input_schema",
-      "output_schema",
-      "examples"
-    ],
     "exclude": [
       "code",
       "permissions",

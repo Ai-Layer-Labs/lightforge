@@ -221,13 +221,6 @@
   "description": "Ollama - Fast, free, private local models via Ollama",
   "semantic_version": "2.0.0",
   "llm_hints": {
-    "include": [
-      "name",
-      "description",
-      "input_schema",
-      "output_schema",
-      "examples"
-    ],
     "exclude": [
       "code",
       "permissions",

@@ -16,17 +16,11 @@
     "tool"
   ],
   "llm_hints": {
-    "include": [
-      "name",
-      "description",
-      "input_schema",
-      "output_schema",
-      "examples"
-    ],
     "exclude": [
       "code",
       "permissions",
-      "limits"
+      "limits",
+      "ui_schema"
     ]
   },
   "context": {

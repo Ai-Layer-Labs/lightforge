@@ -1097,27 +1097,23 @@ interface Breadcrumb {
 }
 ```
 
-### Schema System
+### Instance-Level llm_hints (v2.2.0)
 
-**Schema definitions** (schema.def.v1) define transformations:
+**llm_hints are defined on breadcrumbs themselves** (no schema fallback):
 
 ```json
 {
-  "schema_name": "schema.def.v1",
-  "tags": ["system:schema", "defines:note.v1"],
+  "schema_name": "tool.code.v1",
+  "title": "OpenRouter Tool",
+  "llm_hints": {
+    "exclude": ["code", "permissions", "limits", "ui_schema"]
+  },
   "context": {
-    "schema_name": "note.v1",
-    "llm_hints": {
-      "include": ["title", "url", "content"],
-      "exclude": ["metadata", "images", "links"],
-      "transform": {
-        "formatted": {
-          "type": "format",
-          "format": "Title: {title}\nURL: {url}\n\nContent:\n{content}"
-        }
-      },
-      "mode": "replace"
-    }
+    "name": "openrouter",
+    "description": "Call LLMs via OpenRouter",
+    "code": "...",  // Excluded from LLM context
+    "input_schema": {...},  // Included
+    "output_schema": {...}  // Included
   }
 }
 ```
@@ -1131,7 +1127,26 @@ interface Breadcrumb {
 - **template**: Handlebars templates
 - **extract**: JSONPath extraction
 - **literal**: Static value
-- **include/exclude**: Field filtering
+- **exclude**: Field filtering (required field)
+
+**Context Output Format:**
+```
+=== AVAILABLE TOOLS ===
+
+{formatted tools with llm_hints applied}
+
+=== BROWSER CONTEXT ===
+
+{current page context}
+
+=== RELEVANT KNOWLEDGE ===
+
+{semantic search results}
+
+=== CONVERSATION HISTORY ===
+
+{recent messages}
+```
 
 ---
 

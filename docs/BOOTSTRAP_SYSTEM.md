@@ -39,28 +39,30 @@ bootstrap-breadcrumbs/
 ├── bootstrap.js                    # Main bootstrap script
 ├── package.json                    # Dependencies
 ├── README.md                       # Bootstrap docs
-├── system/                         # System breadcrumbs
-│   ├── default-chat-agent.json     # Default chat assistant
-│   └── bootstrap-marker.json       # Bootstrap completion marker
-├── tools/                          # Tool definitions (13 tools)
+├── system/                         # System breadcrumbs (agents)
+│   ├── default-chat-agent.json
+│   └── validation-specialist-agent.json
+├── tools-self-contained/           # Tool definitions (14 tools)
 │   ├── openrouter.json
 │   ├── ollama.json
-│   ├── agent-helper.json
-│   ├── breadcrumb-crud.json
-│   ├── agent-loader.json
 │   ├── calculator.json
 │   ├── random.json
 │   ├── echo.json
 │   ├── timer.json
-│   ├── context-builder.json
-│   ├── file-storage.json
-│   ├── browser-context-capture.json
 │   ├── workflow.json
-│   └── README.md
+│   ├── breadcrumb-create.json
+│   ├── breadcrumb-search.json
+│   ├── breadcrumb-update.json
+│   ├── json-transform.json
+│   ├── venice.json
+│   ├── scheduler.json
+│   └── openrouter-models-sync.json
+├── knowledge/                      # Knowledge articles
+│   ├── breadcrumb-system.json
+│   ├── tool-invocation-standard.json
+│   └── creating-tools-with-agent.json
 └── templates/                      # Templates for users
-    ├── agent-definition-template.json
-    ├── tool-definition-template.json
-    └── llm-hints-guide.json
+    └── (empty - schemas moved to instance llm_hints)
 ```
 
 ## How It Works
@@ -220,19 +222,18 @@ Each tool is defined with:
 }
 ```
 
-### Breadcrumb Structure (v2.1.0)
+### Breadcrumb Structure (v2.2.0 - Simplified llm_hints)
 
 **Standard structure:**
 ```json
 {
   "schema_name": "tool.code.v1",
   "title": "Tool Name",
-  "description": "What it does",        // NEW: Top-level
-  "semantic_version": "2.0.0",          // NEW: Top-level  
+  "description": "What it does",
+  "semantic_version": "2.0.0",
   "tags": ["tool", "workspace:tools"],
-  "llm_hints": {                        // NEW: Top-level
-    "include": ["name", "description"],
-    "exclude": ["code"]
+  "llm_hints": {
+    "exclude": ["code", "permissions", "limits"]
   },
   "context": {
     // Schema-specific data only
@@ -240,7 +241,39 @@ Each tool is defined with:
 }
 ```
 
-**See:** `bootstrap-breadcrumbs/templates/base-breadcrumb.json` for full specification
+**llm_hints format (v2.2.0 - Exclude-Only):**
+
+**Simple exclude pattern:**
+```json
+{
+  "llm_hints": {
+    "exclude": ["code", "internal_id", "verbose_field"]
+  }
+}
+```
+
+**With template for markdown formatting:**
+```json
+{
+  "llm_hints": {
+    "exclude": ["verbose_logs"],
+    "transform": {
+      "formatted": {
+        "type": "template",
+        "template": "**{{name}}**\n{{description}}"
+      }
+    },
+    "mode": "replace"
+  }
+}
+```
+
+**Rules:**
+- `exclude` is required (can be empty array `[]`)
+- Empty `exclude` means show everything
+- Transforms are optional
+- NO `include` field (removed in v2.2.0)
+- NO schema.def.v1 fallback (instance-only)
 
 ### Complete Tool List
 
