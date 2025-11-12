@@ -21,6 +21,7 @@ pub struct ContextTrigger {
     pub schema_name: String,
     pub all_tags: Option<Vec<String>>,
     pub any_tags: Option<Vec<String>>,
+    pub none_tags: Option<Vec<String>>,  // Exclude if ANY of these tags present (loop prevention)
     pub comment: Option<String>,
 }
 

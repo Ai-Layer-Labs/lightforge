@@ -11,7 +11,8 @@
   "context": {
     "topic": "multi-agent-coordination",
     "audience": "LLM agents and system architects",
-    "last_updated": "2025-11-10",
+    "last_updated": "2025-11-12",
+    "universal_standard_ref": "Tool invocations follow Universal Standard (tool-invocation-standard.json)",
     "content": {
       "summary": "Complete guide to multi-agent coordination in RCRT using the coordinator-specialist pattern. One coordinator agent routes requests to multiple specialist agents, enabling true division of labor and specialized expertise.",
       "architecture_overview": {

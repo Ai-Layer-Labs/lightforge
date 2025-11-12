@@ -23,14 +23,14 @@
         "name": "tool-identifier (REQUIRED - same as title, lowercase)",
         "code": {
           "language": "typescript (REQUIRED)",
-          "source": "export async function execute(input, context) {...}"
+          "source": "export async function execute(input, context) { /* Your code here */ return {}; }"
         },
         "input_schema": "JSON Schema (REQUIRED)",
         "output_schema": "JSON Schema (REQUIRED)",
         "permissions": "Deno permissions (see defaults below)",
         "limits": "Resource limits (see defaults below)",
         "required_secrets": "[] (array of secret names)",
-        "ui_schema": {"configurable": true/false},
+        "ui_schema": {"configurable": false},
         "examples": "Array of usage examples"
       }
     },

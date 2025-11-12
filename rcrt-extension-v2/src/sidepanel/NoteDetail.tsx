@@ -6,12 +6,13 @@
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, ExternalLink, Clock, Trash2, Download, 
-  Share2, Search, Loader 
+  Share2, Search, Loader, Brain 
 } from 'lucide-react';
 import type { RCRTClient } from '../lib/rcrt-client';
 import type { Breadcrumb } from '../lib/types';
 import { markdownToHtml } from '../lib/markdown';
 import { formatDate } from '../lib/text-utils';
+import { ContextViewer } from './ContextViewer';
 
 interface NoteDetailProps {
   noteId: string;
@@ -19,7 +20,7 @@ interface NoteDetailProps {
   onBack: () => void;
 }
 
-type DetailTab = 'content' | 'summary' | 'insights' | 'eli5' | 'raw';
+type DetailTab = 'content' | 'summary' | 'insights' | 'eli5' | 'context' | 'raw';
 
 export function NoteDetail({ noteId, client, onBack }: NoteDetailProps) {
   const [note, setNote] = useState<Breadcrumb | null>(null);
@@ -211,21 +212,33 @@ export function NoteDetail({ noteId, client, onBack }: NoteDetailProps) {
           onClick={() => setActiveTab('content')}
           label="Content"
         />
-        <TabButton
-          active={activeTab === 'summary'}
-          onClick={() => setActiveTab('summary')}
-          label="Summary"
-        />
-        <TabButton
-          active={activeTab === 'insights'}
-          onClick={() => setActiveTab('insights')}
-          label="Insights"
-        />
-        <TabButton
-          active={activeTab === 'eli5'}
-          onClick={() => setActiveTab('eli5')}
-          label="ELI5"
-        />
+        {note?.schema_name === 'note.v1' && (
+          <>
+            <TabButton
+              active={activeTab === 'summary'}
+              onClick={() => setActiveTab('summary')}
+              label="Summary"
+            />
+            <TabButton
+              active={activeTab === 'insights'}
+              onClick={() => setActiveTab('insights')}
+              label="Insights"
+            />
+            <TabButton
+              active={activeTab === 'eli5'}
+              onClick={() => setActiveTab('eli5')}
+              label="ELI5"
+            />
+          </>
+        )}
+        {note?.schema_name === 'agent.context.v1' && (
+          <TabButton
+            active={activeTab === 'context'}
+            onClick={() => setActiveTab('context')}
+            label="LLM Context"
+            icon={<Brain className="w-4 h-4" />}
+          />
+        )}
         <TabButton
           active={activeTab === 'raw'}
           onClick={() => setActiveTab('raw')}
@@ -294,6 +307,10 @@ export function NoteDetail({ noteId, client, onBack }: NoteDetailProps) {
           </div>
         )}
 
+        {activeTab === 'context' && note?.schema_name === 'agent.context.v1' && (
+          <ContextViewer breadcrumb={note} />
+        )}
+
         {activeTab === 'raw' && (
           <pre className="text-xs text-gray-400 bg-gray-800 p-4 rounded-lg overflow-x-auto">
             {JSON.stringify(note, null, 2)}
@@ -341,16 +358,22 @@ export function NoteDetail({ noteId, client, onBack }: NoteDetailProps) {
   );
 }
 
-function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function TabButton({ active, onClick, label, icon }: { 
+  active: boolean; 
+  onClick: () => void; 
+  label: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+      className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
         active
           ? 'bg-gray-900 text-blue-400 border-b-2 border-blue-500'
           : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
       }`}
     >
+      {icon}
       {label}
     </button>
   );

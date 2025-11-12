@@ -1,5 +1,63 @@
 # RCRT Changelog
 
+## [4.1.0] - 2025-11-12 - Tool Lifecycle Fixes & Context Visibility
+
+### 🔧 Production Readiness & Debugging Improvements
+
+#### Added
+
+- **Context Viewer Component** - Beautiful, readable view of LLM context in extension
+  - Collapsible sections with smart parsing (JSON, markdown, text)
+  - Copy individual sections or entire context
+  - Metadata display (consumer, tokens, breadcrumbs, timestamp)
+  - Integrated into ChatPanel (modal on assistant messages)
+  - Integrated into NoteDetail (tab for agent.context.v1 breadcrumbs)
+  - Smart content type detection with appropriate rendering
+- **none_tags support** - Negative tag matching in context_trigger for loop prevention
+  - Added to ContextTrigger struct in agent_config.rs
+  - Implemented in find_agents_for_trigger() logic
+  - Checked BEFORE all_tags/any_tags (early exclusion)
+- **Timeout field fallback** - deno-executor.ts handles both timeout and timeout_ms
+  - Fallback chain: timeout_ms || timeout || 300000
+  - Correct error messages with normalized value
+- **Test scripts** - Comprehensive end-to-end testing infrastructure
+  - scripts/test-tool-lifecycle.js (automated test)
+  - scripts/TESTING_TOOL_LIFECYCLE.md (manual guide)
+  - scripts/cleanup-duplicate-agents.sql (database cleanup)
+- **CONTEXT_VIEWER_FEATURE.md** - Complete documentation with examples
+
+#### Changed
+
+- **validation-specialist** - Added none_tags: ["validated"] to prevent re-validation loops
+- **tool-debugger** - Updated for comprehensive error handling (timeout, runtime, validation, config)
+  - Fixed schema reference: tool.validation.error.v1 → tool.error.v1
+  - Expanded error type handling with specific guidance
+- **tool-creator** - Added exact field name validation in prompt
+  - 🔴 timeout_ms (NOT timeout!), memory_mb (NOT memory!), cpu_percent (NOT cpu!)
+- **NoteDetail** - Now works as generic breadcrumb viewer (not just notes)
+  - Conditional tabs based on schema type
+  - TabButton supports optional icon prop
+
+#### Fixed
+
+- **Validation loop** - validation-specialist no longer re-validates already-approved tools
+  - Root cause: context_trigger matched ALL tool.code.v1 updates
+  - Solution: none_tags excludes tools with "validated" tag
+- **Timeout field mismatch** - Tools created with "timeout" now work correctly
+  - Deno executor provides graceful fallback
+  - Tool-creator instructed on exact naming
+- **Error messages** - "undefinedms" fixed, now shows actual timeout value
+
+#### Migration
+
+**If upgrading from v4.0.0**:
+1. Rebuild context-builder: `docker compose build context-builder`
+2. Update agents: `node scripts/update-breadcrumb.js bootstrap-breadcrumbs/system/validation-specialist-agent.json`
+3. Restart services: `docker compose restart context-builder agent-runner`
+4. Rebuild extension: `cd rcrt-extension-v2 && npm run build`
+
+---
+
 ## [4.0.0] - 2025-11-12 - Pointer-Tag Unification & Generic Architecture
 
 ### 🎯 Major Architectural Transformation

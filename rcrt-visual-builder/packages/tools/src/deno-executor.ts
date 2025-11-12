@@ -65,12 +65,14 @@ export class DenoExecutor {
       const args = ProcessManager.buildDenoArgs(permissions);
       
       // Execute with timeout
+      // Support both timeout_ms and legacy 'timeout' field
+      const timeout_ms = limits.timeout_ms || (limits as any).timeout || 300000;
       const processResult = await ProcessManager.executeWithTimeout(
         this.denoPath,
         args,
         script,
         {
-          timeout_ms: limits.timeout_ms,
+          timeout_ms,
           memory_mb: limits.memory_mb,
           cpu_percent: limits.cpu_percent
         }
@@ -80,7 +82,7 @@ export class DenoExecutor {
       if (processResult.timedOut) {
         return {
           success: false,
-          error: `Tool execution timed out after ${limits.timeout_ms}ms`,
+          error: `Tool execution timed out after ${timeout_ms}ms`,
           metadata: {
             duration_ms: processResult.duration_ms,
             timedOut: true,

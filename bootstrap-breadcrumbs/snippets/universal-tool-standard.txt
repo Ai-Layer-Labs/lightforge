@@ -1,0 +1,188 @@
+═══════════════════════════════════════════════════════════════════
+UNIVERSAL TOOL INVOCATION STANDARD
+═══════════════════════════════════════════════════════════════════
+
+ALL tool invocations use this EXACT structure:
+
+{
+  "action": "create",
+  "breadcrumb": {
+    "schema_name": "agent.response.v1",
+    "title": "Response",
+    "tags": ["agent:response", "session:SESSION_ID"],
+    "context": {
+      "message": "Your message to the user",
+      "tool_requests": [
+        {
+          "tool": "tool-name",
+          "input": {/* tool-specific parameters */},
+          "requestId": "unique-id",
+          "return_to_llm": true|false,
+          "config_id": "optional-uuid"
+        }
+      ]
+    }
+  }
+}
+
+FIELD DEFINITIONS:
+
+• tool (string, REQUIRED): Tool name from catalog (case-sensitive)
+  Examples: "openrouter", "calculator", "breadcrumb-create"
+
+• input (object, REQUIRED): Tool parameters matching input requirements
+  Can be empty {} if tool has no required inputs
+
+• requestId (string, REQUIRED): Unique correlation ID
+  Format: "{tool-name}-{counter}" → "llm-001", "calc-1", "search-abc"
+
+• return_to_llm (boolean, REQUIRED): Response routing decision
+  → true: Result comes BACK to you (for reasoning/error handling/multi-step)
+  → false: Result goes DIRECTLY to user (fire-and-forget)
+
+• config_id (string, OPTIONAL): UUID of tool.config.v1 breadcrumb
+  Provides API keys, model settings, custom configuration
+
+RETURN_TO_LLM DECISION TREE:
+
+  Do you need the result to continue?
+    ↓
+  YES → return_to_llm: true
+    Use when:
+    - Need to process/reason about result
+    - Error handling required
+    - Multi-step workflows
+    - Result determines next action
+    
+  NO → return_to_llm: false
+    Use when:
+    - Simple final answer (calculator result)
+    - Fire-and-forget operations
+    - No further processing needed
+
+TOOL RESPONSE (when return_to_llm: true):
+
+You receive tool.response.v1:
+{
+  "context": {
+    "request_id": "YOUR_REQUEST_ID",
+    "tool": "tool-name",
+    "status": "success" | "error",
+    "output": {/* fields from tool's output_schema */},
+    "error": "message if status=error"
+  }
+}
+
+OUTPUT FIELD ACCESS by tool type:
+
+LLM Tools (openrouter, venice, ollama_local):
+  - output.content → AI response text
+  - output.model → Model used
+  - output.usage.total_tokens → Token count
+  - output.cost_estimate → Cost in USD
+
+Utility Tools (calculator, random, echo, timer):
+  - output.result → Calculation result
+  - output.numbers[0] → First random number
+  - output.echo → Echoed message
+  - output.waited → Seconds waited
+
+Breadcrumb Tools (breadcrumb-create, breadcrumb-update, breadcrumb-search):
+  - output.id → Breadcrumb UUID
+  - output.success → Boolean flag
+  - output.breadcrumbs → Array of results (search)
+  - output.count → Result count
+  - output.new_version → Version after update
+
+Workflow Tool:
+  - output.results.{stepId} → Results from specific step
+  - output.executionOrder → Execution sequence
+  - output.errors → Any errors
+
+Browser Tool (astral):
+  - output.url, output.title → Navigate results
+  - output.text → Extracted content
+  - output.clicked → Click success
+  - output.path → Screenshot path
+  - output.result → JavaScript eval result
+
+ERROR HANDLING:
+
+ALL tools return standard error format:
+{
+  "status": "error",
+  "error": "Human-readable message",
+  "tool": "tool-name"
+}
+
+Always check:
+if (response.context.status === "error") {
+  // Handle: response.context.error
+  // Options: Retry, inform user, try alternative
+}
+
+COMMON PATTERNS:
+
+Pattern 1: Simple tool call (fire-and-forget)
+{
+  "message": "Calculating...",
+  "tool_requests": [{
+    "tool": "calculator",
+    "input": {"expression": "25 * 4"},
+    "requestId": "calc-001",
+    "return_to_llm": false
+  }]
+}
+
+Pattern 2: LLM with processing
+{
+  "message": "Analyzing...",
+  "tool_requests": [{
+    "tool": "openrouter",
+    "input": {"messages": [...]},
+    "requestId": "llm-001",
+    "return_to_llm": true,
+    "config_id": "llm-config-uuid"
+  }]
+}
+// When response arrives → process → final response
+
+Pattern 3: Parallel calls
+{
+  "tool_requests": [
+    {"tool": "search1", "requestId": "s1", "return_to_llm": true, ...},
+    {"tool": "search2", "requestId": "s2", "return_to_llm": true, ...}
+  ]
+}
+// Both execute in parallel
+
+Pattern 4: Workflow orchestration
+{
+  "tool_requests": [{
+    "tool": "workflow",
+    "input": {
+      "steps": [
+        {"id": "step1", "tool": "random", "input": {}},
+        {"id": "step2", "tool": "calculator",
+         "input": {"expression": "${step1.numbers[0]} + 5"},
+         "dependencies": ["step1"]}
+      ]
+    },
+    "requestId": "wf-001",
+    "return_to_llm": false
+  }]
+}
+// Variable access: ${stepId.field}
+
+Pattern 5: Multi-step logic
+Step 1: Call tool, return_to_llm: true
+Step 2: Process result → decide next action
+Step 3: Call another tool OR final response
+
+Pattern 6: Error recovery
+Step 1: Try primary tool, return_to_llm: true
+Step 2: If error → try fallback tool
+Step 3: Final response
+
+═══════════════════════════════════════════════════════════════════
+

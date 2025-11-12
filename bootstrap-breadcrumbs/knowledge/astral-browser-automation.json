@@ -240,7 +240,7 @@
             "step": 5,
             "action": "get_content",
             "input": {"page_id": "def456"},
-            "output": {"title": "Search Results", "text": "...", "links": [...]}
+            "output": {"title": "Search Results", "text": "...", "links": []}
           },
           {
             "step": 6,

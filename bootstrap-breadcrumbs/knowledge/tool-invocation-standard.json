@@ -1,0 +1,374 @@
+{
+  "schema_name": "knowledge.v1",
+  "title": "Universal Tool Invocation Standard - Complete Guide",
+  "tags": [
+    "knowledge",
+    "workspace:knowledge",
+    "tool-standard",
+    "invocation",
+    "validation",
+    "patterns",
+    "tool-creation"
+  ],
+  "context": {
+    "topic": "universal-tool-invocation-standard",
+    "audience": "All agents, tool creators, and validators",
+    "last_updated": "2025-11-12",
+    "content": {
+      "purpose": "Define the ONE standard way ALL tools are invoked in RCRT. This standard ensures consistency, enables agent reasoning, and supports complex patterns from simple calls to multi-agent workflows.",
+      
+      "invocation_structure": {
+        "standard_format": {
+          "action": "create",
+          "breadcrumb": {
+            "schema_name": "agent.response.v1",
+            "title": "Response",
+            "tags": ["agent:response", "session:SESSION_ID"],
+            "context": {
+              "message": "Your message to user",
+              "tool_requests": [
+                {
+                  "tool": "tool-name",
+                  "input": {},
+                  "requestId": "unique-id",
+                  "return_to_llm": true,
+                  "config_id": "optional-uuid"
+                }
+              ]
+            }
+          }
+        },
+        
+        "field_definitions": {
+          "tool": {
+            "type": "string",
+            "required": true,
+            "description": "Exact tool name from catalog (case-sensitive)",
+            "examples": ["openrouter", "calculator", "breadcrumb-create"]
+          },
+          "input": {
+            "type": "object",
+            "required": true,
+            "description": "Tool-specific parameters matching input_schema",
+            "note": "Can be empty {} if tool has no required inputs"
+          },
+          "requestId": {
+            "type": "string",
+            "required": true,
+            "description": "Unique correlation ID for request/response matching",
+            "format": "{tool-name}-{counter}",
+            "examples": ["llm-001", "calc-1", "search-abc123"]
+          },
+          "return_to_llm": {
+            "type": "boolean",
+            "required": true,
+            "description": "Response routing decision",
+            "values": {
+              "true": "Result comes BACK to agent for processing/reasoning",
+              "false": "Result goes DIRECTLY to user (fire-and-forget)"
+            }
+          },
+          "config_id": {
+            "type": "string",
+            "required": false,
+            "description": "UUID of tool.config.v1 breadcrumb for API keys, model settings, custom config"
+          }
+        }
+      },
+      
+      "return_to_llm_guide": {
+        "decision_tree": "Do you need the result to continue? YES → true, NO → false",
+        "use_true_when": [
+          "Need to process/reason about result",
+          "Error handling required",
+          "Multi-step workflows",
+          "Result determines next action",
+          "LLM calls that need analysis",
+          "Search then process patterns"
+        ],
+        "use_false_when": [
+          "Simple final answer (calculator result)",
+          "Fire-and-forget operations",
+          "No further processing needed",
+          "Approval/rejection actions",
+          "Direct user feedback"
+        ]
+      },
+      
+      "tool_response_handling": {
+        "response_structure": {
+          "schema_name": "tool.response.v1",
+          "tags": ["tool:response", "request:YOUR_REQUEST_ID"],
+          "context": {
+            "request_id": "YOUR_REQUEST_ID",
+            "tool": "tool-name",
+            "status": "success | error",
+            "output": {},
+            "error": "message if status=error"
+          }
+        },
+        
+        "output_access_by_type": {
+          "llm_tools": {
+            "tools": ["openrouter", "venice", "ollama_local"],
+            "output_fields": {
+              "content": "AI response text",
+              "model": "Model used",
+              "usage.total_tokens": "Token count",
+              "cost_estimate": "Cost in USD"
+            }
+          },
+          "utility_tools": {
+            "tools": ["calculator", "random", "echo", "timer"],
+            "output_fields": {
+              "result": "Calculation result (calculator)",
+              "numbers": "Array of numbers (random)",
+              "numbers[0]": "First random number",
+              "echo": "Echoed message (echo)",
+              "waited": "Seconds waited (timer)"
+            }
+          },
+          "breadcrumb_tools": {
+            "tools": ["breadcrumb-create", "breadcrumb-update", "breadcrumb-search"],
+            "output_fields": {
+              "id": "Breadcrumb UUID",
+              "success": "Boolean success flag",
+              "breadcrumbs": "Array of results (search)",
+              "count": "Number of results",
+              "new_version": "Version after update"
+            }
+          },
+          "workflow_tool": {
+            "tools": ["workflow"],
+            "output_fields": {
+              "results": "Object with results by step ID",
+              "results.stepId": "Access specific step result",
+              "executionOrder": "Array showing execution sequence",
+              "errors": "Any errors that occurred"
+            }
+          },
+          "browser_tool": {
+            "tools": ["astral"],
+            "output_fields": {
+              "url": "Current page URL (navigate)",
+              "title": "Page title (navigate)",
+              "text": "Extracted content (extract)",
+              "clicked": "Click success boolean (click)",
+              "path": "Screenshot file path (screenshot)",
+              "result": "JavaScript eval result (evaluate)"
+            }
+          }
+        },
+        
+        "error_handling": {
+          "standard_error_format": {
+            "status": "error",
+            "error": "Human-readable error message",
+            "tool": "tool-name"
+          },
+          "check_pattern": "if (response.context.status === 'error') { handle response.context.error }",
+          "recovery_options": [
+            "Retry with same tool",
+            "Try alternative tool",
+            "Inform user of limitation",
+            "Adjust parameters and retry"
+          ]
+        }
+      },
+      
+      "common_patterns": {
+        "pattern_1_simple_call": {
+          "description": "Single tool, fire-and-forget, no processing needed",
+          "example": {
+            "message": "Calculating...",
+            "tool_requests": [{
+              "tool": "calculator",
+              "input": {"expression": "25 * 4"},
+              "requestId": "calc-001",
+              "return_to_llm": false
+            }]
+          },
+          "use_case": "calculator, echo, timer - direct results"
+        },
+        
+        "pattern_2_process_result": {
+          "description": "Call tool, process result, respond to user",
+          "steps": [
+            "Step 1: Call tool with return_to_llm: true",
+            "Step 2: Receive tool.response.v1",
+            "Step 3: Process output, add reasoning",
+            "Step 4: Create final agent.response.v1 for user"
+          ],
+          "example": {
+            "step_1": {
+              "message": "Analyzing code...",
+              "tool_requests": [{
+                "tool": "openrouter",
+                "input": {"messages": [{"role": "user", "content": "Analyze: def foo(): return bar"}]},
+                "requestId": "llm-001",
+                "return_to_llm": true
+              }]
+            },
+            "step_2": "Receive tool.response.v1 with output.content",
+            "step_3": {
+              "message": "The code has a bug: bar is undefined. Here's the fix...",
+              "tool_requests": []
+            }
+          },
+          "use_case": "LLM calls, searches that need analysis"
+        },
+        
+        "pattern_3_parallel_calls": {
+          "description": "Multiple independent tool calls execute simultaneously",
+          "example": {
+            "message": "Checking multiple sources...",
+            "tool_requests": [
+              {"tool": "breadcrumb-search", "input": {"query": "weather"}, "requestId": "s1", "return_to_llm": true},
+              {"tool": "breadcrumb-search", "input": {"query": "news"}, "requestId": "s2", "return_to_llm": true}
+            ]
+          },
+          "note": "Both execute in parallel, both results come back",
+          "use_case": "Independent operations that can run concurrently"
+        },
+        
+        "pattern_4_workflow": {
+          "description": "Multi-step process with dependencies and variable interpolation",
+          "example": {
+            "tool_requests": [{
+              "tool": "workflow",
+              "input": {
+                "steps": [
+                  {"id": "num1", "tool": "random", "input": {}},
+                  {"id": "num2", "tool": "random", "input": {}},
+                  {
+                    "id": "sum",
+                    "tool": "calculator",
+                    "input": {"expression": "${num1.numbers[0]} + ${num2.numbers[0]}"},
+                    "dependencies": ["num1", "num2"]
+                  }
+                ]
+              },
+              "requestId": "wf-001",
+              "return_to_llm": false
+            }]
+          },
+          "variable_syntax": "${stepId.field}",
+          "use_case": "Complex orchestration with dependencies"
+        },
+        
+        "pattern_5_multi_step": {
+          "description": "Sequential steps where each depends on previous result",
+          "steps": [
+            "Step 1: Call tool A, return_to_llm: true",
+            "Step 2: Receive result, decide next action",
+            "Step 3: Call tool B with data from A, return_to_llm: true OR false",
+            "Step 4: Final response (if needed)"
+          ],
+          "use_case": "Conditional logic, adaptive workflows"
+        },
+        
+        "pattern_6_error_recovery": {
+          "description": "Try primary tool, fallback on error",
+          "steps": [
+            "Try primary tool with return_to_llm: true",
+            "If status === 'error': Try fallback",
+            "If fallback succeeds: Continue",
+            "If both fail: Inform user"
+          ],
+          "example": "Try openrouter → rate limited → fallback to ollama_local",
+          "use_case": "Resilient tool invocation with alternatives"
+        },
+        
+        "pattern_7_delegation": {
+          "description": "Delegate to specialist agent via breadcrumb creation",
+          "example": {
+            "tool_requests": [{
+              "tool": "breadcrumb-create",
+              "input": {
+                "schema_name": "tool.creation.request.v1",
+                "title": "Tool Request: Web Search",
+                "tags": ["tool:creation", "assigned-to:tool-creator", "session:session-123"],
+                "context": {
+                  "tool_name": "web-search",
+                  "description": "Search the web",
+                  "requirements": ["HTTP requests", "Parse results"],
+                  "requestedBy": "default-chat-assistant"
+                }
+              },
+              "requestId": "delegate-001",
+              "return_to_llm": false
+            }]
+          },
+          "use_case": "Tool creation, complex analysis, specialized tasks"
+        }
+      },
+      
+      "tool_conformance_requirements": {
+        "mandatory_fields": {
+          "input_schema": "ALL properties must have 'type' and 'description'",
+          "output_schema": "ALL properties must have 'type' and 'description'",
+          "required_arrays": "List mandatory input fields",
+          "examples": "Show HOW to access output fields in explanation"
+        },
+        
+        "response_standards": {
+          "success": {
+            "status": "success",
+            "output": "Object matching output_schema EXACTLY"
+          },
+          "error": {
+            "status": "error",
+            "error": "Human-readable message",
+            "tool": "tool-name"
+          }
+        },
+        
+        "naming_convention": {
+          "rule": "lowercase-hyphenated",
+          "valid": ["web-search", "openrouter", "breadcrumb-create"],
+          "invalid": ["webSearch", "OpenRouter", "breadcrumb_create"]
+        },
+        
+        "output_consistency": {
+          "llm_tools": "ALL return: content, model, usage",
+          "breadcrumb_ops": "ALL return: success, id",
+          "search_tools": "ALL return: results (array), count"
+        }
+      },
+      
+      "validation_checklist": {
+        "for_creators": [
+          "input_schema defines ALL parameters with types",
+          "output_schema defines ALL fields with types",
+          "required arrays list mandatory fields",
+          "Examples show field access: 'Access with output.field_name'",
+          "Error responses return standard format",
+          "Success responses match output_schema",
+          "Tool name is lowercase-hyphenated",
+          "Code exports: async function execute(input, context)"
+        ],
+        "for_validators": [
+          "All schema properties have 'type' and 'description'",
+          "Examples reference actual output fields",
+          "Error handling follows standard",
+          "Permissions match actual needs",
+          "No over-permissioning (ffi, eval)",
+          "Output matches output_schema"
+        ]
+      },
+      
+      "benefits": [
+        "One standard for ALL tools - consistent everywhere",
+        "Defined once in system prompt - not repeated per tool",
+        "Ultra-compact catalog - agents see all tools efficiently",
+        "Predictable output access - output.{field} pattern",
+        "Handles simple to complex - from calculator to workflows",
+        "Scalable - adding tools doesn't bloat context",
+        "Maintainable - update standard once, affects all"
+      ]
+    }
+  },
+  "description": "Complete guide to RCRT's universal tool invocation standard",
+  "semantic_version": "1.0.0"
+}
+

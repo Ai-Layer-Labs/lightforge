@@ -13,7 +13,8 @@
   "context": {
     "topic": "code-validation-security",
     "audience": "validation-specialist and tool-debugger agents",
-    "last_updated": "2025-11-10",
+    "last_updated": "2025-11-12",
+    "universal_standard_ref": "🔴 Validate against Universal Tool Invocation Standard (tool-invocation-standard.json)",
     "version_note": "This breadcrumb evolves via breadcrumb-update when agents learn new patterns",
     "content": {
       "summary": "Dynamic validation rules for tool.code.v1 security analysis. Updated by validation-specialist and tool-debugger agents as they learn safe patterns and discover new threats.",

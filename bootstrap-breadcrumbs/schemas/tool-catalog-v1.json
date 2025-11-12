@@ -30,14 +30,26 @@
     }
   },
   "description": "Catalog of available tools for agent discovery",
-  "semantic_version": "1.0.0",
+  "semantic_version": "2.0.0",
   "llm_hints": {
     "transform": {
       "formatted": {
         "type": "template",
-        "template": "=== AVAILABLE TOOLS ===\n\nYou have access to {{activeTools}} tools:\n\n{{#each tools}}- {{name}} ({{category}}): {{description}}\n  Returns: {{returns}}\n{{/each}}\n\nUse tool_requests array to invoke tools."
+        "template": "=== TOOLS ({{activeTools}} available) ===\n\n{{#each tools}}• {{name}}: {{description}} → {{#if outputSchema.properties}}{{#each outputSchema.properties}}{{@key}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}object{{/if}}\n{{/each}}\n\nINVOCATION: Use the Universal Tool Invocation Standard defined in your system prompt above.\nALL details for inputs, outputs, examples, and error handling are in that standard - not repeated here."
       }
     },
+    "exclude": [
+      "tools[*].inputSchema",
+      "tools[*].examples",
+      "tools[*].capabilities",
+      "tools[*].lastSeen",
+      "tools[*].version",
+      "tools[*].status",
+      "workspace",
+      "totalTools",
+      "lastUpdated",
+      "llm_hints"
+    ],
     "mode": "replace"
   }
 }

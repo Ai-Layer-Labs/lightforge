@@ -132,6 +132,15 @@ impl EventHandler {
                         return false;
                     }
                     
+                    // none_tags - if ANY of these tags present, EXCLUDE (loop prevention)
+                    if let Some(excluded_tags) = &trigger_config.none_tags {
+                        if let Some(event_tags) = trigger_tags {
+                            if excluded_tags.iter().any(|t| event_tags.contains(t)) {
+                                return false;  // Exclude this agent - has excluded tag
+                            }
+                        }
+                    }
+                    
                     // all_tags must ALL be present
                     if let Some(required_tags) = &trigger_config.all_tags {
                         if let Some(event_tags) = trigger_tags {

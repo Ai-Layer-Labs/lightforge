@@ -32,7 +32,8 @@
   "context": {
     "topic": "common-patterns",
     "audience": "LLMs implementing workflows",
-    "last_updated": "2025-11-07",
+    "last_updated": "2025-11-12",
+    "universal_standard_ref": "See tool-invocation-standard.json for complete Universal Tool Invocation Standard",
     "patterns": {
       "chat_message_flow": {
         "description": "User message → Agent response (12 steps, 2-3 seconds)",

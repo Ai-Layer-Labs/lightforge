@@ -4,11 +4,12 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Eraser, Plus, Loader, Monitor } from 'lucide-react';
+import { Send, Eraser, Plus, Loader, Monitor, Eye } from 'lucide-react';
 import type { RCRTClient } from '../lib/rcrt-client';
 import type { Message } from '../lib/types';
 import { formatDate } from '../lib/text-utils';
 import { loadSessionHistory, createNewSession, ensureSingleActiveContext } from '../lib/session-manager';
+import { ContextViewer } from './ContextViewer';
 
 interface ChatPanelProps {
   client: RCRTClient;
@@ -23,6 +24,8 @@ export function ChatPanel({ client, sessionId: initialSessionId, onSessionIdChan
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
   const [showAllTabs, setShowAllTabs] = useState(false);
   const [allTabs, setAllTabs] = useState<any[]>([]);
+  const [selectedContextBreadcrumb, setSelectedContextBreadcrumb] = useState<any | null>(null);
+  const [loadingContext, setLoadingContext] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Sync sessionId prop changes
@@ -259,6 +262,69 @@ export function ChatPanel({ client, sessionId: initialSessionId, onSessionIdChan
     }
   };
 
+  // View LLM context for a message
+  const handleViewContext = async () => {
+    if (!sessionId) return;
+    
+    try {
+      setLoadingContext(true);
+      
+      console.log(`[ChatPanel] Looking for context for session: ${sessionId}`);
+      
+      // Strategy 1: Try to find agent.context.v1 with session tag
+      let contextBreadcrumbs = await client.listBreadcrumbs({
+        schema_name: 'agent.context.v1',
+        tag: `session:${sessionId}`,
+        limit: 50
+      });
+      
+      console.log(`[ChatPanel] Found ${contextBreadcrumbs.length} agent.context.v1 breadcrumbs with session tag`);
+      
+      // Strategy 2: If none found with session tag, try consumer tag only
+      if (contextBreadcrumbs.length === 0) {
+        console.log('[ChatPanel] Trying without session tag, searching by consumer...');
+        contextBreadcrumbs = await client.listBreadcrumbs({
+          schema_name: 'agent.context.v1',
+          tag: 'consumer:default-chat-assistant',
+          limit: 50
+        });
+        console.log(`[ChatPanel] Found ${contextBreadcrumbs.length} contexts by consumer tag`);
+      }
+      
+      if (contextBreadcrumbs.length > 0) {
+        // Get the most recent one
+        const sortedContexts = contextBreadcrumbs.sort((a: any, b: any) => 
+          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        );
+        
+        // Get full breadcrumb data with formatted_context
+        const fullContext = await client.getBreadcrumb(sortedContexts[0].id, true);
+        setSelectedContextBreadcrumb(fullContext);
+        console.log('[ChatPanel] Loaded context breadcrumb:', fullContext.id);
+      } else {
+        console.warn('[ChatPanel] No agent.context.v1 found at all');
+        
+        // Show helpful error message
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'system',
+          content: `No context breadcrumb found for this session.\n\nThis could mean:\n• Context-builder hasn't run yet\n• Session tag mismatch (session:${sessionId})\n• Agent hasn't been triggered\n\nCheck: docker compose logs context-builder -f`,
+          timestamp: Date.now()
+        }]);
+      }
+    } catch (error) {
+      console.error('[ChatPanel] Failed to load context:', error);
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: `Error loading context: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: Date.now()
+      }]);
+    } finally {
+      setLoadingContext(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Messages Area */}
@@ -294,8 +360,20 @@ export function ChatPanel({ client, sessionId: initialSessionId, onSessionIdChan
               <div className="whitespace-pre-wrap break-words">
                 {message.content}
               </div>
-              <div className="text-xs opacity-50 mt-1">
-                {formatDate(message.timestamp)}
+              <div className="flex items-center justify-between mt-2 text-xs opacity-50">
+                <span>{formatDate(message.timestamp)}</span>
+                {/* Context viewer button for assistant messages */}
+                {message.role === 'assistant' && (
+                  <button
+                    onClick={() => handleViewContext()}
+                    disabled={loadingContext}
+                    className="flex items-center gap-1 px-2 py-1 bg-gray-700/50 hover:bg-gray-600/50 rounded transition-colors disabled:opacity-50"
+                    title="View LLM context"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span className="text-[10px]">Context</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -375,6 +453,32 @@ export function ChatPanel({ client, sessionId: initialSessionId, onSessionIdChan
           </button>
         </div>
       </div>
+
+      {/* Context Viewer Modal */}
+      {selectedContextBreadcrumb && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedContextBreadcrumb(null)}
+        >
+          <div 
+            className="bg-gray-900 rounded-lg w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-white">LLM Context Viewer</h2>
+              <button
+                onClick={() => setSelectedContextBreadcrumb(null)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ContextViewer breadcrumb={selectedContextBreadcrumb} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

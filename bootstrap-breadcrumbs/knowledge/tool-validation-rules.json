@@ -11,7 +11,8 @@
   "context": {
     "topic": "tool-validation-rules",
     "audience": "tool-creator and tool-debugger specialist agents",
-    "last_updated": "2025-11-10",
+    "last_updated": "2025-11-12",
+    "universal_standard_ref": "🔴 ALL tools must conform to Universal Tool Invocation Standard (tool-invocation-standard.json)",
     "content": {
       "summary": "Focused validation rules and checklist for tool.code.v1 creation. Use this as your validation checklist BEFORE uploading tools.",
       "structure_requirements": {

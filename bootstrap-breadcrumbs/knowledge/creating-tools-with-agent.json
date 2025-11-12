@@ -12,8 +12,9 @@
   "context": {
     "topic": "agent-tool-creation-workflow",
     "audience": "LLM agents (especially coordinator agents)",
-    "last_updated": "2025-11-10",
+    "last_updated": "2025-11-12",
     "content": {
+      "universal_standard_notice": "🔴 ALL tools must conform to Universal Tool Invocation Standard. See tool-invocation-standard.json",
       "summary": "Complete workflow for agents to create new tools autonomously. Teaches coordinator agents when to delegate tool creation to specialist agents, and teaches specialist agents how to generate valid tool.code.v1 breadcrumbs.",
       
       "when_to_create_tools": {
@@ -191,7 +192,7 @@
                 "examples": [
                   {
                     "description": "How to use the new tool",
-                    "tool_request": {"tool": "toolname", "input": {...}}
+                    "tool_request": {"tool": "toolname", "input": {}}
                   }
                 ]
               }

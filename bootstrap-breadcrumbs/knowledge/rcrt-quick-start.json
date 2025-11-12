@@ -83,7 +83,7 @@
       "Don't hardcode secrets (reference by ID from config)",
       "Do use llm_hints (save tokens and cost)",
       "Do set TTL for ephemeral data"
-    },
+    ],
     
     "where_to_learn_more": {
       "architecture": "docs/SYSTEM_ARCHITECTURE.md - comprehensive system design",
