@@ -59,7 +59,7 @@
       },
       {
         "schema_name": "tool.catalog.v1",
-        "reason": "Tool catalog - already provided to agent via subscriptions, don't duplicate"
+        "reason": "DEPRECATED: Tool catalog aggregation removed. Agents now query tool.code.v1 directly."
       },
       {
         "schema_name": "template.v1",

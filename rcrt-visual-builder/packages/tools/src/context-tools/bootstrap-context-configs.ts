@@ -58,11 +58,12 @@ const defaultChatAgentContextConfig = {
         }]
       }
     },
-    // Tool catalog: Latest only
+    // Tools: Direct discovery (RCRT WAY - no catalog aggregation!)
     {
-      schema_name: 'tool.catalog.v1',
-      method: 'latest',
-      filters: { tag: 'workspace:tools' }
+      schema_name: 'tool.code.v1',
+      method: 'all',
+      filters: { tag: 'workspace:tools' },
+      limit: 50
     }
   ],
   

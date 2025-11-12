@@ -667,10 +667,10 @@ export class ContextBuilderTool implements RCRTTool {
   private getContextKey(source: ContextSource): string {
     // Map schema names to friendly context keys
     const keyMap: Record<string, string> = {
-      'user.message.v1': 'user_messages',  // Changed for clarity
+      'user.message.v1': 'user_messages',
       'agent.response.v1': 'agent_responses',
       'tool.response.v1': 'tool_results',
-      'tool.catalog.v1': 'tool_catalog',
+      'tool.code.v1': 'available_tools',  // Direct tool discovery (no catalog!)
       'agent.def.v1': 'agent_definition',
       'workflow.state.v1': 'workflow_state'
     };

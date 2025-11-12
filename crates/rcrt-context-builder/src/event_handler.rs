@@ -469,11 +469,12 @@ impl EventHandler {
 /// Schema priority for sorting context
 fn schema_priority(schema: &str) -> u8 {
     match schema {
-        "tool.catalog.v1" => 1,  // Tools first
+        "tool.code.v1" => 1,  // Individual tools first (direct discovery, no aggregation!)
         "agent.catalog.v1" => 2,  // Then agents
         "browser.tab.context.v1" => 3,  // Then browser context
         "knowledge.v1" => 4,  // Then knowledge
         "user.message.v1" | "agent.response.v1" => 5,  // Then messages
+        "tool.catalog.v1" => 99,  // Deprecated - use tool.code.v1 instead
         _ => 10  // Everything else last
     }
 }

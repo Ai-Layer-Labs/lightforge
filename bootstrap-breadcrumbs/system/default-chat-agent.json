@@ -27,11 +27,11 @@
       "always": [
         {
           "type": "schema",
-          "schema_name": "tool.catalog.v1",
-          "method": "latest",
-          "limit": 1,
+          "schema_name": "tool.code.v1",
+          "method": "all",
+          "limit": 50,
           "optional": false,
-          "reason": "Agent needs to know available tools for orchestration"
+          "reason": "Direct tool discovery - each tool.code.v1 has llm_hints from schema (excludes code, includes name/description/schemas/examples). No catalog aggregation needed! TRUE RCRT WAY."
         },
         {
           "type": "schema",

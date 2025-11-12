@@ -75,55 +75,62 @@ export function useRealTimeData() {
     enabled: canLoadData,
   });
   
-  // Load tools from tool catalog breadcrumb (same as v1 approach)
+  // Load tools directly from tool.code.v1 breadcrumbs (RCRT WAY - no aggregation!)
   const toolsQuery = useQuery({
     queryKey: ['tools', breadcrumbsQuery.data],
     queryFn: async (): Promise<Tool[]> => {
-      if (!breadcrumbsQuery.data) return [];
+      console.log('🛠️ Loading tools directly from tool.code.v1 breadcrumbs...');
       
-      console.log('🛠️ Loading tools from tool catalog breadcrumb...');
+      // Query all tool.code.v1 breadcrumbs with workspace:tools tag
+      const searchParams = new URLSearchParams({
+        schema_name: 'tool.code.v1',
+        tag: 'workspace:tools'
+      });
       
-      // Find the tool catalog breadcrumb (same logic as v1)
-      const toolCatalog = breadcrumbsQuery.data.find(b => 
-        b.tags?.includes('tool:catalog') && 
-        b.title?.includes('Tool Catalog')
+      const response = await authenticatedFetch(`/api/breadcrumbs?${searchParams.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load tools: ${response.statusText}`);
+      }
+      
+      const toolBreadcrumbs = await response.json();
+      console.log(`✅ Found ${toolBreadcrumbs.length} tool.code.v1 breadcrumbs`);
+      
+      // Fetch full context for each tool (to get ui_schema, etc.)
+      const tools = await Promise.all(
+        toolBreadcrumbs.map(async (tb: any) => {
+          try {
+            const fullResponse = await authenticatedFetch(`/api/breadcrumbs/${tb.id}/full`);
+            if (!fullResponse.ok) return null;
+            
+            const fullTool = await fullResponse.json();
+            const ctx = fullTool.context;
+            
+            return {
+              id: tb.id,  // Use breadcrumb ID (not just name)
+              name: ctx.name,
+              description: ctx.description || fullTool.description,
+              category: ctx.category || 'general',
+              status: tb.tags?.includes('approved') ? 'active' : 'pending',
+              version: ctx.version || fullTool.semantic_version || '1.0.0',
+              capabilities: ctx.capabilities || { async: true },
+              inputSchema: ctx.input_schema,
+              outputSchema: ctx.output_schema,
+              lastSeen: fullTool.updated_at,
+              breadcrumb: fullTool  // Keep full breadcrumb for editing
+            };
+          } catch (error) {
+            console.warn(`Failed to load tool ${tb.id}:`, error);
+            return null;
+          }
+        })
       );
       
-      if (!toolCatalog) {
-        console.warn('🛠️ No tool catalog breadcrumb found');
-        return [];
-      }
-      
-      console.log('🛠️ Found tool catalog breadcrumb:', toolCatalog.id);
-      
-      // Get full context to see the tools list
-      const response = await authenticatedFetch(`/api/breadcrumbs/${toolCatalog.id}/full`);
-      if (!response.ok) {
-        throw new Error(`Failed to load tool catalog: ${response.statusText}`);
-      }
-      
-      const catalogData = await response.json();
-      
-      if (catalogData.context && catalogData.context.tools) {
-        console.log(`✅ Loaded ${catalogData.context.tools.length} tools from catalog`);
-        return catalogData.context.tools.map((tool: any, index: number) => ({
-          id: tool.name || `tool-${index}`,
-          name: tool.name,
-          description: tool.description,
-          category: tool.category,
-          status: tool.status,
-          version: tool.version,
-          capabilities: tool.capabilities,
-          inputSchema: tool.inputSchema,
-          outputSchema: tool.outputSchema,
-          lastSeen: tool.lastSeen,
-        }));
-      }
-      
-      return [];
+      const validTools = tools.filter(t => t !== null);
+      console.log(`✅ Loaded ${validTools.length} tools directly from tool.code.v1`);
+      return validTools;
     },
     staleTime: 5 * 60 * 1000,
-    enabled: canLoadData && !!breadcrumbsQuery.data,
+    enabled: canLoadData,
   });
 
   // Load subscription data for dynamic connections
