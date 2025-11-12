@@ -54,10 +54,6 @@
         "reason": "Assembled context breadcrumbs - prevents recursive context inclusion"
       },
       {
-        "schema_name": "tool.code.v1",
-        "reason": "Tool source code - implementation details, not relevant for LLM context"
-      },
-      {
         "schema_name": "tool.catalog.v1",
         "reason": "DEPRECATED: Tool catalog aggregation removed. Agents now query tool.code.v1 directly."
       },

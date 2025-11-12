@@ -34,14 +34,23 @@
           "limit": 1,
           "optional": false,
           "reason": "Validation rules - the single source of truth for security decisions"
+        },
+        {
+          "type": "schema",
+          "schema_name": "tool.code.v1",
+          "tag": "approved",
+          "method": "all",
+          "limit": 20,
+          "optional": true,
+          "reason": "Examples of approved tools to learn safe patterns (each has llm_hints applied, code excluded)"
         }
       ],
       "semantic": {
         "enabled": true,
-        "schemas": ["knowledge.v1"],
-        "limit": 2,
+        "schemas": ["knowledge.v1", "tool.code.v1"],
+        "limit": 3,
         "min_similarity": 0.75,
-        "comment": "Security and validation knowledge"
+        "comment": "Security knowledge and similar tools for pattern matching"
       }
     },
     

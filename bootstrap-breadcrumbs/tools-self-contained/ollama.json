@@ -114,7 +114,7 @@
       "hrtime": false
     },
     "limits": {
-      "timeout_ms": 120000,
+      "timeout_ms": 300000,
       "memory_mb": 256,
       "cpu_percent": 80
     },
