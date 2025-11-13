@@ -279,3 +279,5 @@ docker compose logs tools-runner | grep "Loaded.*approved"
 
 **Key insight:** validation-specialist should auto-approve future tools. The bootstrap issue is one-time only.
 
+
+

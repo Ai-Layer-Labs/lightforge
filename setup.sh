@@ -134,6 +134,15 @@ else
     echo "   You can build it later with: cd extension && npm install && npm run build"
 fi
 
+# Build workspace packages (SDK, runtime) before Docker builds
+echo "🔧 Building workspace packages (SDK, runtime)..."
+if [ -d "rcrt-visual-builder/packages/sdk" ]; then
+  echo "   Building SDK with new v2.3.0 LLM-friendly methods..."
+  (cd rcrt-visual-builder/packages/sdk && npm run build) 2>&1 | grep -E "(Build success|Error)" || echo "   ✅ SDK built"
+else
+  echo "   ⚠️  SDK directory not found - skipping"
+fi
+
 # Build core services with platform-specific options
 echo "🔨 Building core services..."
 
