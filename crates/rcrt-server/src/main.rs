@@ -130,6 +130,11 @@ async fn main() -> Result<()> {
         .route("/breadcrumbs/:id", get(get_breadcrumb_context).patch(update_breadcrumb).delete(delete_breadcrumb))
         .route("/breadcrumbs/:id/full", get(get_breadcrumb_full))
         .route("/breadcrumbs/:id/history", get(get_breadcrumb_history))
+        .route("/breadcrumbs/:id/tags/add", post(add_tags))
+        .route("/breadcrumbs/:id/tags/remove", post(remove_tags))
+        .route("/breadcrumbs/:id/context/merge", post(merge_context))
+        .route("/breadcrumbs/:id/approve", post(approve_breadcrumb))
+        .route("/breadcrumbs/:id/reject", post(reject_breadcrumb))
         .route("/breadcrumbs/search", get(vector_search))
         .route("/events/stream", get(sse_stream))
         .route("/acl", get(list_acls))
@@ -852,6 +857,304 @@ async fn update_breadcrumb(State(state): State<AppState>, auth: AuthContext, hea
 async fn delete_breadcrumb(State(state): State<AppState>, auth: AuthContext, axum::extract::Path(id): axum::extract::Path<Uuid>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let rows = state.db.delete_breadcrumb(auth.owner_id, auth.agent_id, id).await.map_err(internal_error)?;
     if rows == 0 { return Err((StatusCode::NOT_FOUND, "not found".into())); }
+    Ok(Json(json!({"ok": true})))
+}
+
+// ============ LLM-FRIENDLY API ENDPOINTS ============
+
+#[derive(Deserialize)]
+struct TagOperation {
+    tags: Vec<String>,
+}
+
+async fn add_tags(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Json(req): Json<TagOperation>
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator" || r == "emitter") {
+        return Err((StatusCode::FORBIDDEN, "curator or emitter role required".into()));
+    }
+    
+    // Atomic tag addition with deduplication
+    let result = sqlx::query("
+        UPDATE breadcrumbs 
+        SET tags = (
+            SELECT array_agg(DISTINCT tag ORDER BY tag)
+            FROM unnest(tags || $1::text[]) AS tag
+        ),
+        version = version + 1,
+        updated_at = NOW(),
+        updated_by = $3
+        WHERE id = $2 
+        AND owner_id = $4
+        RETURNING version
+    ")
+    .bind(&req.tags)
+    .bind(id)
+    .bind(auth.agent_id)
+    .bind(auth.owner_id)
+    .fetch_optional(&state.db.pool)
+    .await
+    .map_err(internal_error)?;
+    
+    if result.is_none() {
+        return Err((StatusCode::NOT_FOUND, "not found".into()));
+    }
+    
+    // Publish update event
+    #[cfg(feature = "nats")]
+    {
+        let _ = state.nats_conn.as_ref().map(|nc| {
+            let evt = json!({
+                "type": "breadcrumb.updated",
+                "breadcrumb_id": id,
+                "owner_id": auth.owner_id,
+                "tags_added": req.tags.len()
+            });
+            nc.publish(&format!("bc.{}.updated", id), evt.to_string().as_bytes())
+        });
+    }
+    
+    tracing::info!("Added {} tags to breadcrumb {}", req.tags.len(), id);
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn remove_tags(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Json(req): Json<TagOperation>
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator" || r == "emitter") {
+        return Err((StatusCode::FORBIDDEN, "curator or emitter role required".into()));
+    }
+    
+    // Atomic tag removal
+    let result = sqlx::query("
+        UPDATE breadcrumbs 
+        SET tags = (
+            SELECT array_agg(tag ORDER BY tag)
+            FROM unnest(tags) AS tag
+            WHERE tag != ALL($1::text[])
+        ),
+        version = version + 1,
+        updated_at = NOW(),
+        updated_by = $3
+        WHERE id = $2 
+        AND owner_id = $4
+        RETURNING version
+    ")
+    .bind(&req.tags)
+    .bind(id)
+    .bind(auth.agent_id)
+    .bind(auth.owner_id)
+    .fetch_optional(&state.db.pool)
+    .await
+    .map_err(internal_error)?;
+    
+    if result.is_none() {
+        return Err((StatusCode::NOT_FOUND, "not found".into()));
+    }
+    
+    // Publish update event
+    #[cfg(feature = "nats")]
+    {
+        let _ = state.nats_conn.as_ref().map(|nc| {
+            let evt = json!({
+                "type": "breadcrumb.updated",
+                "breadcrumb_id": id,
+                "owner_id": auth.owner_id,
+                "tags_removed": req.tags.len()
+            });
+            nc.publish(&format!("bc.{}.updated", id), evt.to_string().as_bytes())
+        });
+    }
+    
+    tracing::info!("Removed {} tags from breadcrumb {}", req.tags.len(), id);
+    Ok(Json(json!({"ok": true})))
+}
+
+#[derive(Deserialize)]
+struct ContextMergeReq {
+    context: serde_json::Value,
+}
+
+async fn merge_context(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Json(req): Json<ContextMergeReq>
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator" || r == "emitter") {
+        return Err((StatusCode::FORBIDDEN, "curator or emitter role required".into()));
+    }
+    
+    // Deep merge: new values override, missing fields preserved
+    let result = sqlx::query("
+        UPDATE breadcrumbs 
+        SET context = jsonb_deep_merge(context, $1::jsonb),
+            version = version + 1,
+            updated_at = NOW(),
+            updated_by = $3
+        WHERE id = $2 
+        AND owner_id = $4
+        RETURNING version
+    ")
+    .bind(&req.context)
+    .bind(id)
+    .bind(auth.agent_id)
+    .bind(auth.owner_id)
+    .fetch_optional(&state.db.pool)
+    .await
+    .map_err(internal_error)?;
+    
+    if result.is_none() {
+        return Err((StatusCode::NOT_FOUND, "not found".into()));
+    }
+    
+    // Publish update event
+    #[cfg(feature = "nats")]
+    {
+        let _ = state.nats_conn.as_ref().map(|nc| {
+            let evt = json!({
+                "type": "breadcrumb.updated",
+                "breadcrumb_id": id,
+                "owner_id": auth.owner_id,
+                "context_merged": true
+            });
+            nc.publish(&format!("bc.{}.updated", id), evt.to_string().as_bytes())
+        });
+    }
+    
+    tracing::info!("Merged context for breadcrumb {}", id);
+    Ok(Json(json!({"ok": true})))
+}
+
+#[derive(Deserialize)]
+struct ApprovalRequest {
+    reason: Option<String>,
+}
+
+async fn approve_breadcrumb(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Json(req): Json<ApprovalRequest>
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator" || r == "emitter") {
+        return Err((StatusCode::FORBIDDEN, "curator or emitter role required".into()));
+    }
+    
+    // Semantic action: Add approved + validated tags, remove draft/pending
+    let result = sqlx::query("
+        UPDATE breadcrumbs 
+        SET tags = (
+            SELECT array_agg(DISTINCT tag ORDER BY tag)
+            FROM unnest(
+                array_remove(
+                    array_remove(tags, 'draft'), 
+                    'pending'
+                ) || ARRAY['approved', 'validated']
+            ) AS tag
+        ),
+        version = version + 1,
+        updated_at = NOW(),
+        updated_by = $2
+        WHERE id = $1 
+        AND owner_id = $3
+        RETURNING version
+    ")
+    .bind(id)
+    .bind(auth.agent_id)
+    .bind(auth.owner_id)
+    .fetch_optional(&state.db.pool)
+    .await
+    .map_err(internal_error)?;
+    
+    if result.is_none() {
+        return Err((StatusCode::NOT_FOUND, "not found".into()));
+    }
+    
+    // Publish update event
+    #[cfg(feature = "nats")]
+    {
+        let _ = state.nats_conn.as_ref().map(|nc| {
+            let evt = json!({
+                "type": "breadcrumb.updated",
+                "breadcrumb_id": id,
+                "owner_id": auth.owner_id,
+                "action": "approved",
+                "reason": req.reason
+            });
+            nc.publish(&format!("bc.{}.updated", id), evt.to_string().as_bytes())
+        });
+    }
+    
+    tracing::info!("Approved breadcrumb {} - reason: {:?}", id, req.reason);
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn reject_breadcrumb(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    Json(req): Json<ApprovalRequest>
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !auth.roles.iter().any(|r| r == "curator" || r == "emitter") {
+        return Err((StatusCode::FORBIDDEN, "curator or emitter role required".into()));
+    }
+    
+    // Semantic action: Add rejected tag, remove approved/validated/draft
+    let result = sqlx::query("
+        UPDATE breadcrumbs 
+        SET tags = (
+            SELECT array_agg(DISTINCT tag ORDER BY tag)
+            FROM unnest(
+                array_remove(
+                    array_remove(
+                        array_remove(tags, 'approved'),
+                        'validated'
+                    ),
+                    'draft'
+                ) || ARRAY['rejected']
+            ) AS tag
+        ),
+        version = version + 1,
+        updated_at = NOW(),
+        updated_by = $2
+        WHERE id = $1 
+        AND owner_id = $3
+        RETURNING version
+    ")
+    .bind(id)
+    .bind(auth.agent_id)
+    .bind(auth.owner_id)
+    .fetch_optional(&state.db.pool)
+    .await
+    .map_err(internal_error)?;
+    
+    if result.is_none() {
+        return Err((StatusCode::NOT_FOUND, "not found".into()));
+    }
+    
+    // Publish update event
+    #[cfg(feature = "nats")]
+    {
+        let _ = state.nats_conn.as_ref().map(|nc| {
+            let evt = json!({
+                "type": "breadcrumb.updated",
+                "breadcrumb_id": id,
+                "owner_id": auth.owner_id,
+                "action": "rejected",
+                "reason": req.reason
+            });
+            nc.publish(&format!("bc.{}.updated", id), evt.to_string().as_bytes())
+        });
+    }
+    
+    tracing::info!("Rejected breadcrumb {} - reason: {:?}", id, req.reason);
     Ok(Json(json!({"ok": true})))
 }
 

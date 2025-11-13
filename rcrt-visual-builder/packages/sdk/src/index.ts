@@ -341,6 +341,93 @@ export class RcrtClientEnhanced {
     return response.json();
   }
 
+  // ============ LLM-Friendly Operations (v2.3.0) ============
+
+  /**
+   * Add tags to breadcrumb atomically (no fetch required)
+   */
+  async addTags(id: string, tags: string[]): Promise<{ ok: boolean }> {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/tags/add`, {
+      method: 'POST',
+      body: JSON.stringify({ tags }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to add tags: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Remove tags from breadcrumb atomically (no fetch required)
+   */
+  async removeTags(id: string, tags: string[]): Promise<{ ok: boolean }> {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/tags/remove`, {
+      method: 'POST',
+      body: JSON.stringify({ tags }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to remove tags: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Deep merge context (updates only specified fields, preserves rest)
+   */
+  async mergeContext(id: string, context: BreadcrumbContext): Promise<{ ok: boolean }> {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/context/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ context }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to merge context: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Approve breadcrumb (semantic action - adds approved/validated tags)
+   */
+  async approveBreadcrumb(id: string, reason?: string): Promise<{ ok: boolean }> {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to approve breadcrumb: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Reject breadcrumb (semantic action - adds rejected tag)
+   */
+  async rejectBreadcrumb(id: string, reason?: string): Promise<{ ok: boolean }> {
+    const response = await this.fetchWithAuth(`${this.baseUrl}/breadcrumbs/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to reject breadcrumb: ${error}`);
+    }
+
+    return response.json();
+  }
+
   /**
    * Batch fetch multiple breadcrumbs with context
    * Uses parallel requests for better performance

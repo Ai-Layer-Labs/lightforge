@@ -39,20 +39,23 @@
         ]
       },
       "required_structure": {
-        "description": "Every tool.code.v1 breadcrumb MUST follow this exact structure",
+        "description": "Every tool.code.v1 breadcrumb MUST follow this exact structure (v2.2.0)",
         "template": {
           "schema_name": "tool.code.v1",
-          "title": "Tool Name (Self-Contained)",
+          "title": "Tool Name",
+          "description": "Detailed description of what this tool does",
+          "semantic_version": "1.0.0",
           "tags": [
             "tool",
             "tool:toolname",
-            "workspace:tools",
-            "self-contained"
+            "utility",
+            "math"
           ],
+          "llm_hints": {
+            "exclude": ["code", "permissions", "limits", "ui_schema"]
+          },
           "context": {
             "name": "toolname",
-            "description": "What the tool does",
-            "version": "1.0.0",
             "code": {
               "language": "typescript",
               "source": "// Your Deno TypeScript code here"
@@ -67,13 +70,18 @@
           }
         },
         "critical_rules": [
+          "✅ MUST have top-level 'description' field (detailed description)",
+          "✅ MUST have top-level 'semantic_version' field (e.g., '1.0.0')",
+          "✅ MUST have top-level 'llm_hints' with exclude array",
           "✅ MUST have 'code' wrapper object with 'language' and 'source'",
-          "✅ MUST use tags: ['tool', 'tool:name', 'workspace:tools', 'self-contained']",
           "✅ MUST include required_secrets (array, even if empty)",
           "✅ MUST include ui_schema (even if configurable: false)",
+          "✅ Tags: Start with ['tool', 'tool:name', POINTER_TAGS]",
+          "✅ workspace:tools tag: Added by tool-creator after upload, NOT by you!",
           "❌ NEVER put 'source' directly in context (must be in code.source)",
-          "❌ NEVER use fields like 'runtime' or 'entry_point' (not in schema)",
-          "❌ NEVER forget the code wrapper - this is the #1 mistake"
+          "❌ NEVER use 'self-contained' tag (redundant - all tool.code.v1 are self-contained)",
+          "❌ NEVER put description in context (it's top-level)",
+          "❌ NEVER forget llm_hints - required for context optimization"
         ]
       },
       "code_section": {
@@ -336,20 +344,23 @@
         ]
       },
       "complete_working_example": {
-        "description": "A complete, minimal working tool (echo)",
+        "description": "A complete, minimal working tool (echo) - v2.2.0 format",
         "json": {
           "schema_name": "tool.code.v1",
-          "title": "Echo Tool (Self-Contained)",
+          "title": "Echo Tool",
+          "description": "Returns the input unchanged - useful for testing tool chains and verifying communication",
+          "semantic_version": "1.0.0",
           "tags": [
             "tool",
             "tool:echo",
-            "workspace:tools",
-            "self-contained"
+            "utility",
+            "testing"
           ],
+          "llm_hints": {
+            "exclude": ["code", "permissions", "limits", "ui_schema"]
+          },
           "context": {
             "name": "echo",
-            "description": "Returns the input unchanged - useful for testing",
-            "version": "1.0.0",
             "code": {
               "language": "typescript",
               "source": "export async function execute(input, context) {\n  if (!input.message || typeof input.message !== 'string') {\n    throw new Error('message is required and must be a string');\n  }\n  return { echo: input.message };\n}"
@@ -407,24 +418,27 @@
         }
       },
       "uploading_your_tool": {
-        "description": "How to upload your tool to RCRT using the breadcrumb-create tool",
+        "description": "How to upload your tool to RCRT using the breadcrumb-create tool (v2.2.0)",
         "method_1_direct": {
           "description": "Use breadcrumb-create tool to upload the definition",
           "tool_request": {
             "tool": "breadcrumb-create",
             "input": {
               "schema_name": "tool.code.v1",
-              "title": "Your Tool Name (Self-Contained)",
+              "title": "Your Tool Name",
+              "description": "Detailed description of what your tool does and why it's useful",
+              "semantic_version": "1.0.0",
               "tags": [
                 "tool",
                 "tool:yourname",
-                "workspace:tools",
-                "self-contained"
+                "utility",
+                "math"
               ],
+              "llm_hints": {
+                "exclude": ["code", "permissions", "limits", "ui_schema"]
+              },
               "context": {
                 "name": "yourname",
-                "description": "What your tool does",
-                "version": "1.0.0",
                 "code": {
                   "language": "typescript",
                   "source": "export async function execute(input, context) { ... }"

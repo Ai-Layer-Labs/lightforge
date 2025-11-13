@@ -80,6 +80,51 @@
         "responses": { "200": { "description": "History", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/HistoryItem" } } } } } }
       }
     },
+    "/breadcrumbs/{id}/tags/add": {
+      "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
+      "post": {
+        "summary": "Add tags atomically",
+        "description": "Add tags to breadcrumb without fetching current state. Idempotent - adding existing tags is a no-op. Deduplicates automatically. Perfect for LLM agents that need to tag items without complex fetch-modify-update cycles.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["tags"], "properties": { "tags": { "type": "array", "items": {"type": "string"}, "description": "Tags to add" } } } } } },
+        "responses": { "200": { "description": "Tags added", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
+      }
+    },
+    "/breadcrumbs/{id}/tags/remove": {
+      "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
+      "post": {
+        "summary": "Remove tags atomically",
+        "description": "Remove tags from breadcrumb without fetching current state. Idempotent - removing non-existent tags is a no-op.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["tags"], "properties": { "tags": { "type": "array", "items": {"type": "string"}, "description": "Tags to remove" } } } } } },
+        "responses": { "200": { "description": "Tags removed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
+      }
+    },
+    "/breadcrumbs/{id}/context/merge": {
+      "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
+      "post": {
+        "summary": "Deep merge context",
+        "description": "Deep merge context object into breadcrumb. Only updates fields specified in request, preserves all other fields. Perfect for fixing specific fields (e.g., updating limits.timeout_ms) without replacing entire context. Uses PostgreSQL jsonb_deep_merge function for recursive merging.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["context"], "properties": { "context": { "type": "object", "additionalProperties": true, "description": "Context fields to merge (deep merge - only specified fields updated)" } } } } } },
+        "responses": { "200": { "description": "Context merged", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
+      }
+    },
+    "/breadcrumbs/{id}/approve": {
+      "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
+      "post": {
+        "summary": "Approve breadcrumb",
+        "description": "Semantic action: Approve a breadcrumb by adding 'approved' and 'validated' tags and removing 'draft' and 'pending' tags. Atomic operation - no fetch required. Perfect for validation workflows.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "reason": { "type": "string", "description": "Reason for approval (optional)" } } } } } },
+        "responses": { "200": { "description": "Breadcrumb approved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
+      }
+    },
+    "/breadcrumbs/{id}/reject": {
+      "parameters": [{ "$ref": "#/components/parameters/BreadcrumbId" }],
+      "post": {
+        "summary": "Reject breadcrumb",
+        "description": "Semantic action: Reject a breadcrumb by adding 'rejected' tag and removing 'approved', 'validated', and 'draft' tags. Atomic operation.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "reason": { "type": "string", "description": "Reason for rejection (optional)" } } } } } },
+        "responses": { "200": { "description": "Breadcrumb rejected", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResp" } } } }, "404": { "description": "Not found" } }
+      }
+    },
     "/breadcrumbs/search": {
       "get": {
         "summary": "Vector search",

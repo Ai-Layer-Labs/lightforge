@@ -13,11 +13,30 @@
   "context": {
     "topic": "code-validation-security",
     "audience": "validation-specialist and tool-debugger agents",
-    "last_updated": "2025-11-12",
+    "last_updated": "2025-11-13",
     "universal_standard_ref": "🔴 Validate against Universal Tool Invocation Standard (tool-invocation-standard.json)",
-    "version_note": "This breadcrumb evolves via breadcrumb-update when agents learn new patterns",
+    "version_note": "This breadcrumb evolves via breadcrumb-context-merge when agents learn new patterns",
+    "api_version": "v2.3.0 - Use breadcrumb-approve for validation, breadcrumb-context-merge for fixes",
     "content": {
-      "summary": "Dynamic validation rules for tool.code.v1 security analysis. Updated by validation-specialist and tool-debugger agents as they learn safe patterns and discover new threats.",
+      "summary": "Dynamic validation rules for tool.code.v1 security analysis (v2.2.0). Updated by validation-specialist and tool-debugger agents as they learn safe patterns and discover new threats.",
+      "required_top_level_fields": [
+        "schema_name (must be 'tool.code.v1')",
+        "title (human-readable tool name)",
+        "description (detailed description - REQUIRED in v2.2.0!)",
+        "semantic_version (e.g., '1.0.0' - REQUIRED in v2.2.0!)",
+        "tags (array with 'tool', 'tool:name', and pointer tags)",
+        "llm_hints (exclude array - REQUIRED in v2.2.0!)",
+        "context (tool implementation details)"
+      ],
+      "llm_hints_requirement": {
+        "required": true,
+        "format": "exclude-only (v2.2.0)",
+        "example": {
+          "exclude": ["code", "permissions", "limits", "ui_schema"]
+        },
+        "why": "Context-builder uses llm_hints to exclude verbose fields from agent context. Also used for embedding generation (semantic search quality).",
+        "validation": "MUST have llm_hints field with exclude array"
+      },
       "dangerous_patterns": [
         {
           "pattern": "(?<![.$])\\beval\\s*\\(",

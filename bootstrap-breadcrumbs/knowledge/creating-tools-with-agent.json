@@ -138,9 +138,13 @@
         "validation_checklist": {
           "note": "Complete checklist in tool-validation-rules.json knowledge guide",
           "critical_reminders": [
+            "🔴 MUST include top-level description field",
+            "🔴 MUST include top-level semantic_version field (e.g., '1.0.0')",
+            "🔴 MUST include top-level llm_hints with exclude array",
             "🔴 ALL output properties must have 'type' field",
             "🔴 NEVER set ffi: true",
             "🔴 Browser tools need: net, read, write, run, env, hrtime",
+            "🔴 Do NOT add 'workspace:tools' tag - tool-creator adds it after creation!",
             "✅ Validate against tool-validation-rules.json BEFORE uploading"
           ]
         },
@@ -153,12 +157,15 @@
                 "tool": "breadcrumb-create",
                 "input": {
                   "schema_name": "tool.code.v1",
-                  "title": "Tool Name (Self-Contained)",
-                  "tags": ["tool", "tool:toolname", "workspace:tools", "self-contained"],
+                  "title": "Tool Name",
+                  "description": "Detailed description of what this tool does",
+                  "semantic_version": "1.0.0",
+                  "tags": ["tool", "tool:toolname", "utility", "math"],
+                  "llm_hints": {
+                    "exclude": ["code", "permissions", "limits", "ui_schema"]
+                  },
                   "context": {
                     "name": "toolname",
-                    "description": "What it does",
-                    "version": "1.0.0",
                     "code": {"language": "typescript", "source": "export async function execute..."},
                     "input_schema": {},
                     "output_schema": {},
@@ -406,11 +413,14 @@
             "input": {
               "schema_name": "tool.code.v1",
               "title": "Tool Name (Self-Contained)",
-              "tags": ["tool", "tool:name", "workspace:tools", "self-contained"],
+              "description": "Detailed description of what this tool does",
+              "semantic_version": "1.0.0",
+              "tags": ["tool", "tool:name", "utility", "math"],
+              "llm_hints": {
+                "exclude": ["code", "permissions", "limits", "ui_schema"]
+              },
               "context": {
                 "name": "name",
-                "description": "description",
-                "version": "1.0.0",
                 "code": {
                   "language": "typescript",
                   "source": "complete source code here"

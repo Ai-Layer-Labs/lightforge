@@ -1,0 +1,111 @@
+{
+  "schema_name": "tool.code.v1",
+  "title": "Breadcrumb Approve (Semantic Action)",
+  "description": "Approve a breadcrumb - adds 'approved' and 'validated' tags, removes 'draft' and 'pending' tags atomically",
+  "semantic_version": "1.0.0",
+  "tags": [
+    "tool",
+    "workspace:tools",
+    "tool:breadcrumb-approve",
+    "approved",
+    "validated",
+    "bootstrap",
+    "rcrt-api",
+    "semantic-action",
+    "approval"
+  ],
+  "llm_hints": {
+    "exclude": ["code", "permissions", "limits", "ui_schema"]
+  },
+  "context": {
+    "name": "breadcrumb-approve",
+    "description": "Semantically approve a breadcrumb by adding approval tags atomically. No need to fetch current state - the API handles merging automatically.",
+    "code": {
+      "language": "typescript",
+      "source": "/**\n * Breadcrumb Approve Tool - Semantic Action\n * Atomically approves a breadcrumb without fetching current state\n */\n\ninterface Input {\n  breadcrumb_id: string;\n  reason?: string;\n}\n\ninterface Output {\n  success: boolean;\n  id: string;\n  action: string;\n  reason: string;\n}\n\ninterface Context {\n  secrets: Record<string, string>;\n  api: any;\n  request: any;\n}\n\nexport async function execute(input: Input, context: Context): Promise<Output> {\n  const { breadcrumb_id, reason } = input;\n  \n  if (!breadcrumb_id) {\n    throw new Error('breadcrumb_id is required');\n  }\n  \n  // Use SDK method (handles auth automatically!)\n  await context.api.approveBreadcrumb(breadcrumb_id, reason || 'Automated approval');\n  \n  return {\n    success: true,\n    id: breadcrumb_id,\n    action: 'approved',\n    reason: reason || 'Automated approval'\n  };\n}\n"
+    },
+    "input_schema": {
+      "type": "object",
+      "required": ["breadcrumb_id"],
+      "properties": {
+        "breadcrumb_id": {
+          "type": "string",
+          "description": "UUID of breadcrumb to approve"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for approval (optional, defaults to 'Automated approval')"
+        }
+      }
+    },
+    "output_schema": {
+      "type": "object",
+      "required": ["success", "id", "action"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether approval succeeded"
+        },
+        "id": {
+          "type": "string",
+          "description": "ID of approved breadcrumb"
+        },
+        "action": {
+          "type": "string",
+          "description": "Action performed (always 'approved')"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Approval reason"
+        }
+      }
+    },
+    "permissions": {
+      "net": false,
+      "read": false,
+      "write": false,
+      "env": false,
+      "run": false,
+      "ffi": false,
+      "hrtime": false
+    },
+    "limits": {
+      "timeout_ms": 30000,
+      "memory_mb": 64,
+      "cpu_percent": 50
+    },
+    "required_secrets": [],
+    "ui_schema": {
+      "configurable": false
+    },
+    "examples": [
+      {
+        "description": "Approve a tool after validation",
+        "input": {
+          "breadcrumb_id": "699c4a8e-289b-40c5-ad95-b9b429e7724f",
+          "reason": "Passes all security checks - safe for use"
+        },
+        "output": {
+          "success": true,
+          "id": "699c4a8e-289b-40c5-ad95-b9b429e7724f",
+          "action": "approved",
+          "reason": "Passes all security checks - safe for use"
+        },
+        "explanation": "Atomically adds 'approved' and 'validated' tags, removes 'draft' and 'pending' if present. No fetch required!"
+      },
+      {
+        "description": "Simple approval without reason",
+        "input": {
+          "breadcrumb_id": "abc-123-def-456"
+        },
+        "output": {
+          "success": true,
+          "id": "abc-123-def-456",
+          "action": "approved",
+          "reason": "Automated approval"
+        },
+        "explanation": "Reason defaults to 'Automated approval' if not provided"
+      }
+    ]
+  }
+}
