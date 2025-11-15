@@ -312,6 +312,10 @@ async function dispatchEventToTool(
         const executionTime = Date.now() - startTime;
         
         if (!executionResult.success) {
+
+          console.error('❌ Tool execution failed - Full details:', JSON.stringify(executionResult, null, 2));
+          console.error('   Error message:', executionResult.error);
+          console.error('   Metadata:', executionResult.metadata);
           throw new Error(executionResult.error || 'Tool execution failed');
         }
         

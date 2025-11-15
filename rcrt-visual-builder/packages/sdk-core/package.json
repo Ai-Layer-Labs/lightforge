@@ -1,0 +1,24 @@
+{
+  "name": "@rcrt-builder/sdk-core",
+  "version": "1.0.0",
+  "description": "Platform-agnostic RCRT SDK (works in Node.js, Deno, and browsers)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
+

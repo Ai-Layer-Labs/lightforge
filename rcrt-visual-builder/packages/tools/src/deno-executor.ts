@@ -149,13 +149,13 @@ export class DenoExecutor {
     input: any,
     context: ToolExecutionContext
   ): string {
-    // Inject context as global constants
+    // Inject context - use inline SDK (Deno doesn't support npm: imports in dynamic code)
     const contextInjection = `
 // Injected Context
 const CONTEXT_API_BASE_URL = ${JSON.stringify(context.api.baseUrl)};
 const CONTEXT_API_TOKEN = ${JSON.stringify(context.api.token)};
 
-${ContextSerializer.generateContextApiWrapper()}
+${this.generateInlineSDK()}
 
 // Build context object
 const context = {
@@ -195,6 +195,148 @@ const input = ${JSON.stringify(input)};
     
     // Combine all parts
     return `${contextInjection}\n\n${code.source}\n\n${executionWrapper}`;
+  }
+
+  /**
+   * Generate inline SDK (copied from sdk-core)
+   * We can't use npm: imports in dynamic Deno code, so we inline the SDK
+   */
+  private generateInlineSDK(): string {
+    return `
+// RCRT SDK - Inline version for Deno tools
+// Auto-synced with @rcrt-builder/sdk-core
+
+class RcrtClient {
+  constructor(options) {
+    this.baseUrl = (options.baseUrl || options).replace(/\\/$/, '');
+    this.token = options.token || options;
+  }
+
+  async request(path, init = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(init.headers || {})
+    };
+    
+    if (this.token) {
+      headers['Authorization'] = \`Bearer \${this.token}\`;
+    }
+
+    const response = await fetch(\`\${this.baseUrl}\${path}\`, {
+      ...init,
+      headers
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(\`API error \${response.status}: \${error}\`);
+    }
+
+    return response.json();
+  }
+
+  async getBreadcrumb(id) {
+    return this.request(\`/breadcrumbs/\${id}/full\`);
+  }
+
+  async createBreadcrumb(data, idempotencyKey) {
+    const headers = {};
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+    return this.request('/breadcrumbs', { method: 'POST', headers, body: JSON.stringify(data) });
+  }
+
+  async updateBreadcrumb(id, version, updates) {
+    return this.request(\`/breadcrumbs/\${id}\`, {
+      method: 'PATCH',
+      headers: { 'If-Match': version.toString() },
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async deleteBreadcrumb(id, version) {
+    const headers = {};
+    if (version) headers['If-Match'] = version.toString();
+    await this.request(\`/breadcrumbs/\${id}\`, { method: 'DELETE', headers });
+  }
+
+  async searchBreadcrumbs(params) {
+    const q = new URLSearchParams();
+    if (params.schema_name) q.set('schema_name', params.schema_name);
+    if (params.tag) q.set('tag', params.tag);
+    if (params.limit) q.set('limit', params.limit.toString());
+    if (params.offset) q.set('offset', params.offset.toString());
+    if (params.include_context) q.set('include_context', 'true');
+    return this.request(\`/breadcrumbs?\${q}\`);
+  }
+
+  async vectorSearch(params) {
+    const q = new URLSearchParams();
+    if (params.q) q.set('q', params.q);
+    if (params.qvec) q.set('qvec', JSON.stringify(params.qvec));
+    if (params.nn) q.set('nn', params.nn.toString());
+    if (params.tag) q.set('tag', params.tag);
+    if (params.schema_name) q.set('schema_name', params.schema_name);
+    q.set('include_context', 'true');
+    return this.request(\`/breadcrumbs/search?\${q}\`);
+  }
+
+  // ============ LLM-Friendly Operations (v2.3.0) ============
+
+  async addTags(id, tags) {
+    return this.request(\`/breadcrumbs/\${id}/tags/add\`, {
+      method: 'POST',
+      body: JSON.stringify({ tags })
+    });
+  }
+
+  async removeTags(id, tags) {
+    return this.request(\`/breadcrumbs/\${id}/tags/remove\`, {
+      method: 'POST',
+      body: JSON.stringify({ tags })
+    });
+  }
+
+  async mergeContext(id, context) {
+    return this.request(\`/breadcrumbs/\${id}/context/merge\`, {
+      method: 'POST',
+      body: JSON.stringify({ context })
+    });
+  }
+
+  async approveBreadcrumb(id, reason) {
+    return this.request(\`/breadcrumbs/\${id}/approve\`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async rejectBreadcrumb(id, reason) {
+    return this.request(\`/breadcrumbs/\${id}/reject\`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  // ============ Secrets ============
+
+  async getSecret(secretId, reason) {
+    return this.request(\`/secrets/\${secretId}/decrypt\`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'Tool execution' })
+    });
+  }
+
+  async listSecrets(scopeType, scopeId) {
+    const q = new URLSearchParams();
+    if (scopeType) q.set('scope_type', scopeType);
+    if (scopeId) q.set('scope_id', scopeId);
+    const query = q.toString();
+    return this.request(\`/secrets\${query ? \`?\${query}\` : ''}\`);
+  }
+}
+
+const api = new RcrtClient({ baseUrl: CONTEXT_API_BASE_URL, token: CONTEXT_API_TOKEN });
+`;
   }
   
   /**

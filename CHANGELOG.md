@@ -1,5 +1,20 @@
 # RCRT Changelog
 
+## [Unreleased]
+
+### Added
+- Two-phase context assembly: trigger breadcrumbs fetched via /full, supporting via /llm_optimized
+- BreadcrumbFull struct and get_breadcrumb_full() method in context-builder client
+- Separate formatting for trigger (complete metadata) vs supporting context (minimal)
+
+### Fixed
+- validation-specialist now receives full tool structure (description, semantic_version, llm_hints, tags)
+- Curator agents can properly inspect breadcrumb compliance without missing top-level fields
+
+### Changed
+- Context-builder publisher now shows trigger breadcrumb with full structure first
+- Supporting breadcrumbs (tools, knowledge, etc.) remain LLM-optimized and minimal
+
 ## [4.2.0] - 2025-11-12 - Direct Tool Discovery & Universal Tool Standard
 
 ### 🚀 Architectural Breakthrough: Pure RCRT Principles

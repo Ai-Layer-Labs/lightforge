@@ -1724,6 +1724,54 @@ context.request.v1:
 context-builder creates agent.context.v1 with reply_tags
 ```
 
+#### Two-Phase Context Assembly
+
+**The RCRT Way:** "The thing you're reacting to gets full detail, references stay minimal"
+
+Context-builder uses a two-phase approach for assembling agent context:
+
+**Phase 1: Trigger Breadcrumb (Full Structure)**
+- Fetched via `/breadcrumbs/{id}/full`
+- Includes ALL top-level metadata: title, description, semantic_version, tags, llm_hints
+- Complete context object (with llm_hints exclusions applied)
+- Presented first for immediate inspection
+
+**Phase 2: Supporting Context (LLM-Optimized)**
+- Fetched via `/breadcrumbs/{id}` (applies llm_hints transformations)
+- Lightweight interface-only view
+- Grouped by schema: Tools, Knowledge, Messages, Browser, Other
+
+**RCRT Principle:**
+
+This single rule works for all agents without hardcoding:
+- ✅ **Validation agents** see complete tool structure for compliance checking
+- ✅ **Debug agents** see full error context with metadata
+- ✅ **Consumer agents** see minimal tool interfaces (just name, input_schema, examples)
+- ✅ **No agent-specific logic** - one simple rule for all
+
+**Example: validation-specialist context**
+```
+=== TRIGGER BREADCRUMB (Full Structure) ===
+{
+  "id": "a0c62ff2-fb7e-4218-b31d-c2a10871e736",
+  "title": "Count to Ten",
+  "description": "A simple utility tool that counts from 1 to 10",
+  "semantic_version": "1.0.0",
+  "tags": ["tool", "tool:count-to-ten", "workspace:tools"],
+  "llm_hints": {"exclude": ["code", "permissions", "limits"]},
+  "context": {
+    "name": "count-to-ten",
+    "input_schema": {...},
+    "output_schema": {...},
+    // code, permissions, limits excluded per llm_hints
+  }
+}
+
+=== AVAILABLE TOOLS ===
+{name, input_schema, output_schema, examples}
+{name, input_schema, output_schema, examples}
+```
+
 ---
 
 ### 4. Schema-Driven Transformations

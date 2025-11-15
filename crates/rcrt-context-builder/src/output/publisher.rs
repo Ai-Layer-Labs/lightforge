@@ -20,12 +20,41 @@ impl ContextPublisher {
         ContextPublisher { rcrt_client }
     }
     
-    /// Extract LLM-optimized content from a breadcrumb using server-side llm_hints
+    /// Extract LLM-optimized content from a supporting breadcrumb
     async fn extract_llm_content(&self, breadcrumb_id: Uuid) -> Result<serde_json::Value> {
-        // Fetch breadcrumb context from server (applies llm_hints automatically)
+        // Supporting breadcrumbs: use LLM-optimized endpoint
         let bc = self.rcrt_client.get_breadcrumb(breadcrumb_id).await
             .map_err(|e| anyhow::anyhow!("Failed to fetch LLM content for {}: {}", breadcrumb_id, e))?;
         Ok(bc.context)
+    }
+    
+    /// Extract full breadcrumb structure (for trigger)
+    async fn extract_full_breadcrumb(&self, breadcrumb_id: Uuid) -> Result<serde_json::Value> {
+        // Trigger breadcrumb: use /full endpoint for complete metadata
+        let bc = self.rcrt_client.get_breadcrumb_full(breadcrumb_id).await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch full breadcrumb for {}: {}", breadcrumb_id, e))?;
+        
+        // Format with all top-level metadata fields
+        let mut full_structure = serde_json::json!({
+            "id": bc.id,
+            "title": bc.title,
+            "tags": bc.tags,
+            "schema_name": bc.schema_name,
+            "context": bc.context,
+        });
+        
+        // Include optional top-level fields
+        if let Some(desc) = bc.description {
+            full_structure["description"] = serde_json::Value::String(desc);
+        }
+        if let Some(ver) = bc.semantic_version {
+            full_structure["semantic_version"] = serde_json::Value::String(ver);
+        }
+        if let Some(hints) = bc.llm_hints {
+            full_structure["llm_hints"] = hints;
+        }
+        
+        Ok(full_structure)
     }
     
     pub async fn publish_context(
@@ -35,7 +64,20 @@ impl ContextPublisher {
         trigger_id: Option<Uuid>,
         context: &AssembledContext,
     ) -> Result<()> {
-        // Group breadcrumbs by schema for sectioned output
+        let mut formatted_text = String::new();
+        
+        // ============ PHASE 1: TRIGGER BREADCRUMB (Full Structure) ============
+        if let Some(trigger_uuid) = trigger_id {
+            formatted_text.push_str("=== TRIGGER BREADCRUMB (Full Structure) ===\n\n");
+            
+            let full_trigger = self.extract_full_breadcrumb(trigger_uuid).await?;
+            formatted_text.push_str(&self.format_content(full_trigger)?);
+            formatted_text.push_str("\n\n");
+        }
+        
+        // ============ PHASE 2: SUPPORTING CONTEXT (LLM-Optimized) ============
+        
+        // Group supporting breadcrumbs by schema (excluding trigger)
         let mut tools = Vec::new();
         let mut knowledge = Vec::new();
         let mut messages = Vec::new();
@@ -43,6 +85,11 @@ impl ContextPublisher {
         let mut other = Vec::new();
         
         for bc in &context.breadcrumbs {
+            // Skip trigger breadcrumb (already shown above)
+            if Some(bc.id) == trigger_id {
+                continue;
+            }
+            
             match bc.schema_name.as_str() {
                 "tool.code.v1" => tools.push(bc),
                 "knowledge.v1" | "note.v1" => knowledge.push(bc),
@@ -52,9 +99,7 @@ impl ContextPublisher {
             }
         }
         
-        // Format with markdown section headers
-        let mut formatted_text = String::new();
-        
+        // Format sections with LLM-optimized content
         if !tools.is_empty() {
             formatted_text.push_str("=== AVAILABLE TOOLS ===\n\n");
             for bc in tools {
@@ -101,16 +146,16 @@ impl ContextPublisher {
         }
         
         // Recalculate token estimate based on formatted text
-        let token_estimate = formatted_text.len() / 3; // ~3 chars per token
+        let token_estimate = formatted_text.len() / 3;
         
-        // Build context payload with formatted text
+        // Build context payload
         let context_payload = serde_json::json!({
             "consumer_id": consumer_id,
             "trigger_event_id": trigger_id,
             "assembled_at": chrono::Utc::now().to_rfc3339(),
             "token_estimate": token_estimate,
             "sources_assembled": context.sources_count,
-            "formatted_context": formatted_text,  // NEW: Pre-formatted for LLM
+            "formatted_context": formatted_text,
             "breadcrumb_count": context.breadcrumbs.len(),
         });
         
@@ -142,7 +187,7 @@ impl ContextPublisher {
             ).await?;
         }
         
-        tracing::info!("✅ Published context with {} breadcrumbs (~{} tokens)", 
+        tracing::info!("✅ Published two-phase context: trigger (full) + {} supporting breadcrumbs (~{} tokens)", 
             context.breadcrumbs.len(), token_estimate);
         
         Ok(())

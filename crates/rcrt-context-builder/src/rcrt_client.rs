@@ -49,6 +49,23 @@ pub struct BreadcrumbContextView {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+// BreadcrumbFull - complete breadcrumb from GET /breadcrumbs/{id}/full
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BreadcrumbFull {
+    pub id: Uuid,
+    pub owner_id: Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub semantic_version: Option<String>,
+    pub tags: Vec<String>,
+    pub schema_name: String,
+    pub context: serde_json::Value,
+    pub llm_hints: Option<serde_json::Value>,
+    pub version: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 // Lightweight breadcrumb from list endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreadcrumbListItem {
@@ -302,6 +319,28 @@ impl RcrtClient {
         
         let breadcrumb = response.json::<BreadcrumbContextView>().await
             .context("Failed to deserialize BreadcrumbContextView")?;
+        Ok(breadcrumb)
+    }
+    
+    /// Get full breadcrumb without llm_hints transformations
+    pub async fn get_breadcrumb_full(&self, id: Uuid) -> Result<BreadcrumbFull> {
+        let token = self.token.read().await.clone();
+        let url = format!("{}/breadcrumbs/{}/full", self.base_url, id);
+        
+        let response = self.http_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Get full breadcrumb failed: {} - {}", status, body);
+        }
+        
+        let breadcrumb = response.json::<BreadcrumbFull>().await
+            .context("Failed to deserialize BreadcrumbFull")?;
         Ok(breadcrumb)
     }
     
