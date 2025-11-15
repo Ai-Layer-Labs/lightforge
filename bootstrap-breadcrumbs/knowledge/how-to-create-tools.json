@@ -199,6 +199,36 @@
           "Avoid write and run permissions unless absolutely necessary"
         ]
       },
+      "system_capabilities": {
+        "description": "Declaring system-level dependencies beyond Deno runtime",
+        "when_needed": "Tool uses libraries that need system binaries (browsers, ImageMagick, FFmpeg, etc.)",
+        "declaration_method": "Add requires:* tags to tool definition",
+        "examples": {
+          "browser_automation": {
+            "tags": ["tool", "tool:astral", "requires:chrome-browser", "runtime:browser-automation"],
+            "explanation": "Astral/Puppeteer/Playwright need Chrome binary and system libraries"
+          },
+          "image_processing": {
+            "tags": ["tool", "tool:resize-image", "requires:imagemagick"],
+            "explanation": "Image processing tools need ImageMagick system package"
+          },
+          "no_system_deps": {
+            "tags": ["tool", "tool:calculator"],
+            "explanation": "Pure Deno tools don't need requires:* tags"
+          }
+        },
+        "capability_reference": "See system-capabilities.json knowledge for complete capability catalog and Docker image variants",
+        "docker_images": {
+          "base": "Deno only - pure TypeScript/JavaScript tools",
+          "browser": "Deno + Chrome - browser automation tools",
+          "full": "Deno + Chrome + ImageMagick + FFmpeg + Ghostscript - all capabilities"
+        },
+        "verification": {
+          "description": "System automatically verifies capabilities on tool load",
+          "on_missing": "Creates system.requirement.v1 breadcrumb documenting what's needed",
+          "user_action": "Switch Docker image variant in docker-compose.yml"
+        }
+      },
       "secrets_management": {
         "philosophy": "THE RCRT WAY - Never hardcode secret names, always reference by ID",
         "wrong_way": {

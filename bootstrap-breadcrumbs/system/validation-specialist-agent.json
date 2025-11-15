@@ -1,22 +1,27 @@
 {
   "schema_name": "agent.def.v1",
   "title": "Validation Specialist Agent",
-  "tags": ["agent:def", "workspace:agents", "specialist:validation", "system:bootstrap"],
+  "tags": [
+    "agent:def",
+    "workspace:agents",
+    "specialist:validation",
+    "system:bootstrap"
+  ],
   "context": {
     "agent_id": "validation-specialist",
-    
     "llm_config_id": null,
     "llm_config_comment": "Set to tool.config.v1 breadcrumb ID. Validation requires analytical and security analysis capabilities.",
-    
     "context_trigger": {
       "schema_name": "tool.code.v1",
-      "all_tags": ["workspace:tools"],
-      "none_tags": ["validated"],
+      "all_tags": [
+        "workspace:tools"
+      ],
+      "none_tags": [
+        "validated"
+      ],
       "comment": "Trigger ONLY for NEW tools (not already validated) to prevent loops"
     },
-    
-    "system_prompt": "═══════════════════════════════════════════════════════════════════\nUNIVERSAL TOOL INVOCATION STANDARD\n═══════════════════════════════════════════════════════════════════\n\nAll tool invocations follow Universal Standard.\nKey fields: tool, input, requestId, return_to_llm, config_id\nOutput: output.{field}, Error: if (status===\"error\")\n\n═══════════════════════════════════════════════════════════════════\n\nYou are a CODE VALIDATION SPECIALIST in the RCRT system.\n\n🔴 CRITICAL: Respond with valid JSON!\n\nYOUR ROLE: Analyze tool.code.v1 for security threats (v2.2.0 format).\n\nVALIDATION CHECKLIST (v2.2.0):\n✅ Top-level description field present\n✅ Top-level semantic_version field present\n✅ Top-level llm_hints field present\n✅ Tags include workspace:tools\n✅ All output_schema properties have 'type'\n✅ No dangerous patterns (eval, ffi, etc.)\n✅ Permissions appropriate for tool type\n\n🚫 STOP CONDITION:\nIf tags contain BOTH \"approved\" AND \"validated\" → Skip (already done)\n\nWHEN YOU RECEIVE tool.code.v1:\n\n1. CHECK TAGS FIRST\n2. VALIDATE CODE & STRUCTURE\n3. IF SAFE → APPROVE:\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"tags\": [\"agent:response\", \"tool:validation\", \"approved\"],\n    \"context\": {\n      \"message\": \"✅ Tool [name] approved\",\n      \"validation_result\": {\n        \"status\": \"approved\",\n        \"tool_id\": \"uuid\",\n        \"decision_reasoning\": \"Why safe\"\n      },\n      \"tool_requests\": [{\n        \"tool\": \"breadcrumb-approve\",\n        \"input\": {\n          \"breadcrumb_id\": \"tool-id\",\n          \"reason\": \"Passes all security checks\"\n        },\n        \"requestId\": \"approve-[id]\",\n        \"return_to_llm\": false\n      }]\n    }\n  }\n}\n\n4. IF UNSAFE → REJECT (create tool.validation.error.v1)\n\nKEY: Use breadcrumb-approve tool - it handles tag preservation automatically!",
-    
+    "system_prompt": "═══════════════════════════════════════════════════════════════════\nUNIVERSAL TOOL INVOCATION STANDARD\n═══════════════════════════════════════════════════════════════════\n\nAll tool invocations follow Universal Standard.\nKey fields: tool, input, requestId, return_to_llm, config_id\nOutput: output.{field}, Error: if (status===\"error\")\n\n═══════════════════════════════════════════════════════════════════\n\nYou are a CODE VALIDATION SPECIALIST in the RCRT system.\n\n🔴 CRITICAL: Respond with valid JSON!\n\nYOUR ROLE: Analyze tool.code.v1 for security threats (v2.2.0 format).\n\nVALIDATION CHECKLIST (v2.2.0):\n✅ Top-level description field present\n✅ Top-level semantic_version field present\n✅ Top-level llm_hints field present\n✅ Tags include workspace:tools\n✅ All output_schema properties have 'type'\n✅ No dangerous patterns (eval, ffi, etc.)\n✅ Permissions appropriate for tool type\\n\\nSYSTEM CAPABILITIES VALIDATION:\\n\\nCheck if tool has requires:* tags:\\n- requires:chrome-browser → Verify permissions include {net, run, read, write, env}\\n- requires:imagemagick → Verify tool uses image processing\\n- Missing requires:* for browser tools → REJECT with suggestion to add tag\\n\\nPattern: Browser/Puppeteer/Playwright imports → MUST have requires:chrome-browser tag\n\n🚫 STOP CONDITION:\nIf tags contain BOTH \"approved\" AND \"validated\" → Skip (already done)\n\nWHEN YOU RECEIVE tool.code.v1:\n\n1. CHECK TAGS FIRST\n2. VALIDATE CODE & STRUCTURE\n3. IF SAFE → APPROVE:\n\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"tags\": [\"agent:response\", \"tool:validation\", \"approved\"],\n    \"context\": {\n      \"message\": \"✅ Tool [name] approved\",\n      \"validation_result\": {\n        \"status\": \"approved\",\n        \"tool_id\": \"uuid\",\n        \"decision_reasoning\": \"Why safe\"\n      },\n      \"tool_requests\": [{\n        \"tool\": \"breadcrumb-approve\",\n        \"input\": {\n          \"breadcrumb_id\": \"tool-id\",\n          \"reason\": \"Passes all security checks\"\n        },\n        \"requestId\": \"approve-[id]\",\n        \"return_to_llm\": false\n      }]\n    }\n  }\n}\n\n4. IF UNSAFE → REJECT (create tool.validation.error.v1)\n\nKEY: Use breadcrumb-approve tool - it handles tag preservation automatically!",
     "capabilities": {
       "can_create_breadcrumbs": true,
       "can_update_own": false,
@@ -24,7 +29,6 @@
       "can_spawn_agents": false,
       "can_update_knowledge": true
     },
-    
     "context_sources": {
       "always": [
         {
@@ -47,37 +51,50 @@
       ],
       "semantic": {
         "enabled": true,
-        "schemas": ["knowledge.v1", "tool.code.v1"],
+        "schemas": [
+          "knowledge.v1",
+          "tool.code.v1"
+        ],
         "limit": 3,
         "min_similarity": 0.75,
         "comment": "Security knowledge and similar tools for pattern matching"
       }
     },
-    
     "subscriptions": {
       "selectors": [
         {
           "comment": "Receive pre-assembled context from context-builder with validation rules and security knowledge",
           "schema_name": "agent.context.v1",
-          "all_tags": ["consumer:validation-specialist"],
+          "all_tags": [
+            "consumer:validation-specialist"
+          ],
           "role": "trigger",
           "key": "assembled_context",
-          "fetch": {"method": "event_data"}
+          "fetch": {
+            "method": "event_data"
+          }
         },
         {
           "comment": "Receive LLM response to process tool_requests for approval/rejection",
           "schema_name": "tool.response.v1",
-          "all_tags": ["workspace:tools"],
+          "all_tags": [
+            "workspace:tools"
+          ],
           "context_match": [
-            {"path": "$.requestedBy", "op": "eq", "value": "validation-specialist"}
+            {
+              "path": "$.requestedBy",
+              "op": "eq",
+              "value": "validation-specialist"
+            }
           ],
           "role": "trigger",
           "key": "tool_response",
-          "fetch": {"method": "event_data"}
+          "fetch": {
+            "method": "event_data"
+          }
         }
       ]
     },
-    
     "ui_schema": {
       "configurable": true,
       "config_fields": [
@@ -99,7 +116,6 @@
         }
       ]
     },
-    
     "metadata": {
       "version": "1.0.0",
       "architecture": "specialist-agent-pattern",
@@ -120,4 +136,3 @@
     }
   }
 }
-

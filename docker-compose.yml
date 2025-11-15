@@ -147,9 +147,14 @@ services:
       retries: 20
 
   tools-runner:
+    # Image Variants:
+    # - Dockerfile (base): Deno only - for pure TypeScript tools
+    # - Dockerfile.browser: Deno + Chrome - for Astral/Puppeteer browser automation
+    # - Dockerfile.full: Deno + Chrome + ImageMagick + FFmpeg - all capabilities
+    # Switch dockerfile below based on your tool requirements
     build:
       context: ./rcrt-visual-builder
-      dockerfile: apps/tools-runner/Dockerfile
+      dockerfile: apps/tools-runner/Dockerfile.browser  # Browser image (for Astral/Puppeteer tools)
     depends_on:
       - rcrt
       - builder

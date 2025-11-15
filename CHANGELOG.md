@@ -14,6 +14,21 @@
   - Extracts jsr:, npm:, and https: imports from tool code
   - Pre-downloads dependencies with appropriate timeout
   - Browser automation tools get 5-minute timeout for binary downloads
+- **System capability tags** - Tools declare system-level dependencies via tags
+  - `requires:chrome-browser` for browser automation (Astral, Puppeteer, Playwright)
+  - `requires:imagemagick` for image processing
+  - `requires:ghostscript` for PDF processing
+  - `requires:ffmpeg` for video/audio processing
+  - System verifies capabilities on tool load and creates `system.requirement.v1` if missing
+- **Docker image variants** - Multiple pre-built images for different tool types
+  - `Dockerfile` (base): Deno only - pure TypeScript tools
+  - `Dockerfile.browser`: Deno + Chrome - browser automation
+  - `Dockerfile.full`: All capabilities (future)
+  - Switch via docker-compose.yml dockerfile parameter
+- **system-capabilities.json knowledge** - Complete capability catalog for LLMs
+  - Maps capabilities to apt packages, verification commands, Docker images
+  - Teaches LLMs when and how to declare system dependencies
+  - No hardcoding - pure breadcrumb-driven pattern
 
 ### Fixed
 - validation-specialist now receives full tool structure (description, semantic_version, llm_hints, tags)

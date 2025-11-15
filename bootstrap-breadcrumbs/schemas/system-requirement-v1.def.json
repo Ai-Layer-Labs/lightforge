@@ -1,0 +1,66 @@
+{
+  "schema_name": "schema.def.v1",
+  "title": "System Requirement Schema Definition",
+  "tags": ["schema:def", "workspace:system"],
+  "context": {
+    "schema_id": "system.requirement.v1",
+    "description": "Documents missing system capabilities required by tools. Created automatically when tools need system dependencies (Chrome, ImageMagick, etc.) that aren't available in the current Docker image.",
+    "use_case": "Provides visibility into why tools might fail and what Docker image variant to use",
+    "fields": {
+      "tool_id": {
+        "type": "string",
+        "description": "UUID of tool that needs the capability",
+        "required": true
+      },
+      "tool_name": {
+        "type": "string",
+        "description": "Name of the tool (e.g., 'astral', 'image-processor')",
+        "required": true
+      },
+      "missing_capabilities": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Array of capability names (e.g., ['chrome-browser', 'imagemagick'])",
+        "required": true
+      },
+      "severity": {
+        "type": "string",
+        "enum": ["high", "medium", "low"],
+        "description": "Severity of the requirement",
+        "required": true
+      },
+      "action_required": {
+        "type": "string",
+        "description": "What needs to be done to resolve the requirement",
+        "required": true
+      },
+      "docker_images": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Array of Docker image variants that provide these capabilities (e.g., ['tools-runner:browser'])",
+        "required": true
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "ISO timestamp when requirement was detected",
+        "required": true
+      }
+    },
+    "example": {
+      "schema_name": "system.requirement.v1",
+      "title": "System Requirement: chrome-browser",
+      "tags": ["system:requirement", "tool:astral", "requires:chrome-browser"],
+      "context": {
+        "tool_id": "8828ab30-f5ab-4fe5-b854-fdadb4d9dd6b",
+        "tool_name": "astral",
+        "missing_capabilities": ["chrome-browser"],
+        "severity": "high",
+        "action_required": "Switch to tools-runner:browser Docker image or install Chrome manually",
+        "docker_images": ["tools-runner:browser", "tools-runner:full"],
+        "created_at": "2025-11-15T08:00:00.000Z"
+      }
+    }
+  }
+}
+

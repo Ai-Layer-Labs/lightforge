@@ -28,6 +28,22 @@
           "examples array with description, input, output, explanation"
         ]
       },
+      "capability_tag_requirements": {
+        "rule": "Tools using system binaries MUST declare capability tags",
+        "patterns": {
+          "browser_tools": {
+            "imports_containing": ["astral", "puppeteer", "playwright"],
+            "must_have_tag": "requires:chrome-browser",
+            "must_have_permissions": {"net": true, "run": true, "read": true, "write": true, "env": true}
+          },
+          "image_tools": {
+            "imports_containing": ["sharp", "imagemagick"],
+            "must_have_tag": "requires:imagemagick",
+            "must_have_permissions": {"run": true}
+          }
+        },
+        "validation_check": "If tool imports system-dependent library, MUST have corresponding requires:* tag"
+      },
       "permissions_by_tool_type": {
         "browser_automation_tools": {
           "description": "Astral, Puppeteer, Playwright",

@@ -329,6 +329,18 @@
           "invalid": ["webSearch", "OpenRouter", "breadcrumb_create"]
         },
         
+        "capability_tags": {
+          "description": "Tools declaring system-level dependencies use requires:* tags",
+          "examples": {
+            "browser_automation": ["requires:chrome-browser", "runtime:browser-automation"],
+            "image_processing": ["requires:imagemagick"],
+            "pdf_processing": ["requires:ghostscript"],
+            "pure_deno": []
+          },
+          "verification": "System verifies capabilities on tool load and creates system.requirement.v1 if missing",
+          "reference": "See system-capabilities.json for complete catalog"
+        },
+        
         "output_consistency": {
           "llm_tools": "ALL return: content, model, usage",
           "breadcrumb_ops": "ALL return: success, id",

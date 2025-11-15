@@ -1,268 +1,284 @@
-<!-- 874a9689-e433-4d62-9c61-adf091f6c12d b05f656c-c39b-4b1c-b8d3-cf2f7dc71484 -->
-# Build Poker AI Decision System with RCRT
+<!-- 874a9689-e433-4d62-9c61-adf091f6c12d f6588066-762f-44eb-bd95-fa811661b588 -->
+# System Dependencies: The RCRT Way
 
-## Overview
+## Problem Statement
 
-Create a production-ready poker AI that retrieves GTO-optimal decisions from a 10k scenario knowledge base using RCRT's hybrid vector search. The agent will provide real-time recommendations while playing on stake.com.
+Tools like Astral need system dependencies (Chrome libraries) but currently:
 
-## Architecture Summary
+- ❌ Hardcoding in Dockerfile is not scalable
+- ❌ LLMs can't declare system requirements
+- ❌ Each new tool type requires DevOps intervention
+- ❌ No visibility into why tools fail
 
-**Data Flow:**
+**RCRT Principle:** Everything should be declarative, breadcrumb-driven, and LLM-friendly.
 
-1. User downloads 10k poker scenarios from HuggingFace
-2. Upload script converts to `poker.decision.v1` breadcrumbs with embeddings
-3. Browser extension captures game state → creates `poker.query.v1`
-4. Context-builder performs hybrid search (vector + keywords) → finds top 10 similar scenarios
-5. Poker agent receives context → recommends optimal action
-6. Extension displays recommendation overlay
+## Solution Architecture
 
-**Key Files:**
+### Option 1: Tool-Level Dependency Declaration (Pragmatic)
 
-- `scripts/seed-poker-dataset.js` - Bulk upload 10k scenarios
-- `bootstrap-breadcrumbs/schemas/poker-decision-schema.json` - Schema definition
-- `bootstrap-breadcrumbs/system/poker-specialist-agent.json` - Agent definition
-- `scripts/test-poker-agent.js` - Testing script
-
-## Implementation Details
-
-### 1. Schema Definition (`poker-decision-schema.json`)
-
-Based on research:
-
-- Embeddings auto-generated from `title + description + llm_hints-transformed context` (see `crates/rcrt-server/src/main.rs:315`)
-- Default embedding policy: embed all schemas unless explicitly excluded (see `embedding_policy.rs:27`)
-- pgvector uses ivfflat index with cosine similarity (see `migrations/0001_init.sql:56`)
-```json
-{
-  "schema_name": "schema.def.v1",
-  "title": "Poker Decision Schema",
-  "tags": ["schema:def", "poker"],
-  "context": {
-    "schema_name": "poker.decision.v1",
-    "description": "GTO solver optimal poker decisions for 6-handed NLHE",
-    "llm_hints": {
-      "transform": {
-        "formatted": {
-          "type": "template",
-          "template": "**Poker Scenario**\nPosition: {{position}} | Hand: {{holding}}\nStreet: {{street}} | Pot: {{pot_size}}bb\nBoard: {{board}}\nAction History: {{action_history}}\n\n**GTO Optimal:** {{optimal_decision}}"
-        }
-      },
-      "mode": "replace"
-    }
-  }
-}
-```
-
-
-### 2. Upload Script (`seed-poker-dataset.js`)
-
-**Performance Targets** (based on codebase research):
-
-- Current DB: Handles 100K+ breadcrumbs easily (see `docs/SYSTEM_ARCHITECTURE.md:1987`)
-- Upload rate: 100-500 breadcrumbs/sec with batch operations
-- 10k scenarios = ~1-2 minutes upload time
-
-**Pointer Extraction Strategy:**
-
-- Extract from tags (position, street, action)
-- Extract from llm_hints-transformed text (see `crates/rcrt-server/src/main.rs:624-643`)
-- Stored in `entity_keywords` column for hybrid search
-
-Key implementation from `bootstrap-breadcrumbs/bootstrap.js:157`:
-
-- Check for existing scenarios (avoid duplicates)
-- Use SDK's `createBreadcrumb()` method
-- Batch with idempotency keys
-```javascript
-const sdk = new RcrtClientEnhanced(baseUrl, token);
-
-for (let i = 0; i < scenarios.length; i++) {
-  const scenario = scenarios[i];
-  const parsed = parsePokerScenario(scenario);
-  
-  await sdk.createBreadcrumb({
-    schema_name: 'poker.decision.v1',
-    title: `Poker: ${parsed.position} ${parsed.holding} ${parsed.street}`,
-    description: scenario.instruction.substring(0, 300),
-    semantic_version: '1.0.0',
-    tags: [
-      'poker',
-      'decision',
-      `position:${parsed.position}`,
-      `street:${parsed.street}`,
-      `action:${parsed.output}`,
-      `pot:${categorizePotSize(parsed.pot_size)}`
-    ],
-    llm_hints: {
-      "exclude": ["raw_scenario", "csv_data"]
-    },
-    context: {
-      position: parsed.position,
-      holding: parsed.holding,
-      board: parsed.board,
-      pot_size: parsed.pot_size,
-      street: parsed.street,
-      action_history: parsed.action_history,
-      optimal_decision: parsed.output,
-      raw_scenario: scenario.instruction
-    }
-  }, `poker-${i}`); // Idempotency key
-  
-  if (i % 100 === 0) {
-    console.log(`Uploaded ${i}/10000...`);
-  }
-}
-```
-
-
-### 3. Agent Definition (`poker-specialist-agent.json`)
-
-**Context Assembly Strategy** (based on `default-chat-agent.json:26-58`):
+Add `system_dependencies` field to tool.code.v1:
 
 ```json
 {
-  "schema_name": "agent.def.v1",
-  "title": "Poker Strategy Specialist",
-  "tags": ["agent:def", "workspace:agents", "poker"],
+  "schema_name": "tool.code.v1",
   "context": {
-    "agent_id": "poker-specialist",
-    "llm_config_id": "OPENROUTER_CONFIG_UUID",
-    
-    "system_prompt": "You are a GTO poker specialist. When you receive a poker scenario:\n\n1. Analyze the 10 most similar scenarios in your context\n2. Identify patterns: position, pot odds, hand strength, opponent actions\n3. Recommend the optimal decision with confidence level\n4. Explain reasoning based on GTO principles\n\nResponse format:\n{\n  \"action\": \"create\",\n  \"breadcrumb\": {\n    \"schema_name\": \"agent.response.v1\",\n    \"tags\": [\"agent:response\", \"poker:recommendation\", \"session:SESSION_ID\"],\n    \"context\": {\n      \"recommendation\": \"bet 18\",\n      \"confidence\": 0.95,\n      \"reasoning\": \"In 8/10 similar river two-pair spots, GTO bets 75% pot for value\",\n      \"similar_scenarios\": 10,\n      \"pattern\": \"two-pair river value bet\"\n    }\n  }\n}",
-    
-    "context_sources": {
-      "semantic": {
-        "enabled": true,
-        "schemas": ["poker.decision.v1"],
-        "limit": 10,
-        "min_similarity": 0.70,
-        "comment": "Retrieve 10 most similar poker scenarios using hybrid search (vector 60% + keywords 40%)"
-      }
-    },
-    
-    "subscriptions": {
-      "selectors": [{
-        "schema_name": "agent.context.v1",
-        "all_tags": ["consumer:poker-specialist"],
-        "role": "trigger",
-        "fetch": {"method": "event_data"}
-      }]
+    "name": "astral",
+    "system_dependencies": {
+      "apt_packages": [
+        "google-chrome-stable",
+        "fonts-liberation",
+        "libnss3",
+        "libxss1"
+      ],
+      "install_script": "RUN apt-get update && apt-get install -y wget gnupg && ...",
+      "profile": "browser-automation"  // Reference to pre-defined profile
     }
   }
 }
 ```
 
-**Why min_similarity: 0.70?**
+### Option 2: Environment Profiles (Most RCRT)
 
-- Based on `validation-specialist-agent.json:52` and `tool-debugger-agent.json:50`
-- Lower threshold allows learning from "similar but not identical" scenarios
-- Hybrid search compensates with keyword matching
+Create `environment.profile.v1` schema for reusable profiles:
 
-### 4. Browser Integration Strategy
-
-**Current Browser Extension** (`rcrt-extension-v2/src/lib/`):
-
-- Already has page capture (`content.ts`)
-- Already has RCRT client (`rcrt-client.ts`)
-- Already has UI overlay system
-
-**New Poker Module:**
-
-Create `rcrt-extension-v2/src/lib/poker-capture.ts`:
-
-- Detect stake.com poker interface
-- Parse DOM for: position, cards, pot size, board, opponent actions
-- Create `poker.query.v1` breadcrumb with tag `poker:query-needed`
-- Triggers poker-specialist agent
-- Display recommendation overlay
-
-### 5. Testing Script (`test-poker-agent.js`)
-
-Test queries:
-
-```javascript
-// Test 1: Exact match scenario (should be >0.95 similarity)
-const testQuery1 = {
-  position: "HJ",
-  holding: ["Kd", "Js"],
-  board: ["Ks", "7h", "2d", "Jc", "7c"],
-  pot_size: 24,
-  street: "river",
-  action_history: "HJ raise 2, BB call, flop check-check, turn HJ bet 3 BB raise 10 HJ call, river BB check"
-};
-
-// Test 2: Similar scenario (should be 0.75-0.90 similarity)
-const testQuery2 = {
-  position: "CO",
-  holding: ["Qh", "Jh"],
-  board: ["Qs", "8c", "3d", "Jd", "8s"],
-  pot_size: 28,
-  street: "river",
-  action_history: "CO raise 2.5, BB call, flop check-check, turn CO bet 5 BB raise 12 CO call, river BB check"
-};
-
-// Create query breadcrumb
-const query = await sdk.createBreadcrumb({
-  schema_name: 'poker.query.v1',
-  title: 'Poker Query: River Decision',
-  tags: ['poker:query-needed', 'consumer:poker-specialist'],
-  context: testQuery1
-});
-
-// Wait for agent response
-await waitForResponse(query.id);
+```json
+{
+  "schema_name": "environment.profile.v1",
+  "title": "Browser Automation Environment",
+  "tags": ["env:profile", "runtime:browser", "workspace:system"],
+  "context": {
+    "profile_id": "browser-automation",
+    "description": "Chrome/Chromium with all required system libraries",
+    "apt_packages": ["google-chrome-stable", "fonts-liberation", ...],
+    "docker_base": "node:18-bullseye",  // or custom image
+    "install_commands": ["RUN apt-get update", "RUN apt-get install -y ..."],
+    "compatible_tools": ["astral", "puppeteer", "playwright"],
+    "tags_indicator": ["browser:automation", "requires:chrome"]
+  }
+}
 ```
 
-## Performance Expectations
+Tools reference profile:
 
-**Database Performance** (from `docs/SYSTEM_ARCHITECTURE.md:1987`):
-
-- Vector search: <100ms for 100K breadcrumbs
-- 10k scenarios: <50ms query time
-- Hybrid search: <80ms total
-
-**Context Assembly** (from `crates/rcrt-context-builder/src/event_handler.rs:263`):
-
-- Semantic search with pointers: ~50-100ms
-- Graph loading: ~50ms
-- Total context assembly: ~200ms
-
-**Target Latency for Real-Time Play:**
-
-- Query → Recommendation: <500ms
-- Browser capture → Display: <1s total
-
-## File Structure
-
-```
-scripts/
-  ├─ seed-poker-dataset.js          (NEW: Bulk upload)
-  ├─ test-poker-agent.js             (NEW: Testing)
-  └─ parse-poker-dataset.js          (NEW: Parser utilities)
-
-bootstrap-breadcrumbs/
-  ├─ schemas/
-  │   └─ poker-decision-schema.json  (NEW: Schema def)
-  └─ system/
-      └─ poker-specialist-agent.json (NEW: Agent def)
-
-rcrt-extension-v2/src/lib/
-  └─ poker-capture.ts                (NEW: Browser integration)
+```json
+{
+  "schema_name": "tool.code.v1",
+  "context": {
+    "name": "astral",
+    "environment_profile": "browser-automation"  // or profile UUID
+  }
+}
 ```
 
-## Success Criteria
+### Option 3: Hybrid Approach (Recommended)
 
-1. **Upload Performance**: 10k scenarios uploaded in <3 minutes
-2. **Query Performance**: Vector search returns results in <100ms
-3. **Decision Quality**: Recommendations match GTO solver >90% of time
-4. **Real-Time Usability**: Total latency <1s from capture to display
-5. **Browser Integration**: Automatic detection and overlay on stake.com
+- **Simple deps:** Inline `system_dependencies.apt_packages` array
+- **Complex scenarios:** Reference `environment_profile`
+- **Pre-built profiles:** Common environments as breadcrumbs
+
+## Implementation Strategy
+
+### Phase 1: Schema Extension (v2.3.0)
+
+**Add optional fields to tool.code.v1:**
+
+```typescript
+{
+  context: {
+    // ... existing fields ...
+    system_dependencies?: {
+      apt_packages?: string[];           // ["chrome", "fonts-liberation"]
+      environment_profile?: string;      // Reference to environment.profile.v1
+      runtime_hint?: string;             // "browser" | "ml" | "image-processing"
+    }
+  }
+}
+```
+
+### Phase 2: Dockerfile Generation
+
+**Create `docker-generator` service:**
+
+1. **Scans all approved tools** for `system_dependencies`
+2. **Aggregates unique packages** across all tools
+3. **Generates Dockerfile** or selects pre-built image
+4. **Stores in** `docker.config.v1` breadcrumb
+5. **Triggers rebuild** when dependencies change
+
+### Phase 3: Pre-Built Image Profiles
+
+**Create multiple Docker images:**
+
+- `tools-runner-base` (Deno only)
+- `tools-runner-browser` (+ Chrome, Firefox)
+- `tools-runner-ml` (+ Python, TensorFlow libs)
+- `tools-runner-full` (everything)
+
+**Tool selects image** via `environment_profile` or tags.
+
+## RCRT-Native Features
+
+### 1. LLM-Friendly Declaration
+
+```
+tool-creator: "I need Chrome for browser automation"
+           ↓
+system_dependencies: { apt_packages: ["google-chrome-stable"] }
+           ↓
+Dockerfile updated automatically
+```
+
+### 2. Validation Integration
+
+validation-specialist checks:
+
+- Are system_dependencies reasonable?
+- Does tool actually use the deps?
+- Security implications?
+
+### 3. Self-Documentation
+
+```bash
+# Query which tools need Chrome
+GET /breadcrumbs?schema_name=tool.code.v1&contains=system_dependencies.apt_packages:chrome
+```
+
+### 4. Knowledge Base
+
+Create `knowledge.v1` breadcrumbs:
+
+- "Browser automation requires Chrome"
+- "Image processing needs ImageMagick"
+- "PDF tools need Ghostscript"
+
+LLMs learn from these patterns!
+
+## Minimal Implementation (Start Here)
+
+### Step 1: Add Field to Schema
+
+**File:** `bootstrap-breadcrumbs/schemas/tool-code-v1.def.json` (if exists)
+
+Add to context properties:
+
+```json
+"system_dependencies": {
+  "type": "object",
+  "description": "System-level dependencies (apt packages, binaries, etc.)",
+  "properties": {
+    "apt_packages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Debian/Ubuntu packages required"
+    },
+    "environment_profile": {
+      "type": "string", 
+      "description": "Reference to environment.profile.v1 breadcrumb"
+    }
+  }
+}
+```
+
+### Step 2: Update tool-creator Prompt
+
+Add to DENO RUNTIME REQUIREMENTS section:
+
+```
+SYSTEM DEPENDENCIES:
+
+If tool needs system packages (Chrome, ImageMagick, etc.):
+
+"system_dependencies": {
+  "apt_packages": ["google-chrome-stable", "fonts-liberation"],
+  "runtime_hint": "browser"
+}
+
+Common profiles:
+- Browser: ["google-chrome-stable", "fonts-liberation", "libnss3"]
+- Images: ["imagemagick", "libvips"]
+- PDF: ["ghostscript", "poppler-utils"]
+- None: Omit field for pure JavaScript/TypeScript tools
+```
+
+### Step 3: Create Docker Image Variants
+
+**Build 3 images:**
+
+1. `tools-runner:base` - Deno only (current)
+2. `tools-runner:browser` - + Chrome dependencies
+3. `tools-runner:full` - All common dependencies
+
+### Step 4: Dynamic Image Selection
+
+**In docker-compose.yml:**
+
+```yaml
+tools-runner:
+  image: ${TOOLS_RUNNER_IMAGE:-tools-runner:base}
+```
+
+**Dashboard shows:** "Astral tool needs tools-runner:browser image"
+
+### Step 5: Future: Auto-Generation
+
+Service that:
+
+1. Monitors tool creations
+2. Aggregates system_dependencies
+3. Generates custom Dockerfile
+4. Triggers rebuild (with approval)
+
+## Files to Create/Modify
+
+### Immediate (v2.3.0):
+
+1. Add `system_dependencies` field to tool schema documentation
+2. Update tool-creator prompt with system dependencies guidance
+3. Update validation-specialist to check system_dependencies
+4. Create browser-automation.profile.v1 breadcrumb as example
+
+### Future (v2.4.0):
+
+1. Create `environment.profile.v1` schema
+2. Build multiple Docker image variants
+3. Create docker-generator service
+4. Add image selection to dashboard
+
+## Testing Plan
+
+1. Update Astral tool to declare dependencies
+2. Manually rebuild tools-runner:browser image with Chrome
+3. Verify Astral works with proper image
+4. Create knowledge breadcrumb documenting the pattern
+5. Test tool-creator can generate system_dependencies field
+
+## Expected Outcomes
+
+### Immediate:
+
+- ✅ Tools can declare system needs
+- ✅ LLMs know what dependencies tools require
+- ✅ Clear documentation of environment requirements
+- ✅ Validation catches missing dependencies
+
+### Long-term:
+
+- ✅ Fully automated tool deployment
+- ✅ Zero hardcoding in Docker files
+- ✅ Self-service tool creation (LLMs handle everything)
+- ✅ Knowledge base grows organically
+
+## Why This Is The RCRT Way
+
+1. **Declarative:** Dependencies in breadcrumb schema
+2. **LLM-Friendly:** Simple JSON field, clear documentation
+3. **Composable:** Reference profiles or inline declare
+4. **Self-Documenting:** Query system to see what's needed
+5. **Evolvable:** Start simple, add automation later
+6. **No Hardcoding:** Everything driven by breadcrumbs
+
+This transforms "add Chrome to Dockerfile" into "tools declare what they need, system adapts."
 
 ### To-dos
 
-- [ ] Remove `include` field from LlmHints struct, make `exclude` required (can be empty vec)
-- [ ] Remove include filtering logic from apply_llm_hints(), keep only exclude filtering
-- [ ] Delete schema cache lookup in GET /breadcrumbs/{id}, use ONLY instance llm_hints
-- [ ] Remove SchemaDefinitionCache struct, preload logic, and AppState field
-- [ ] Update all 14 tool files to exclude-only llm_hints format
-- [ ] Remove llm_hints from all 19 schema.def.v1 files (no longer used)
+- [ ] Update tool-debugger to use context merge

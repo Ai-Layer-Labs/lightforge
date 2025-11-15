@@ -1,0 +1,225 @@
+The Agentic Protocol Landscape
+Understanding AG-UI, MCP, A2A, UI Specs, and How to Build Agentic Applications
+Why Agentic Protocols Matter
+
+How do these protocols work and help?
+
+Interoperability → agents, apps, and tools speak a shared format
+
+Transparency → open standards instead of proprietary SDKs
+
+Reusability → modular, composable building blocks
+
+Agentic Protocols
+
+AG-UI • MCP • A2A
+
+AI agents are becoming the place where user intent turns into action.
+Agentic Protocols are the language of interoperability between models, tools, apps, and users.
+
+Although protocols make agents compatible, the application layer makes them collaborative.
+
+The Current Established Agentic Protocol Ecosystem
+
+The ecosystem is organizing around a family of open, complementary protocols.
+These are not competitors—they address different layers of agent behavior.
+
+You can connect your application to agents directly via AG-UI, MCP, and A2A.
+
+Adopted Standards
+Protocol	Maintainer	Purpose
+MCP (Model Context Protocol)	Anthropic / Open Source	Defines structured context & tool access between models and clients.
+AG-UI (Agent–User Interaction)	CopilotKit / Open Source	Connects agentic backends and agentic frontends.
+A2A (Agent-to-Agent)	Google / Open Source	Enables secure messaging & coordination between agents.
+Handshakes Powering the Ecosystem
+AG-UI ↔ MCP / A2A
+
+AG-UI transforms low-level protocol interoperability into human-level collaboration.
+
+Handshakes expose protocol activity to users:
+
+AG-UI ↔ MCP → visualize tool outputs
+
+AG-UI ↔ A2A → visualize multi-agent collaboration
+
+Function:
+A2A doesn’t let one agent use another agent’s MCP tools directly.
+Instead, it enables negotiation, delegation, and coordination.
+
+Outcome:
+Agents coordinate and share intent and results—not tool access.
+
+Parts of the Ecosystem
+Type	Protocol	Purpose
+Agent ↔ User Interaction	AG-UI	Event-based standard connecting agentic backends and frontends for real-time, multimodal interactions.
+Agent ↔ Tools & Data	MCP	Allows agents to securely connect to external systems, data, workflows.
+Agent ↔ Agent	A2A	Defines secure coordination and distributed collaboration.
+Generative UI Specs
+Type	Spec	Purpose
+Declared UI	MCP UI (Anthropic), Open-JSON-UI (OpenAI)	Declarative, generative UI specifications letting agents define visual structure.
+Unified Takeaway
+
+AG-UI connects agentic apps ↔ backends
+
+MCP connects agents ↔ tools/data
+
+A2A connects agents ↔ agents
+
+MCP-UI / Open-JSON-UI let agents return UIs
+
+Agent–User Interaction Protocol (AG-UI)
+
+AI agents have moved beyond chatbots into embedded product experiences.
+
+What is AG-UI’s role?
+
+Standardizing how humans and agents collaborate inside real applications.
+
+AG-UI enables:
+
+UI state updates
+
+reactions to user actions
+
+streaming outputs
+
+real-time collaboration
+
+Why AG-UI matters
+
+It is the fastest-growing protocol in the agent–user domain.
+
+AI-native UX evolution:
+Agent as chatbot → Agent as co-worker inside my app
+
+Supported Clients
+
+React
+
+Angular
+
+Mobile
+
+Slack
+
+Email
+
+Voice apps
+
+SMS / WhatsApp
+
+And more
+
+AG-UI and Generative UI Specs
+
+AG-UI is not a generative UI spec.
+It is the bi-directional runtime connection between agentic backends & frontends.
+
+It supports generative UI specs such as:
+
+Spec	Origin	Purpose
+Open-JSON-UI	OpenAI	Declarative generative UI schema
+MCP-UI	Microsoft + Shopify	Open, iframe-based generative UI extension
+
+AG-UI can interoperate with any generative UI standard.
+
+Mixing and Matching
+
+CopilotKit allows developers to connect to any protocol—AG-UI, MCP, A2A—individually or combined.
+
+If a host agent connects to subagents via MCP or A2A, UI properties can propagate all the way to the application—while maintaining:
+
+security
+
+policy
+
+observability
+
+General-Purpose Bi-directional Connection
+
+AG-UI serves as the “kitchen sink" protocol for building real agentic applications.
+
+Common Misconceptions
+Misconception:
+
+AG-UI and MCP-UI compete.
+
+Reality:
+They solve different problems:
+
+MCP-UI → defines what to render
+
+AG-UI → defines how agents and users interact in real time
+
+Misconception:
+
+Protocols are competing for dominance.
+
+Reality:
+Protocols solve separate parts of the agent lifecycle. Interoperability is the goal.
+
+Misconception:
+
+Agentic protocols are just rebranded APIs.
+
+Reality:
+APIs connect products. Protocols connect ecosystems.
+
+Misconception:
+
+AG-UI is a visualization spec.
+
+Reality:
+It is an interaction protocol enabling stateful, multimodal agents.
+
+Misconception:
+
+CopilotKit replaces these protocols.
+
+Reality:
+CopilotKit sits above them as the agentic application framework.
+
+Ecosystem Overview
+
+CopilotKit sits above all protocols and generative UI specs as the unified agentic application framework.
+
+With CopilotKit, developers can use any or all agentic protocols:
+
+AG-UI
+
+MCP
+
+A2A
+
+MCP-UI
+
+Open-JSON-UI
+
+CopilotKit + AG-UI
+
+The future is multi-protocol composability.
+
+Agents will speak multiple protocols simultaneously.
+
+CopilotKit allows any user-facing app to connect to any agent across any protocol.
+
+AG-UI remains the general-purpose, bi-directional connection between frontends and agentic backends.
+
+More Resources
+AG-UI
+
+Repo: github.com
+Docs: docs.ag-ui.com
+
+MCP
+
+Site: modelcontextprotocol.io
+Spec: modelcontextprotocol.io
+
+MCP-UI
+
+Site: mcpui.dev
+
+A2A
+
+Site: a2a-protocol.org

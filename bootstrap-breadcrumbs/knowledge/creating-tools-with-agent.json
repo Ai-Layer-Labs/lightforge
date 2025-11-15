@@ -129,10 +129,12 @@
           "1. Parse tool.creation.request.v1 from trigger context",
           "2. Review RELEVANT KNOWLEDGE for structure requirements",
           "3. Review AVAILABLE TOOLS for similar tool patterns",
-          "4. Generate complete tool.code.v1 definition",
-          "5. Validate structure against checklist",
-          "6. Create tool using breadcrumb-create tool",
-          "7. Create tool.creation.response.v1 to inform user"
+          "4. Determine if tool needs system capabilities (browser, image processing, etc.)",
+          "5. Add appropriate requires:* tags if needed (requires:chrome-browser, etc.)",
+          "6. Generate complete tool.code.v1 definition",
+          "7. Validate structure against checklist",
+          "8. Create tool using breadcrumb-create tool",
+          "9. Create tool.creation.response.v1 to inform user"
         ],
         
         "validation_checklist": {
@@ -144,8 +146,11 @@
             "🔴 ALL output properties must have 'type' field",
             "🔴 NEVER set ffi: true",
             "🔴 Browser tools need: net, read, write, run, env, hrtime",
+            "🔴 Browser tools MUST have requires:chrome-browser tag",
+            "🔴 Image tools MUST have requires:imagemagick tag",
             "🔴 Do NOT add 'workspace:tools' tag - tool-creator adds it after creation!",
-            "✅ Validate against tool-validation-rules.json BEFORE uploading"
+            "✅ Validate against tool-validation-rules.json BEFORE uploading",
+            "✅ Check system-capabilities.json for capability tag requirements"
           ]
         },
         

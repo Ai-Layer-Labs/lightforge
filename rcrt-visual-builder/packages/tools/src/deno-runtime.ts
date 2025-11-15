@@ -369,8 +369,103 @@ export class DenoToolRuntime {
       // Continue anyway - might work with cached-only or no imports
     }
     
+    // Verify system capabilities
+    const capCheck = await this.verifyCapabilities(tool);
+    if (!capCheck.available) {
+      console.warn(`⚠️  Tool ${toolName} loaded but ${capCheck.missing.join(', ')} not available`);
+      console.warn(`   Tool may fail at runtime - switch to appropriate Docker image`);
+    }
+    
     this.tools.set(toolName, tool);
     console.log(`[DenoToolRuntime] Loaded approved tool: ${toolName}`);
+  }
+  
+  /**
+   * Verify tool's system capabilities are available
+   */
+  private async verifyCapabilities(tool: ToolCodeBreadcrumb): Promise<{
+    available: boolean;
+    missing: string[];
+  }> {
+    const requiresTags = tool.tags?.filter(t => t.startsWith('requires:')) || [];
+    
+    if (requiresTags.length === 0) {
+      return { available: true, missing: [] };
+    }
+    
+    const missing: string[] = [];
+    
+    for (const tag of requiresTags) {
+      const capability = tag.replace('requires:', '');
+      const isAvailable = await this.checkCapability(capability);
+      
+      if (!isAvailable) {
+        missing.push(capability);
+        console.warn(`⚠️  Tool ${tool.context.name} requires ${capability} (not available)`);
+      }
+    }
+    
+    // Create system.requirement.v1 if dependencies missing
+    if (missing.length > 0) {
+      await this.createSystemRequirement(tool, missing);
+    }
+    
+    return { available: missing.length === 0, missing };
+  }
+  
+  /**
+   * Check if a system capability is available
+   */
+  private async checkCapability(capability: string): Promise<boolean> {
+    const checks: Record<string, string> = {
+      'chrome-browser': 'google-chrome --version',
+      'imagemagick': 'convert --version',
+      'ghostscript': 'gs --version',
+      'ffmpeg': 'ffmpeg -version'
+    };
+    
+    const checkCommand = checks[capability];
+    if (!checkCommand) {
+      console.warn(`Unknown capability: ${capability}`);
+      return false;
+    }
+    
+    try {
+      const { spawn } = await import('child_process');
+      return new Promise((resolve) => {
+        const proc = spawn('sh', ['-c', checkCommand], { stdio: 'pipe' });
+        proc.on('exit', (code) => resolve(code === 0));
+        proc.on('error', () => resolve(false));
+        setTimeout(() => { proc.kill(); resolve(false); }, 2000);
+      });
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
+   * Create system.requirement.v1 breadcrumb for missing capabilities
+   */
+  private async createSystemRequirement(tool: ToolCodeBreadcrumb, missing: string[]): Promise<void> {
+    try {
+      await this.client.createBreadcrumb({
+        schema_name: 'system.requirement.v1',
+        title: `System Requirement: ${missing.join(', ')}`,
+        tags: ['system:requirement', `tool:${tool.context.name}`, ...missing.map(m => `requires:${m}`)],
+        context: {
+          tool_id: tool.id,
+          tool_name: tool.context.name,
+          missing_capabilities: missing,
+          severity: 'high',
+          action_required: 'Switch to appropriate Docker image or install system packages',
+          docker_images: missing.some(m => m === 'chrome-browser') ? ['tools-runner:browser', 'tools-runner:full'] : ['tools-runner:full'],
+          created_at: new Date().toISOString()
+        }
+      });
+      console.log(`📋 Created system.requirement.v1 for ${tool.context.name}`);
+    } catch (error) {
+      console.error('Failed to create system requirement breadcrumb:', error);
+    }
   }
   
   /**
