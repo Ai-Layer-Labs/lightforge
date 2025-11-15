@@ -355,8 +355,22 @@ export class DenoToolRuntime {
       return;
     }
     
-    this.tools.set(tool.context.name, tool);
-    console.log(`[DenoToolRuntime] Loaded approved tool: ${tool.context.name}`);
+    const toolName = tool.context.name;
+    
+    // Pre-cache dependencies before adding to runtime
+    console.log(`📦 Pre-caching dependencies for ${toolName}...`);
+    const cacheResult = await this.executor.precacheDependencies(
+      tool.context.code,
+      tool.context.permissions
+    );
+    
+    if (!cacheResult.success) {
+      console.warn(`⚠️  Dependency cache warning for ${toolName}:`, cacheResult.error);
+      // Continue anyway - might work with cached-only or no imports
+    }
+    
+    this.tools.set(toolName, tool);
+    console.log(`[DenoToolRuntime] Loaded approved tool: ${toolName}`);
   }
   
   /**

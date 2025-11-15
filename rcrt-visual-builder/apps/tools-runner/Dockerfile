@@ -60,6 +60,10 @@ ENV DEPLOYMENT_MODE=docker
 ENV RCRT_BASE_URL=http://rcrt:8081
 ENV WORKSPACE=workspace:tools
 
+# Configure Deno cache directory (persist in volume)
+ENV DENO_DIR=/app/.deno-cache
+RUN mkdir -p /app/.deno-cache && chown node:node /app/.deno-cache
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "process.exit(0)"

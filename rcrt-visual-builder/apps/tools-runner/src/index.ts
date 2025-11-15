@@ -128,19 +128,22 @@ async function startCentralizedSSEDispatcher(
                       eventData.tags?.includes(workspace) &&
                       eventData.tags?.includes('approved')) {
                     
-                    console.log(`✅ Approved tool detected: ${eventData.breadcrumb_id}`);
+                    console.log(`🔄 Hot-loading approved tool: ${eventData.breadcrumb_id}`);
                     
                     if (globalDenoRuntime) {
                       try {
                         await globalDenoRuntime.addToolById(eventData.breadcrumb_id);
-                        console.log(`✅ Loaded approved tool`);
+                        const toolCount = globalDenoRuntime.getAllTools().length;
+                        console.log(`✅ Tool loaded successfully - ${toolCount} tools now available`);
                         
                         // Update catalog
                         await bootstrapTools(client, workspace);
                         console.log('📊 Tool catalog updated');
                       } catch (error) {
-                        console.error('❌ Failed to load approved tool:', error);
+                        console.error('❌ Failed to hot-load approved tool:', error);
                       }
+                    } else {
+                      console.warn('⚠️  Deno runtime not initialized - cannot hot-load tool');
                     }
                   }
                 }

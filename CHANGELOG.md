@@ -6,6 +6,14 @@
 - Two-phase context assembly: trigger breadcrumbs fetched via /full, supporting via /llm_optimized
 - BreadcrumbFull struct and get_breadcrumb_full() method in context-builder client
 - Separate formatting for trigger (complete metadata) vs supporting context (minimal)
+- **Persistent Deno dependency cache** - Configured `DENO_DIR=/app/.deno-cache` with Docker volume
+  - Dependencies persist across container restarts
+  - No re-download of packages on every restart
+  - Shared cache for all tools
+- **Dependency pre-caching** - Tools download external imports before first execution
+  - Extracts jsr:, npm:, and https: imports from tool code
+  - Pre-downloads dependencies with appropriate timeout
+  - Browser automation tools get 5-minute timeout for binary downloads
 
 ### Fixed
 - validation-specialist now receives full tool structure (description, semantic_version, llm_hints, tags)
@@ -13,10 +21,30 @@
 - **`breadcrumb-approve` and `breadcrumb-context-merge` tool failures** - Fixed missing network permissions causing silent Deno execution failures (exit code 1)
   - Both tools now have `"net": true` permission to call RCRT API endpoints
   - Tools were failing because they make HTTP requests via `context.api` but had network disabled
+- **Deno error reporting** - Removed `--quiet` flag and added detailed error message builder
+  - Error messages now include exit code, stdout, stderr, and stack traces
+  - tool-debugger can now see actual Deno errors (import failures, permission denials, library issues)
+  - Enables accurate pattern matching for automated fixes
 
 ### Changed
 - Context-builder publisher now shows trigger breadcrumb with full structure first
 - Supporting breadcrumbs (tools, knowledge, etc.) remain LLM-optimized and minimal
+- **tool-debugger** - Updated system prompt with error pattern recognition and mandatory user feedback
+  - All responses now include user-facing "message" field explaining what happened
+  - Added common error patterns (permission denials, import errors, timeouts, etc.)
+- **tool-creator** - Added comprehensive Deno runtime guidance to system prompt
+  - Explains Deno vs Node.js differences (imports, APIs, globals)
+  - Provides import syntax examples (jsr:, npm:, https: URLs)
+  - Maps permissions to Deno flags and use cases
+  - Includes common patterns (browser automation, API calls, file ops, pure computation)
+- **Hot-reload logging improved** - Better visibility when approved tools are loaded
+  - Shows hot-load start, success, and tool count
+  - Displays pre-caching activity
+  - Clearer error messages if hot-load fails
+
+### Known Issues
+- **Tag naming inconsistency**: Tools with underscores in name (e.g., `uuid_gen`) may get hyphenated tags (e.g., `tool:uuid-gen`) which breaks search
+  - Workaround: Use hyphens consistently in tool names, or update tag generation to preserve underscores
 
 ## [4.2.0] - 2025-11-12 - Direct Tool Discovery & Universal Tool Standard
 

@@ -95,7 +95,7 @@ export class DenoExecutor {
       if (!processResult.success) {
         return {
           success: false,
-          error: processResult.stderr || 'Tool execution failed',
+          error: this.buildErrorMessage(processResult),
           metadata: {
             duration_ms: processResult.duration_ms,
             timedOut: false,
@@ -337,6 +337,127 @@ class RcrtClient {
 
 const api = new RcrtClient({ baseUrl: CONTEXT_API_BASE_URL, token: CONTEXT_API_TOKEN });
 `;
+  }
+  
+  /**
+   * Build detailed error message from process result
+   */
+  private buildErrorMessage(processResult: { 
+    stdout: string; 
+    stderr: string; 
+    exitCode: number | null;
+    duration_ms: number;
+  }): string {
+    const parts: string[] = [];
+    
+    // Always include exit code
+    parts.push(`Deno exited with code ${processResult.exitCode}`);
+    
+    // Try to parse stdout as JSON error (from execution wrapper)
+    if (processResult.stdout.trim()) {
+      try {
+        const parsed = JSON.parse(processResult.stdout);
+        if (parsed.error) {
+          parts.push(`\nTool Error: ${parsed.error}`);
+          if (parsed.stack) {
+            parts.push(`\nStack: ${parsed.stack}`);
+          }
+          return parts.join('');
+        }
+      } catch {}
+      parts.push(`\nStdout: ${processResult.stdout.slice(0, 500)}`);
+    }
+    
+    // Include stderr if present
+    if (processResult.stderr.trim()) {
+      parts.push(`\nStderr: ${processResult.stderr.slice(0, 500)}`);
+    }
+    
+    // Fallback if both empty
+    if (!processResult.stdout.trim() && !processResult.stderr.trim()) {
+      parts.push('\nNo error output captured - tool may have crashed or been killed');
+    }
+    
+    return parts.join('');
+  }
+  
+  /**
+   * Pre-cache dependencies for a tool
+   * Downloads imports without executing the tool
+   */
+  async precacheDependencies(
+    code: ToolCode,
+    permissions: ToolPermissions
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Extract imports from code
+      const imports = this.extractImports(code.source);
+      
+      if (imports.length === 0) {
+        return { success: true }; // No external dependencies
+      }
+      
+      console.log(`📦 Pre-caching ${imports.length} dependencies...`);
+      
+      // Create a minimal script that just imports
+      const cacheScript = `
+${imports.map(imp => `import "${imp}";`).join('\n')}
+console.log("Dependencies cached");
+Deno.exit(0);
+`;
+      
+      const args = ProcessManager.buildDenoArgs(permissions);
+      
+      // Special handling for browser automation tools
+      let timeout_ms = 120000; // 2 minutes default
+      if (imports.some(imp => imp.includes('astral') || imp.includes('puppeteer'))) {
+        console.log('🌐 Browser automation detected - this may download ~150MB browser binary');
+        console.log('   First run will be slow, subsequent runs will be fast');
+        timeout_ms = 300000; // 5 minutes for browser tools
+      }
+      
+      const processResult = await ProcessManager.executeWithTimeout(
+        this.denoPath,
+        args,
+        cacheScript,
+        { timeout_ms }
+      );
+      
+      if (!processResult.success) {
+        return {
+          success: false,
+          error: `Dependency cache failed: ${processResult.stderr || processResult.stdout}`
+        };
+      }
+      
+      console.log(`✅ Dependencies cached successfully`);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * Extract import statements from TypeScript code
+   */
+  private extractImports(code: string): string[] {
+    const imports: string[] = [];
+    // Match: import ... from "url"
+    const regex = /import\s+(?:{[^}]+}|[\w*]+|\*\s+as\s+\w+)\s+from\s+["']([^"']+)["']/g;
+    let match;
+    
+    while ((match = regex.exec(code)) !== null) {
+      const importPath = match[1];
+      // Only cache external imports (jsr:, npm:, https:)
+      if (importPath.startsWith('jsr:') || 
+          importPath.startsWith('npm:') || 
+          importPath.startsWith('https://') ||
+          importPath.startsWith('http://')) {
+        imports.push(importPath);
+      }
+    }
+    
+    return imports;
   }
   
   /**

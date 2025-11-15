@@ -164,6 +164,8 @@ services:
       ENABLE_BUILTIN_TOOLS: "true"
       ENABLE_TOOL_UI: "false"
       DEPLOYMENT_MODE: docker
+    volumes:
+      - deno-cache:/app/.deno-cache  # Persist Deno dependencies
 
   agent-runner:
     build:
@@ -221,4 +223,6 @@ services:
       retries: 5
       start_period: 10s
 
+volumes:
+  deno-cache:  # Persistent Deno dependency cache
 

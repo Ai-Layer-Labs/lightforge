@@ -134,8 +134,8 @@ export class ProcessManager {
     const args: string[] = [
       'run',
       '--no-prompt',
-      '--no-config',
-      '--quiet'
+      '--no-config'
+      // Note: --quiet removed to capture import errors and permission denials
     ];
     
     // Network permissions
@@ -178,10 +178,8 @@ export class ProcessManager {
       args.push('--allow-ffi');
     }
     
-    // High-resolution time (blocked to prevent timing attacks)
-    if (permissions.hrtime) {
-      args.push('--allow-hrtime');
-    }
+    // Note: hrtime permission removed in Deno 2 (always allowed)
+    // if (permissions.hrtime) { args.push('--allow-hrtime'); }
     
     // Read from stdin
     args.push('-');
