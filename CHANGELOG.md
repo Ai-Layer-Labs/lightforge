@@ -10,6 +10,9 @@
 ### Fixed
 - validation-specialist now receives full tool structure (description, semantic_version, llm_hints, tags)
 - Curator agents can properly inspect breadcrumb compliance without missing top-level fields
+- **`breadcrumb-approve` and `breadcrumb-context-merge` tool failures** - Fixed missing network permissions causing silent Deno execution failures (exit code 1)
+  - Both tools now have `"net": true` permission to call RCRT API endpoints
+  - Tools were failing because they make HTTP requests via `context.api` but had network disabled
 
 ### Changed
 - Context-builder publisher now shows trigger breadcrumb with full structure first
